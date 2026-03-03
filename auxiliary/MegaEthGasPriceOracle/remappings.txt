@@ -1,0 +1,3 @@
+@synthetixio/core-contracts=../../utils/core-contracts
+@synthetixio/oracle-manager=../../protocol/oracle-manager
+forge-std/=../../node_modules/forge-std/src/
