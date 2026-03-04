@@ -3360,6 +3360,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@synthetixio/megaeth-gas-price-oracle@workspace:auxiliary/MegaEthGasPriceOracle":
+  version: 0.0.0-use.local
+  resolution: "@synthetixio/megaeth-gas-price-oracle@workspace:auxiliary/MegaEthGasPriceOracle"
+  dependencies:
+    "@synthetixio/common-config": "workspace:*"
+    "@synthetixio/core-contracts": "workspace:*"
+    "@synthetixio/core-modules": "workspace:*"
+    "@synthetixio/docgen": "workspace:*"
+    hardhat: "npm:^2.19.5"
+    solidity-docgen: "npm:^0.6.0-beta.36"
+    typescript: "npm:^5.5.4"
+  languageName: unknown
+  linkType: soft
+
 "@synthetixio/op-gas-price-oracle@workspace:auxiliary/OpGasPriceOracle":
   version: 0.0.0-use.local
   resolution: "@synthetixio/op-gas-price-oracle@workspace:auxiliary/OpGasPriceOracle"
