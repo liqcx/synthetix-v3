@@ -12,6 +12,8 @@
     "auth": "graph auth --product hosted-service $V3_GRAPH_KEY",
     "alchemy:base-sepolia-andromeda": "graph deploy perps-market-base-sepolia-andromeda subgraph.base-sepolia-andromeda.yaml --output-dir ./build/base-sepolia-andromeda --version-label v1 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz",
     "alchemy:base-mainnet-andromeda": "graph deploy perps-market-base-mainnet-andromeda subgraph.base-mainnet-andromeda.yaml --output-dir ./build/base-mainnet-andromeda --version-label v1 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz",
+    "goldsky:base-sepolia-andromeda": "goldsky subgraph deploy perps-market-base-sepolia-andromeda/0.0.1 --path ./build/base-sepolia-andromeda",
+    "goldsky:megaeth-testnet": "goldsky subgraph deploy perps-market-megaeth-testnet/0.0.1 --path ./build/megaeth-testnet",
     "test": "graph test",
     "coverage": "graph test --coverage"
   },

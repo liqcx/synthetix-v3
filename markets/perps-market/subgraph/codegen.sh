@@ -24,3 +24,4 @@ codegen() {
 
 codegen base-mainnet-andromeda 8453 "synthetix-omnibus:latest@andromeda"
 codegen base-sepolia-andromeda 84532 "synthetix-omnibus:latest@andromeda"
+codegen megaeth-testnet 6343 "synthetix-omnibus:latest@andromeda"
