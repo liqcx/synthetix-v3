@@ -157,6 +157,9 @@ describe('Insolvent test', () => {
       );
     });
 
+    // lockedCreditDelta is now based on abs(sizeDelta) instead of abs(newPosition) - abs(oldPosition).
+    // For sizeDelta=-160 with position=+50: old calc gave abs(-110)-abs(50)=60, new gives abs(-160)=160.
+    // So required credit = existing 50*2000 + 160*2000 = 420,000.
     it('reverts when attempting to open position in the opposite direction above market credit capacity', async () => {
       await assertRevert(
         systems()
@@ -170,7 +173,7 @@ describe('Insolvent test', () => {
             referrer: ethers.constants.AddressZero,
             trackingCode: ethers.constants.HashZero,
           }),
-        `ExceedsMarketCreditCapacity("${delegatedCollateralValue.toString(18, true)}", "${wei(60).add(wei(50)).mul(_ETH_PRICE).toString(18, true)}")`,
+        `ExceedsMarketCreditCapacity("${delegatedCollateralValue.toString(18, true)}", "${wei(160).add(wei(50)).mul(_ETH_PRICE).toString(18, true)}")`,
         systems().PerpsMarket
       );
     });
