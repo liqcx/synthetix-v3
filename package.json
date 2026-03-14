@@ -40,7 +40,7 @@
     "deps:fix": "deps --fix",
     "deps:mismatched": "deps-mismatched",
     "deps:circular": "deps-circular",
-    "publish:release": "lerna publish",
+    "publish:release": "lerna publish --force-publish",
     "publish:dev": "lerna publish from-package --force-publish --dist-tag dev --no-git-reset",
     "version:dev": "lerna version 0.0.0-dev.$(git rev-parse --short HEAD) --no-changelog --no-push --no-git-tag-version --force-publish --allow-branch $(git branch --show-current)",
     "publish-contracts": "yarn workspaces foreach --all --verbose run publish-contracts",
@@ -66,11 +66,14 @@
     "@lerna-lite/publish": "^3.3.0",
     "@nomiclabs/hardhat-ethers": "^2.2.3",
     "@synthetixio/deps": "workspace:*",
+    "@types/debug": "^4.1.12",
+    "@types/fs-extra": "^11.0.4",
     "@types/mocha": "^10.0.6",
     "@types/node": "^20.11.17",
+    "@types/semver": "^7.5.8",
     "@typescript-eslint/eslint-plugin": "^8.4.0",
     "@typescript-eslint/parser": "^8.4.0",
-    "@usecannon/cli": "2.20.1",
+    "@usecannon/cli": "2.25.1",
     "eslint": "^9.9.1",
     "eslint-plugin-no-only-tests": "^3.1.0",
     "forge-std": "github:foundry-rs/forge-std#v1.9.7",
@@ -123,5 +126,5 @@
   "engines": {
     "node": "^20.17.0"
   },
-  "packageManager": "yarn@4.4.1"
+  "packageManager": "yarn@4.7.0"
 }

@@ -92,30 +92,11 @@ export function coreBootstrap<Contracts>(params: Params = { cannonfile: 'cannonf
   function createSnapshot() {
     let snapshotId: number;
 
-    async function finaliseTxns() {
-      const p = getProvider();
-      const blockNumber = await p.getBlockNumber();
-      const block = await p.getBlockWithTransactions(blockNumber);
-      if (block?.transactions) {
-        for await (const tx of block.transactions) {
-          try {
-            await tx.wait();
-          } catch (e) {
-            console.log('Leftover transaction', tx);
-            console.error(e);
-            // I really don't care if you fail or not
-          }
-        }
-      }
-    }
-
     before('create snapshot', async function () {
-      await finaliseTxns();
       snapshotId = await provider.send('evm_snapshot', []);
     });
 
     return async function restoreSnapshot() {
-      await finaliseTxns();
       await provider.send('evm_revert', [snapshotId]);
       snapshotId = await provider.send('evm_snapshot', []);
     };

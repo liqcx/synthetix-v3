@@ -1,6 +1,6 @@
 {
   "name": "@synthetixio/hardhat-storage",
-  "version": "3.10.1",
+  "version": "3.13.1",
   "publishConfig": {
     "access": "public"
   },
@@ -24,7 +24,7 @@
   "license": "MIT",
   "scripts": {
     "build": "yarn build:ts",
-    "build:ts": "tsc --project src/tsconfig.json",
+    "build:ts": "tsc --noEmit false --project src/tsconfig.json",
     "watch": "yarn build --watch",
     "test": "jest",
     "coverage": "yarn test --coverage",

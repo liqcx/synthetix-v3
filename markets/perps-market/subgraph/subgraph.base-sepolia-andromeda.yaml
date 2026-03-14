@@ -7,8 +7,8 @@ dataSources:
     name: PerpsMarketProxy
     source:
       abi: PerpsMarketProxy
-      address: "0xE6C5f05C415126E6b81FCc3619f65Db2fCAd58D0"
-      startBlock: 4548969
+      address: "0x814A983656582067C6F880e36Cd4D6fC2A7Ef37F"
+      startBlock: 37970508
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.6
@@ -16,7 +16,7 @@ dataSources:
       file: ./base-sepolia-andromeda/index.ts
       abis:
         - name: PerpsMarketProxy
-          file: ./base-sepolia-andromeda/deployments/perpsFactory/PerpsMarketProxy.json
+          file: ./artifacts/PerpsMarketProxy.json
       entities:
         - Account
         - Market

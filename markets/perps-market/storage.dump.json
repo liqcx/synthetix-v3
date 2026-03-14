@@ -687,6 +687,20 @@
           "size": 32,
           "slot": "8",
           "offset": 0
+        },
+        {
+          "type": "bytes16",
+          "name": "orderMode",
+          "size": 16,
+          "slot": "9",
+          "offset": 0
+        },
+        {
+          "type": "uint128",
+          "name": "orderModeChangeTime",
+          "size": 16,
+          "slot": "9",
+          "offset": 16
         }
       ],
       "MemoryContext": [
