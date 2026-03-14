@@ -19,7 +19,6 @@ node_modules
 Router.sol
 typechain-types
 lerna-debug.log
-docs/
 junit
 storage.new.dump.json
 

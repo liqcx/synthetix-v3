@@ -237,7 +237,7 @@ describe('MarketConfiguration', () => {
             settlementStrategy.disabled.toString() +
             ', ' +
             settlementStrategy.commitmentPriceDelay.toString() +
-            '], 3)',
+            '], 1)',
           systems().PerpsMarket
         );
       });
