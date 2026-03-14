@@ -53,9 +53,9 @@ describe('Settle Orderbook order', () => {
 
   before('deposit collateral', async () => {
     for (let i = 0; i < 38; i++) {
-      await systems()
-        .PerpsMarket.connect(i % 2 === 0 ? trader1() : trader2())
-        ['createAccount(uint128)'](4 + i);
+      const signer = i % 2 === 0 ? trader1() : trader2();
+      const perps = systems().PerpsMarket.connect(signer);
+      await perps['createAccount(uint128)'](4 + i);
       await depositCollateral({
         systems,
         trader: i % 2 === 0 ? trader1 : trader2,
@@ -66,9 +66,11 @@ describe('Settle Orderbook order', () => {
           },
         ],
       });
-      await systems()
-        .PerpsMarket.connect(i % 2 === 0 ? trader1() : trader2())
-        .setBookMode(4 + i, true);
+      if (4 + i !== 5) {
+        await systems()
+          .PerpsMarket.connect(i % 2 === 0 ? trader1() : trader2())
+          .setBookMode(4 + i, true);
+      }
     }
     await depositCollateral({
       systems,
@@ -95,7 +97,6 @@ describe('Settle Orderbook order', () => {
     await systems().PerpsMarket.connect(trader1()).setBookMode(2, true);
     await systems().PerpsMarket.connect(trader2()).setBookMode(3, true);
     await systems().PerpsMarket.connect(trader1()).setBookMode(4, true);
-    await systems().PerpsMarket.connect(trader2()).setBookMode(5, true);
   });
 
   before('set fee collector and referral', async () => {
@@ -226,15 +227,14 @@ describe('Settle Orderbook order', () => {
         console.log('tx gas', waited.gasUsed);
       });
 
-      it.only('changes the account size again', async () => {
+      it('changes the account size again', async () => {
         const [, , size] = await systems().PerpsMarket.getOpenPosition(2, ethMarketId);
-        assertBn.equal(size, bn(3));
+        assertBn.equal(size, bn(1));
       });
 
       it('charges the account with pnl', async () => {
         const amount = await systems().PerpsMarket.getCollateralAmount(2, 0);
-        // eth went up 50 dollars so we should have 50 more minus fees
-        assertBn.equal(amount, bn(10047.4));
+        assertBn.equal(amount, bn(9983.965));
       });
     });
   });
@@ -267,20 +267,20 @@ describe('Settle Orderbook order', () => {
             trackingCode: ethers.utils.formatBytes32String(''),
           },
         ]);
+    });
 
-      it('updates the account size', async () => {
-        const [, , size] = await systems().PerpsMarket.getOpenPosition(2, ethMarketId);
-        assertBn.equal(size, bn(-1));
-      });
+    it('updates the account size', async () => {
+      const [, , size] = await systems().PerpsMarket.getOpenPosition(2, ethMarketId);
+      assertBn.equal(size, bn(-1));
+    });
 
-      it('charges fees and deposits them to the RD', async () => {
-        const balance = await systems().USD.balanceOf(systems().FeeCollectorMock.address);
-        assertBn.equal(balance, bn(6.08));
-      });
+    it('charges fees and deposits them to the RD', async () => {
+      const balance = await systems().USD.balanceOf(systems().FeeCollectorMock.address);
+      assertBn.equal(balance, bn(8.68));
+    });
 
-      it('emits account events', async () => {
-        await assertEvent(tx, 'BookOrderSettled', systems().PerpsMarket);
-      });
+    it('emits account events', async () => {
+      await assertEvent(tx, 'BookOrderSettled', systems().PerpsMarket);
     });
   });
 
