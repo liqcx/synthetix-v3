@@ -1,6 +1,6 @@
 import { BigNumber, ethers } from 'ethers';
-import { PerpsMarket, bn, bootstrapMarkets } from '../bootstrap';
-import { openPosition } from '../helpers';
+import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
+import { openPosition } from '../../helpers';
 import assertBn from '@synthetixio/core-utils/src/utils/assertions/assert-bignumber';
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
 

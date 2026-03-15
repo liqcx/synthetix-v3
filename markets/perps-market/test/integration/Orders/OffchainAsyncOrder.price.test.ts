@@ -1,8 +1,8 @@
 import { ethers } from 'ethers';
-import { DEFAULT_SETTLEMENT_STRATEGY, bn, bootstrapMarkets } from '../bootstrap';
+import { DEFAULT_SETTLEMENT_STRATEGY, bn, bootstrapMarkets } from '../../bootstrap';
 import { fastForwardTo } from '@synthetixio/core-utils/utils/hardhat/rpc';
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
-import { depositCollateral } from '../helpers';
+import { depositCollateral } from '../../helpers';
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
 import assertRevert from '@synthetixio/core-utils/utils/assertions/assert-revert';
 import { getTxTime } from '@synthetixio/core-utils/src/utils/hardhat/rpc';

@@ -1,6 +1,6 @@
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
-import { PerpsMarket, bn, bootstrapMarkets } from '../bootstrap';
-import { openPosition } from '../helpers';
+import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
+import { openPosition } from '../../helpers';
 import { fastForwardTo, getTxTime } from '@synthetixio/core-utils/utils/hardhat/rpc';
 import { ethers } from 'ethers';
 

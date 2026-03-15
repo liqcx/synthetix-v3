@@ -1,5 +1,5 @@
-import { PerpsMarket, bn, bootstrapMarkets } from './bootstrap';
-import { openPosition } from './helpers';
+import { PerpsMarket, bn, bootstrapMarkets } from '../bootstrap';
+import { openPosition } from '../helpers';
 import assertRevert from '@synthetixio/core-utils/utils/assertions/assert-revert';
 import { ethers } from 'ethers';
 import { fastForwardTo, getTxTime } from '@synthetixio/core-utils/utils/hardhat/rpc';

@@ -1,5 +1,6 @@
 import { bootstrapStakers } from '@synthetixio/main/test/common';
-import { Systems, bn } from './bootstrap';
+import { Systems } from './bootstrap';
+import { bn } from './helpers';
 import { ethers } from 'ethers';
 
 type Data = {

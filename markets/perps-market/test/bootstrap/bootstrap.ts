@@ -8,16 +8,13 @@ import {
   SynthRouter,
   TrustedMulticallForwarder,
 } from '@synthetixio/spot-market/test/generated/typechain';
-import { wei } from '@synthetixio/wei';
 import { ethers } from 'ethers';
 import { AccountProxy, FeeCollectorMock, PerpsMarketProxy } from '../../generated/typechain';
-import {
-  bootstrapPerpsMarkets,
-  bootstrapTraders,
-  createRewardsDistributor,
-  PerpsMarketData,
-} from './';
+import { bootstrapPerpsMarkets, PerpsMarketData } from './bootstrapPerpsMarkets';
+import { bootstrapTraders } from './bootstrapTraders';
+import { createRewardsDistributor } from './createRewardsDistributor';
 import { createKeeperCostNode } from './createKeeperCostNode';
+import { bn } from './helpers';
 import { MockGasPriceNode } from '../../../typechain-types/contracts/mocks/MockGasPriceNode';
 import { MockPythERC7412Wrapper } from '../../../typechain-types/contracts/mocks/MockPythERC7412Wrapper';
 
@@ -294,5 +291,4 @@ export function bootstrapMarkets(data: BootstrapArgs) {
   };
 }
 
-export const bn = (n: number) => wei(n).toBN();
-export const toNum = (n: ethers.BigNumber) => Number(ethers.utils.formatEther(n));
+export { bn, toNum } from './helpers';

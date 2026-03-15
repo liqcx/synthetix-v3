@@ -1,16 +1,16 @@
 import { ethers } from 'ethers';
-import { DEFAULT_SETTLEMENT_STRATEGY, bn, bootstrapMarkets } from '../bootstrap';
+import { DEFAULT_SETTLEMENT_STRATEGY, bn, bootstrapMarkets } from '../../bootstrap';
 import { fastForwardTo } from '@synthetixio/core-utils/utils/hardhat/rpc';
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
 import { SynthMarkets } from '@synthetixio/spot-market/test/common';
-import { DepositCollateralData, depositCollateral } from '../helpers';
+import { DepositCollateralData, depositCollateral } from '../../helpers';
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
 import assertEvent from '@synthetixio/core-utils/utils/assertions/assert-event';
 import assertRevert from '@synthetixio/core-utils/utils/assertions/assert-revert';
 import { getTxTime } from '@synthetixio/core-utils/src/utils/hardhat/rpc';
-import { calculateFillPrice, calculatePricePnl } from '../helpers/fillPrice';
+import { calculateFillPrice, calculatePricePnl } from '../../helpers/fillPrice';
 import { wei } from '@synthetixio/wei';
-import { calcCurrentFundingVelocity } from '../helpers/funding-calcs';
+import { calcCurrentFundingVelocity } from '../../helpers/funding-calcs';
 import { deepEqual } from 'assert/strict';
 
 describe('Settle Offchain Async Order test', () => {

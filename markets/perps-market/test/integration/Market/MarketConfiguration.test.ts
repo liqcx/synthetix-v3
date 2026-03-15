@@ -1,5 +1,5 @@
 import { bn } from '@synthetixio/main/test/common';
-import { bootstrapMarkets } from '../bootstrap';
+import { bootstrapMarkets } from '../../bootstrap';
 import { Signer, ethers, utils } from 'ethers';
 import assertRevert from '@synthetixio/core-utils/src/utils/assertions/assert-revert';
 import assertBn from '@synthetixio/core-utils/src/utils/assertions/assert-bignumber';

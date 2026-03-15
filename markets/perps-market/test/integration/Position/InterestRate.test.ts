@@ -1,5 +1,5 @@
-import { PerpsMarket, bn, bootstrapMarkets } from '../bootstrap';
-import { calculateInterestRate, openPosition } from '../helpers';
+import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
+import { calculateInterestRate, openPosition } from '../../helpers';
 import Wei, { wei } from '@synthetixio/wei';
 import { ethers } from 'ethers';
 import { fastForwardTo, getTime } from '@synthetixio/core-utils/utils/hardhat/rpc';

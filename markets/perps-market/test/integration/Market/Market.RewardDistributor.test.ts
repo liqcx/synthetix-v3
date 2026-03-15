@@ -1,10 +1,10 @@
 import { ethers } from 'ethers';
-import { bn, bootstrapMarkets } from '../bootstrap';
+import { bn, bootstrapMarkets } from '../../bootstrap';
 import assert from 'assert';
 import assertRevert from '@synthetixio/core-utils/utils/assertions/assert-revert';
 import assertEvent from '@synthetixio/core-utils/utils/assertions/assert-event';
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
-import { createRewardsDistributor } from '../bootstrap';
+import { createRewardsDistributor } from '../../bootstrap';
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
 
 describe('PerpsMarket: Reward Distributor configuration test', () => {

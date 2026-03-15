@@ -1,7 +1,12 @@
-import { bn, bootstrapMarkets } from '../bootstrap';
+import { bn, bootstrapMarkets } from '../../bootstrap';
 import assertBn from '@synthetixio/core-utils/src/utils/assertions/assert-bignumber';
 import assertRevert from '@synthetixio/core-utils/utils/assertions/assert-revert';
-import { calculateFillPrice, depositCollateral, discountedValue, openPosition } from '../helpers';
+import {
+  calculateFillPrice,
+  depositCollateral,
+  discountedValue,
+  openPosition,
+} from '../../helpers';
 import Wei, { wei } from '@synthetixio/wei';
 import { ethers } from 'ethers';
 

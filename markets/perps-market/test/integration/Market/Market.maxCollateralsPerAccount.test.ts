@@ -1,4 +1,4 @@
-import { bn, bootstrapMarkets } from '../bootstrap';
+import { bn, bootstrapMarkets } from '../../bootstrap';
 import assertRevert from '@synthetixio/core-utils/utils/assertions/assert-revert';
 import { BigNumber, ethers } from 'ethers';
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';

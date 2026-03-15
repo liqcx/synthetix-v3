@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
-import { DEFAULT_SETTLEMENT_STRATEGY, bn, bootstrapMarkets } from '../bootstrap';
-import { openPosition } from '../helpers';
+import { DEFAULT_SETTLEMENT_STRATEGY, bn, bootstrapMarkets } from '../../bootstrap';
+import { openPosition } from '../../helpers';
 import Wei, { wei } from '@synthetixio/wei';
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
 

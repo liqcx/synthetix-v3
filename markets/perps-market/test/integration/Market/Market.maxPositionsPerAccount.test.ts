@@ -1,5 +1,5 @@
-import { PerpsMarket, bn, bootstrapMarkets } from '../bootstrap';
-import { OpenPositionData, depositCollateral, openPosition } from '../helpers';
+import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
+import { OpenPositionData, depositCollateral, openPosition } from '../../helpers';
 import assertRevert from '@synthetixio/core-utils/utils/assertions/assert-revert';
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
 

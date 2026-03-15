@@ -1,6 +1,6 @@
-import { DEFAULT_SETTLEMENT_STRATEGY, PerpsMarket, bn, bootstrapMarkets } from '../bootstrap';
+import { DEFAULT_SETTLEMENT_STRATEGY, PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
 import { ethers } from 'ethers';
-import { openPosition } from '../helpers';
+import { openPosition } from '../../helpers';
 import { wei } from '@synthetixio/wei';
 import { fastForwardTo } from '@synthetixio/core-utils/utils/hardhat/rpc';
 import assertEvent from '@synthetixio/core-utils/utils/assertions/assert-event';

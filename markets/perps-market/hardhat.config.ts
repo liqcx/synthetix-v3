@@ -1,7 +1,22 @@
 import commonConfig from '@synthetixio/common-config/hardhat.config';
+import { subtask } from 'hardhat/config';
 
 import 'solidity-docgen';
 import { templates } from '@synthetixio/docgen';
+
+// Inject anvil options to reduce snapshot overhead
+subtask('cannon:run-anvil-node').setAction(async (args, hre, runSuper) => {
+  const anvilOptions = {
+    ...(args.anvilOptions || {}),
+    pruneHistory: true,
+    transactionBlockKeeper: 5,
+    disableConsoleLog: true,
+    blockBaseFeePerGas: 0,
+    disableMinPriorityFee: true,
+  };
+  console.log('[anvil] options:', JSON.stringify(anvilOptions));
+  return runSuper({ ...args, anvilOptions });
+});
 
 const config = {
   ...commonConfig,

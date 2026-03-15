@@ -1,11 +1,11 @@
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
-import { bn, bootstrapMarkets } from '../bootstrap';
+import { bn, bootstrapMarkets } from '../../bootstrap';
 import {
   calculateFillPrice,
   openPosition,
   requiredMargins,
   getRequiredLiquidationRewardMargin,
-} from '../helpers';
+} from '../../helpers';
 import { wei } from '@synthetixio/wei';
 import { ethers } from 'ethers';
 

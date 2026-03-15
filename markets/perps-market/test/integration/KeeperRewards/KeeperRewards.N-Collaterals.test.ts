@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
-import { bn, bootstrapMarkets } from '../bootstrap';
-import { depositCollateral, openPosition } from '../helpers';
+import { bn, bootstrapMarkets } from '../../bootstrap';
+import { depositCollateral, openPosition } from '../../helpers';
 import { SynthMarkets } from '@synthetixio/spot-market/test/common';
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
 import assertEvent from '@synthetixio/core-utils/utils/assertions/assert-event';

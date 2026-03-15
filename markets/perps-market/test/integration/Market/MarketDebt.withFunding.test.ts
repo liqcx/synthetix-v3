@@ -1,6 +1,6 @@
 import { fastForwardTo, getTxTime } from '@synthetixio/core-utils/utils/hardhat/rpc';
-import { PerpsMarket, bn, bootstrapMarkets } from '../bootstrap';
-import { depositCollateral, openPosition } from '../helpers';
+import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
+import { depositCollateral, openPosition } from '../../helpers';
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
 import { ethers } from 'ethers';
 

@@ -1,5 +1,5 @@
-import { PerpsMarket, bn, bootstrapMarkets } from '../bootstrap';
-import { openPosition } from '../helpers';
+import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
+import { openPosition } from '../../helpers';
 import { wei } from '@synthetixio/wei';
 
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';

@@ -1,7 +1,7 @@
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
 import assertRevert from '@synthetixio/core-utils/utils/assertions/assert-revert';
-import { bn, bootstrapMarkets } from '../bootstrap';
-import { openPosition } from '../helpers';
+import { bn, bootstrapMarkets } from '../../bootstrap';
+import { openPosition } from '../../helpers';
 import { wei } from '@synthetixio/wei';
 import { ethers } from 'ethers';
 

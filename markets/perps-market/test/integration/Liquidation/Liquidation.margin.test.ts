@@ -1,7 +1,7 @@
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
 import assertRevert from '@synthetixio/core-utils/utils/assertions/assert-revert';
-import { bn, bootstrapMarkets } from '../bootstrap';
-import { OpenPositionData, openPosition } from '../helpers';
+import { bn, bootstrapMarkets } from '../../bootstrap';
+import { OpenPositionData, openPosition } from '../../helpers';
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
 import { ethers } from 'ethers';
 import assert from 'assert/strict';

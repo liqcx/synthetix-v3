@@ -1,5 +1,6 @@
 import { createStakedPool } from '@synthetixio/main/test/common';
-import { Systems, bootstrap, bn } from './bootstrap';
+import { Systems, bootstrap } from './bootstrap';
+import { bn } from './helpers';
 import { ethers } from 'ethers';
 import { MockPythExternalNode } from '@synthetixio/oracle-manager/typechain-types';
 import { createPythNode } from '@synthetixio/oracle-manager/test/common';

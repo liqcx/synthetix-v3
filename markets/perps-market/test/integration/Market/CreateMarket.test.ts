@@ -1,5 +1,10 @@
 import { ethers, BigNumber } from 'ethers';
-import { STRICT_PRICE_TOLERANCE, bn, bootstrapMarkets, createKeeperCostNode } from '../bootstrap';
+import {
+  STRICT_PRICE_TOLERANCE,
+  bn,
+  bootstrapMarkets,
+  createKeeperCostNode,
+} from '../../bootstrap';
 import assert from 'assert';
 import assertRevert from '@synthetixio/core-utils/utils/assertions/assert-revert';
 import assertEvent from '@synthetixio/core-utils/utils/assertions/assert-event';

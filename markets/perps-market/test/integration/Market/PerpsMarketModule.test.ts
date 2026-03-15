@@ -1,9 +1,9 @@
 import { ethers } from 'ethers';
 import assertBn from '@synthetixio/core-utils/src/utils/assertions/assert-bignumber';
-import { bn, bootstrapMarkets } from '../bootstrap';
-import { OpenPositionData, openPosition } from '../helpers';
+import { bn, bootstrapMarkets } from '../../bootstrap';
+import { OpenPositionData, openPosition } from '../../helpers';
 import { wei } from '@synthetixio/wei';
-import { calculateFillPrice } from '../helpers/fillPrice';
+import { calculateFillPrice } from '../../helpers/fillPrice';
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
 
 describe('PerpsMarketModule', () => {

@@ -1,5 +1,5 @@
-import { PerpsMarket, bn, bootstrapMarkets } from './bootstrap';
-import { calculateFillPrice, openPosition } from './helpers';
+import { PerpsMarket, bn, bootstrapMarkets } from '../bootstrap';
+import { calculateFillPrice, openPosition } from '../helpers';
 import { wei } from '@synthetixio/wei';
 import { fastForwardTo } from '@synthetixio/core-utils/utils/hardhat/rpc';
 import { ethers } from 'ethers';
