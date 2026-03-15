@@ -50,6 +50,25 @@ export function coreBootstrap<Contracts>(params: Params = { cannonfile: 'cannonf
       cannonInfo.provider
     ) as ethers.providers.Web3Provider;
 
+    // Wrap provider.perform to retry on BlockOutOfRangeError (Anvil race condition
+    // where eth_call fails because the block advances between resolution and execution)
+    const originalPerform = provider.perform.bind(provider);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    provider.perform = async function retryingPerform(method: string, params: any) {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          return await originalPerform(method, params);
+        } catch (err: unknown) {
+          const errStr = JSON.stringify(err);
+          if (errStr.includes('BlockOutOfRangeError') && attempt < 2) {
+            await new Promise((r) => setTimeout(r, 50));
+            continue;
+          }
+          throw err;
+        }
+      }
+    };
+
     signers = await getHardhatSigners(hre, provider);
 
     for (const signer of signers) {

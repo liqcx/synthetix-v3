@@ -8,8 +8,6 @@ import { templates } from '@synthetixio/docgen';
 subtask('cannon:run-anvil-node').setAction(async (args, hre, runSuper) => {
   const anvilOptions = {
     ...(args.anvilOptions || {}),
-    pruneHistory: true,
-    transactionBlockKeeper: 5,
     disableConsoleLog: true,
     blockBaseFeePerGas: 0,
     disableMinPriorityFee: true,
