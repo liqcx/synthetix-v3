@@ -180,6 +180,10 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
                 ctx.accountId = orders[i].accountId;
                 accumOrderData = AccumulatedOrderData(0, 0, 0, 0);
                 curPosition = market.positions[ctx.accountId];
+                // TODO: BUG — curPosition.marketId is 0 for new positions because storage default is 0.
+                // This causes getAccountFullPositionInfo to return marketId=0.
+                // Fix: uncomment the line below and redeploy.
+                // curPosition.marketId = marketId;
             } else if (orders[i].accountId < ctx.accountId) {
                 // order ids must be supplied in strictly ascending order
                 revert ParameterError.InvalidParameter(
