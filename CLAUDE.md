@@ -124,3 +124,13 @@ utils/hardhat-storage                       ← storage collision detection plug
 - Feature flags control access via `FeatureFlag.ensureAccessToFeature()`
 - Prettier: 100 char width, single quotes, trailing commas (JS/TS); tab width 4 (Solidity)
 - ESLint: no `.only()` in tests (enforced by `no-only-tests` plugin)
+
+## BookOrderModule (perps-orderbook branch)
+
+Security audit: [`docs/book-order-module-audit.md`](docs/book-order-module-audit.md) — 3 Critical, 5 High findings.
+
+Known bugs:
+
+- **`Position.marketId = 0`** for new positions (HIGH-5) — `curPosition.marketId` not set in settlement loop. Fix: add `curPosition.marketId = marketId;` after loading from storage.
+- **No price verification** (CRIT-1) — `signedPriceData` accepted but not verified onchain.
+- **No access control** (CRIT-2) — any address with `perpsSystem` feature flag can call `settleBookOrders`.
