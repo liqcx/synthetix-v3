@@ -1,0 +1,13 @@
+{
+  "name": "@synthetixio/faucet",
+  "version": "3.13.1",
+  "description": "Testnet faucet contract — per-(user, token) cooldown-gated claims",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "test": "forge test -vv",
+    "build": "forge build",
+    "clean": "forge clean",
+    "fmt": "forge fmt"
+  }
+}
