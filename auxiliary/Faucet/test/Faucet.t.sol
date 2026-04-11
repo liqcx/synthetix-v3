@@ -64,4 +64,14 @@ contract FaucetTest is Test {
 
         assertEq(token.balanceOf(user), CLAIM_AMOUNT * 2, "user got two claims after cooldown");
     }
+
+    function test_claim_unregisteredToken_reverts() public {
+        MockMintableERC20 strayToken = new MockMintableERC20("Stray", "STR", 18, tokenOwner);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(Faucet.TokenNotEnabled.selector, address(strayToken))
+        );
+        vm.prank(user);
+        faucet.claim(address(strayToken));
+    }
 }
