@@ -46,10 +46,16 @@ contract Faucet is Ownable {
         TokenConfig memory cfg = tokens[token];
         if (!cfg.enabled) revert TokenNotEnabled(token);
 
-        uint256 nextAt = block.timestamp + cfg.claimCooldown;
+        uint256 last = lastClaimAt[msg.sender][token];
+        if (last != 0) {
+            uint256 nextAt = last + cfg.claimCooldown;
+            if (block.timestamp < nextAt) revert CooldownNotElapsed(nextAt);
+        }
+
+        uint256 newNextAt = block.timestamp + cfg.claimCooldown;
         lastClaimAt[msg.sender][token] = block.timestamp;
 
         IERC20(token).transfer(msg.sender, cfg.claimAmount);
-        emit Claimed(msg.sender, token, cfg.claimAmount, nextAt);
+        emit Claimed(msg.sender, token, cfg.claimAmount, newNextAt);
     }
 }

@@ -42,4 +42,26 @@ contract FaucetTest is Test {
         );
         assertEq(faucet.lastClaimAt(user, address(token)), block.timestamp, "lastClaimAt updated");
     }
+
+    function test_claim_beforeCooldown_reverts() public {
+        vm.prank(user);
+        faucet.claim(address(token));
+
+        uint256 expectedNextAt = block.timestamp + CLAIM_COOLDOWN;
+        vm.expectRevert(abi.encodeWithSelector(Faucet.CooldownNotElapsed.selector, expectedNextAt));
+        vm.prank(user);
+        faucet.claim(address(token));
+    }
+
+    function test_claim_afterCooldown_succeeds() public {
+        vm.prank(user);
+        faucet.claim(address(token));
+
+        vm.warp(block.timestamp + CLAIM_COOLDOWN);
+
+        vm.prank(user);
+        faucet.claim(address(token));
+
+        assertEq(token.balanceOf(user), CLAIM_AMOUNT * 2, "user got two claims after cooldown");
+    }
 }
