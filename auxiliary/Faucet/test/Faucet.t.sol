@@ -221,4 +221,26 @@ contract FaucetTest is Test {
         vm.prank(user);
         faucet.withdraw(address(token), user, 1);
     }
+
+    function test_nextClaimAt_returnsZeroBeforeFirstClaim() public view {
+        assertEq(faucet.nextClaimAt(user, address(token)), 0);
+    }
+
+    function test_nextClaimAt_returnsLastClaimPlusCooldown() public {
+        vm.prank(user);
+        faucet.claim(address(token));
+
+        assertEq(faucet.nextClaimAt(user, address(token)), block.timestamp + CLAIM_COOLDOWN);
+    }
+
+    function test_getRegisteredTokens_returnsAppendedTokens() public {
+        MockMintableERC20 second = new MockMintableERC20("Second", "SND", 18, tokenOwner);
+        vm.prank(owner);
+        faucet.addToken(address(second), 1, 1);
+
+        address[] memory list = faucet.getRegisteredTokens();
+        assertEq(list.length, 2);
+        assertEq(list[0], address(token));
+        assertEq(list[1], address(second));
+    }
 }

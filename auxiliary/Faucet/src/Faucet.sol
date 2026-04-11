@@ -89,4 +89,14 @@ contract Faucet is Ownable {
         IERC20(token).transfer(to, amount);
         emit Withdrawn(token, to, amount);
     }
+
+    function nextClaimAt(address user, address token) external view returns (uint256) {
+        uint256 last = lastClaimAt[user][token];
+        if (last == 0) return 0;
+        return last + tokens[token].claimCooldown;
+    }
+
+    function getRegisteredTokens() external view returns (address[] memory) {
+        return registeredTokens;
+    }
 }
