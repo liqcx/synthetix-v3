@@ -11,6 +11,7 @@ import {IERC20} from "@synthetixio/core-contracts/contracts/interfaces/IERC20.so
 contract Faucet is Ownable {
     struct TokenConfig {
         bool enabled;
+        bool registered;
         uint128 claimAmount;
         uint64 claimCooldown;
     }
@@ -30,9 +31,10 @@ contract Faucet is Ownable {
     constructor(address initialOwner) Ownable(initialOwner) {}
 
     function addToken(address token, uint128 claimAmount, uint64 claimCooldown) external onlyOwner {
-        if (tokens[token].enabled) revert TokenAlreadyRegistered(token);
+        if (tokens[token].registered) revert TokenAlreadyRegistered(token);
         tokens[token] = TokenConfig({
             enabled: true,
+            registered: true,
             claimAmount: claimAmount,
             claimCooldown: claimCooldown
         });
