@@ -6,6 +6,8 @@ import {Faucet} from "../src/Faucet.sol";
 import {MockMintableERC20} from "./mocks/MockMintableERC20.sol";
 
 contract FaucetTest is Test {
+    event TokenAdded(address indexed token, uint128 claimAmount, uint64 claimCooldown);
+
     Faucet internal faucet;
     MockMintableERC20 internal token;
 
@@ -73,6 +75,24 @@ contract FaucetTest is Test {
         );
         vm.prank(user);
         faucet.claim(address(strayToken));
+    }
+
+    function test_addToken_twice_reverts() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(Faucet.TokenAlreadyRegistered.selector, address(token))
+        );
+        vm.prank(owner);
+        faucet.addToken(address(token), CLAIM_AMOUNT, CLAIM_COOLDOWN);
+    }
+
+    function test_addToken_emitsTokenAdded() public {
+        MockMintableERC20 newToken = new MockMintableERC20("New", "NEW", 18, tokenOwner);
+
+        vm.expectEmit(true, false, false, true);
+        emit TokenAdded(address(newToken), 123, 456);
+
+        vm.prank(owner);
+        faucet.addToken(address(newToken), 123, 456);
     }
 
     function test_claim_insufficientBalance_reverts() public {
