@@ -128,6 +128,20 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
         FeatureFlag.ensureAccessToFeature(Flags.PERPS_SYSTEM);
         PerpsMarket.Data storage market = PerpsMarket.loadValid(marketId);
 
+        // ADD: Pyth price verification — CRITICAL for production.
+        // Currently orderPrice is fully trusted from the settler with zero onchain verification.
+        // A malicious/compromised settler can settle at arbitrary prices, draining LP collateral.
+        //
+        // Implementation:
+        // 1. For each order, if signedPriceData.length > 0, verify it via PythERC7412Wrapper
+        //    and assert |orderPrice - pythPrice| < maxPriceDeviation (configurable per market).
+        // 2. If signedPriceData is empty, fall back to the onchain oracle price (PerpsPrice.getCurrentPrice)
+        //    and apply the same deviation check.
+        // 3. Add a configurable maxPriceDeviationBps (e.g. 50 bps) to PerpsMarketConfiguration.
+        //
+        // Until implemented, settleBookOrders should only be callable by a trusted settler address.
+        // Consider adding access control: require(msg.sender == trustedSettler).
+
         // loop 1: figure out the big picture change on the market
         uint256 marketSkewScale = PerpsMarketConfiguration.load(marketId).skewScale;
         {
