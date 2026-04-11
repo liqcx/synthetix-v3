@@ -8,6 +8,8 @@ import {MockMintableERC20} from "./mocks/MockMintableERC20.sol";
 contract FaucetTest is Test {
     event TokenAdded(address indexed token, uint128 claimAmount, uint64 claimCooldown);
     event TokenEnabledSet(address indexed token, bool enabled);
+    event ClaimAmountUpdated(address indexed token, uint128 oldAmount, uint128 newAmount);
+    event ClaimCooldownUpdated(address indexed token, uint64 oldCooldown, uint64 newCooldown);
 
     Faucet internal faucet;
     MockMintableERC20 internal token;
@@ -149,5 +151,51 @@ contract FaucetTest is Test {
         vm.expectRevert();
         vm.prank(user);
         faucet.setEnabled(address(token), false);
+    }
+
+    function test_setClaimAmount_takesEffectOnNextClaim() public {
+        uint128 newAmount = 999 * 10 ** 6;
+
+        vm.expectEmit(true, false, false, true);
+        emit ClaimAmountUpdated(address(token), CLAIM_AMOUNT, newAmount);
+
+        vm.prank(owner);
+        faucet.setClaimAmount(address(token), newAmount);
+
+        vm.prank(user);
+        faucet.claim(address(token));
+
+        assertEq(token.balanceOf(user), newAmount);
+    }
+
+    function test_setClaimCooldown_takesEffectOnNextClaim() public {
+        uint64 newCooldown = 12 hours;
+
+        vm.expectEmit(true, false, false, true);
+        emit ClaimCooldownUpdated(address(token), CLAIM_COOLDOWN, newCooldown);
+
+        vm.prank(owner);
+        faucet.setClaimCooldown(address(token), newCooldown);
+
+        vm.prank(user);
+        faucet.claim(address(token));
+
+        // 12 hours later, the second claim should work.
+        vm.warp(block.timestamp + newCooldown);
+        vm.prank(user);
+        faucet.claim(address(token));
+        assertEq(token.balanceOf(user), CLAIM_AMOUNT * 2);
+    }
+
+    function test_setClaimAmount_onlyOwner() public {
+        vm.expectRevert();
+        vm.prank(user);
+        faucet.setClaimAmount(address(token), 1);
+    }
+
+    function test_setClaimCooldown_onlyOwner() public {
+        vm.expectRevert();
+        vm.prank(user);
+        faucet.setClaimCooldown(address(token), 1);
     }
 }
