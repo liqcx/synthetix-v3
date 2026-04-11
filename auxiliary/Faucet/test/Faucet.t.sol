@@ -268,4 +268,20 @@ contract FaucetTest is Test {
         assertEq(list[0], address(token));
         assertEq(list[1], address(second));
     }
+
+    function testFuzz_claim_alwaysTransfersExactAmount(address anyUser, uint128 amount) public {
+        vm.assume(anyUser != address(0) && anyUser != address(faucet));
+        vm.assume(amount > 0 && amount <= INITIAL_POOL);
+
+        // Reconfigure the claim amount for this run.
+        vm.prank(owner);
+        faucet.setClaimAmount(address(token), amount);
+
+        uint256 before = token.balanceOf(anyUser);
+
+        vm.prank(anyUser);
+        faucet.claim(address(token));
+
+        assertEq(token.balanceOf(anyUser) - before, amount, "user received exactly claimAmount");
+    }
 }
