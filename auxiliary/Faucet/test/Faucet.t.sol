@@ -233,6 +233,31 @@ contract FaucetTest is Test {
         assertEq(faucet.nextClaimAt(user, address(token)), block.timestamp + CLAIM_COOLDOWN);
     }
 
+    function test_claim_multipleTokens_independentCooldowns() public {
+        MockMintableERC20 second = new MockMintableERC20("Fake BTC", "fBTC", 8, tokenOwner);
+        uint128 secondAmount = 1 * 10 ** 7; // 0.1 fBTC
+        vm.prank(tokenOwner);
+        second.mint(1_000 * 10 ** 8, address(faucet));
+
+        vm.prank(owner);
+        faucet.addToken(address(second), secondAmount, CLAIM_COOLDOWN);
+
+        // Claim both in the same block — should succeed because cooldowns are per token.
+        vm.prank(user);
+        faucet.claim(address(token));
+        vm.prank(user);
+        faucet.claim(address(second));
+
+        assertEq(token.balanceOf(user), CLAIM_AMOUNT);
+        assertEq(second.balanceOf(user), secondAmount);
+
+        // Claiming either one again in the same block must revert.
+        uint256 fusdcNextAt = block.timestamp + CLAIM_COOLDOWN;
+        vm.expectRevert(abi.encodeWithSelector(Faucet.CooldownNotElapsed.selector, fusdcNextAt));
+        vm.prank(user);
+        faucet.claim(address(token));
+    }
+
     function test_getRegisteredTokens_returnsAppendedTokens() public {
         MockMintableERC20 second = new MockMintableERC20("Second", "SND", 18, tokenOwner);
         vm.prank(owner);
