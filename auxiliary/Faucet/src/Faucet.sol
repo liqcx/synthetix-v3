@@ -52,6 +52,11 @@ contract Faucet is Ownable {
             if (block.timestamp < nextAt) revert CooldownNotElapsed(nextAt);
         }
 
+        uint256 available = IERC20(token).balanceOf(address(this));
+        if (available < cfg.claimAmount) {
+            revert InsufficientFaucetBalance(token, available, cfg.claimAmount);
+        }
+
         uint256 newNextAt = block.timestamp + cfg.claimCooldown;
         lastClaimAt[msg.sender][token] = block.timestamp;
 

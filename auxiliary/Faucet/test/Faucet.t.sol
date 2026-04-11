@@ -74,4 +74,29 @@ contract FaucetTest is Test {
         vm.prank(user);
         faucet.claim(address(strayToken));
     }
+
+    function test_claim_insufficientBalance_reverts() public {
+        // Deploy a fresh faucet + token pair where the faucet has a tiny pool.
+        Faucet smallFaucet = new Faucet(owner);
+        MockMintableERC20 smallPoolToken = new MockMintableERC20("Small", "SML", 6, tokenOwner);
+
+        uint256 required = CLAIM_AMOUNT;
+        uint256 tinyPool = required - 1; // one wei short
+        vm.prank(tokenOwner);
+        smallPoolToken.mint(tinyPool, address(smallFaucet));
+
+        vm.prank(owner);
+        smallFaucet.addToken(address(smallPoolToken), CLAIM_AMOUNT, CLAIM_COOLDOWN);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Faucet.InsufficientFaucetBalance.selector,
+                address(smallPoolToken),
+                tinyPool,
+                required
+            )
+        );
+        vm.prank(user);
+        smallFaucet.claim(address(smallPoolToken));
+    }
 }
