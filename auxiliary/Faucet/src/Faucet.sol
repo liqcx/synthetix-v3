@@ -27,6 +27,7 @@ contract Faucet is Ownable {
 
     event Claimed(address indexed user, address indexed token, uint256 amount, uint256 nextClaimAt);
     event TokenAdded(address indexed token, uint128 claimAmount, uint64 claimCooldown);
+    event TokenEnabledSet(address indexed token, bool enabled);
 
     constructor(address initialOwner) Ownable(initialOwner) {}
 
@@ -40,6 +41,11 @@ contract Faucet is Ownable {
         });
         registeredTokens.push(token);
         emit TokenAdded(token, claimAmount, claimCooldown);
+    }
+
+    function setEnabled(address token, bool enabled) external onlyOwner {
+        tokens[token].enabled = enabled;
+        emit TokenEnabledSet(token, enabled);
     }
 
     function claim(address token) external {

@@ -7,6 +7,7 @@ import {MockMintableERC20} from "./mocks/MockMintableERC20.sol";
 
 contract FaucetTest is Test {
     event TokenAdded(address indexed token, uint128 claimAmount, uint64 claimCooldown);
+    event TokenEnabledSet(address indexed token, bool enabled);
 
     Faucet internal faucet;
     MockMintableERC20 internal token;
@@ -118,5 +119,35 @@ contract FaucetTest is Test {
         );
         vm.prank(user);
         smallFaucet.claim(address(smallPoolToken));
+    }
+
+    function test_setEnabled_togglesClaimAvailability() public {
+        vm.prank(owner);
+        faucet.setEnabled(address(token), false);
+
+        vm.expectRevert(abi.encodeWithSelector(Faucet.TokenNotEnabled.selector, address(token)));
+        vm.prank(user);
+        faucet.claim(address(token));
+
+        vm.prank(owner);
+        faucet.setEnabled(address(token), true);
+
+        vm.prank(user);
+        faucet.claim(address(token));
+        assertEq(token.balanceOf(user), CLAIM_AMOUNT);
+    }
+
+    function test_setEnabled_emitsEvent() public {
+        vm.expectEmit(true, false, false, true);
+        emit TokenEnabledSet(address(token), false);
+
+        vm.prank(owner);
+        faucet.setEnabled(address(token), false);
+    }
+
+    function test_setEnabled_onlyOwner() public {
+        vm.expectRevert();
+        vm.prank(user);
+        faucet.setEnabled(address(token), false);
     }
 }
