@@ -10,6 +10,7 @@ contract FaucetTest is Test {
     event TokenEnabledSet(address indexed token, bool enabled);
     event ClaimAmountUpdated(address indexed token, uint128 oldAmount, uint128 newAmount);
     event ClaimCooldownUpdated(address indexed token, uint64 oldCooldown, uint64 newCooldown);
+    event Withdrawn(address indexed token, address indexed to, uint256 amount);
 
     Faucet internal faucet;
     MockMintableERC20 internal token;
@@ -197,5 +198,27 @@ contract FaucetTest is Test {
         vm.expectRevert();
         vm.prank(user);
         faucet.setClaimCooldown(address(token), 1);
+    }
+
+    function test_withdraw_transfersBalanceToRecipient() public {
+        address recipient = address(0xDEAD);
+        uint256 amount = 1_000 * 10 ** 6;
+        uint256 recipientBefore = token.balanceOf(recipient);
+        uint256 faucetBefore = token.balanceOf(address(faucet));
+
+        vm.expectEmit(true, true, false, true);
+        emit Withdrawn(address(token), recipient, amount);
+
+        vm.prank(owner);
+        faucet.withdraw(address(token), recipient, amount);
+
+        assertEq(token.balanceOf(recipient), recipientBefore + amount);
+        assertEq(token.balanceOf(address(faucet)), faucetBefore - amount);
+    }
+
+    function test_withdraw_onlyOwner() public {
+        vm.expectRevert();
+        vm.prank(user);
+        faucet.withdraw(address(token), user, 1);
     }
 }

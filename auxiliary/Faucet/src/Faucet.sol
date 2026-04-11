@@ -30,6 +30,7 @@ contract Faucet is Ownable {
     event TokenEnabledSet(address indexed token, bool enabled);
     event ClaimAmountUpdated(address indexed token, uint128 oldAmount, uint128 newAmount);
     event ClaimCooldownUpdated(address indexed token, uint64 oldCooldown, uint64 newCooldown);
+    event Withdrawn(address indexed token, address indexed to, uint256 amount);
 
     constructor(address initialOwner) Ownable(initialOwner) {}
 
@@ -82,5 +83,10 @@ contract Faucet is Ownable {
 
         IERC20(token).transfer(msg.sender, cfg.claimAmount);
         emit Claimed(msg.sender, token, cfg.claimAmount, newNextAt);
+    }
+
+    function withdraw(address token, address to, uint256 amount) external onlyOwner {
+        IERC20(token).transfer(to, amount);
+        emit Withdrawn(token, to, amount);
     }
 }
