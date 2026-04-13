@@ -1,6 +1,6 @@
 import { BigInt } from '@graphprotocol/graph-ts';
 import { OrderSettled as OrderSettledEvent } from './generated/PerpsMarketProxy/PerpsMarketProxy';
-import { Order, OrderSettled } from './generated/schema';
+import { Market, Order, OrderSettled, Position } from './generated/schema';
 
 export function handleOrderSettled(event: OrderSettledEvent): void {
   const orderId = event.params.marketId.toString() + '-' + event.params.accountId.toString();
@@ -50,4 +50,29 @@ export function handleOrderSettled(event: OrderSettledEvent): void {
   orderSettled.settler = event.params.settler;
 
   orderSettled.save();
+
+  // upsert Position entity
+  const positionId = event.params.accountId.toString() + '-' + event.params.marketId.toString();
+
+  let position = Position.load(positionId);
+  if (!position) {
+    position = new Position(positionId);
+    position.accountId = event.params.accountId;
+    position.marketId = event.params.marketId;
+    position.lastFundingRate = BigInt.fromI32(0);
+  }
+
+  position.size = event.params.newSize;
+  position.lastSettlementPrice = event.params.fillPrice;
+  position.accruedFunding = event.params.accruedFunding;
+  position.updatedAt = event.block.timestamp;
+  position.isOpen = event.params.newSize.notEqual(BigInt.fromI32(0));
+
+  // read current funding rate from Market entity
+  const market = Market.load(event.params.marketId.toString());
+  if (market !== null && market.currentFundingRate !== null) {
+    position.lastFundingRate = market.currentFundingRate!;
+  }
+
+  position.save();
 }

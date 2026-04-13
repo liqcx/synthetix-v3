@@ -161,3 +161,15 @@ type MarketUpdated @entity {
   currentFundingRate: BigInt!
   currentFundingVelocity: BigInt!
 }
+
+type Position @entity {
+  id: ID!
+  accountId: BigInt!
+  marketId: BigInt!
+  size: BigInt!
+  lastSettlementPrice: BigInt!
+  accruedFunding: BigInt!
+  lastFundingRate: BigInt!
+  updatedAt: BigInt!
+  isOpen: Boolean!
+}
