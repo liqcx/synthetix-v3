@@ -428,6 +428,94 @@ export class AccountCharged__Params {
   }
 }
 
+export class AccountOrderModeChanged extends ethereum.Event {
+  get params(): AccountOrderModeChanged__Params {
+    return new AccountOrderModeChanged__Params(this);
+  }
+}
+
+export class AccountOrderModeChanged__Params {
+  _event: AccountOrderModeChanged;
+
+  constructor(event: AccountOrderModeChanged) {
+    this._event = event;
+  }
+
+  get accountId(): BigInt {
+    return this._event.parameters[0].value.toBigInt();
+  }
+
+  get newMode(): Bytes {
+    return this._event.parameters[1].value.toBytes();
+  }
+}
+
+export class BookOrderSettled extends ethereum.Event {
+  get params(): BookOrderSettled__Params {
+    return new BookOrderSettled__Params(this);
+  }
+}
+
+export class BookOrderSettled__Params {
+  _event: BookOrderSettled;
+
+  constructor(event: BookOrderSettled) {
+    this._event = event;
+  }
+
+  get marketId(): BigInt {
+    return this._event.parameters[0].value.toBigInt();
+  }
+
+  get orders(): Array<BookOrderSettledOrdersStruct> {
+    return this._event.parameters[1].value.toTupleArray<BookOrderSettledOrdersStruct>();
+  }
+
+  get totalCollectedFees(): BigInt {
+    return this._event.parameters[2].value.toBigInt();
+  }
+}
+
+export class BookOrderSettledOrdersStruct extends ethereum.Tuple {
+  get accountId(): BigInt {
+    return this[0].toBigInt();
+  }
+
+  get sizeDelta(): BigInt {
+    return this[1].toBigInt();
+  }
+
+  get orderPrice(): BigInt {
+    return this[2].toBigInt();
+  }
+
+  get signedPriceData(): Bytes {
+    return this[3].toBytes();
+  }
+
+  get trackingCode(): Bytes {
+    return this[4].toBytes();
+  }
+}
+
+export class DoneLoop extends ethereum.Event {
+  get params(): DoneLoop__Params {
+    return new DoneLoop__Params(this);
+  }
+}
+
+export class DoneLoop__Params {
+  _event: DoneLoop;
+
+  constructor(event: DoneLoop) {
+    this._event = event;
+  }
+
+  get accountId(): BigInt {
+    return this._event.parameters[0].value.toBigInt();
+  }
+}
+
 export class InterestCharged extends ethereum.Event {
   get params(): InterestCharged__Params {
     return new InterestCharged__Params(this);
@@ -446,6 +534,28 @@ export class InterestCharged__Params {
   }
 
   get interest(): BigInt {
+    return this._event.parameters[1].value.toBigInt();
+  }
+}
+
+export class ItsGreater extends ethereum.Event {
+  get params(): ItsGreater__Params {
+    return new ItsGreater__Params(this);
+  }
+}
+
+export class ItsGreater__Params {
+  _event: ItsGreater;
+
+  constructor(event: ItsGreater) {
+    this._event = event;
+  }
+
+  get accountId(): BigInt {
+    return this._event.parameters[0].value.toBigInt();
+  }
+
+  get cmpAccountId(): BigInt {
     return this._event.parameters[1].value.toBigInt();
   }
 }
@@ -1380,7 +1490,7 @@ export class ReferrerShareUpdated__Params {
   }
 }
 
-export class PerpsMarketProxy__facetsResultValue0Struct extends ethereum.Tuple {
+export class PerpsMarketProxy__facetsResultFacets_Struct extends ethereum.Tuple {
   get facetAddress(): Address {
     return this[0].toAddress();
   }
@@ -1454,6 +1564,84 @@ export class PerpsMarketProxy__utilizationRateResult {
 
   getLockedCredit(): BigInt {
     return this.value2;
+  }
+}
+
+export class PerpsMarketProxy__getAccountAllCollateralAmountsResult {
+  value0: Array<BigInt>;
+  value1: Array<BigInt>;
+  value2: BigInt;
+
+  constructor(value0: Array<BigInt>, value1: Array<BigInt>, value2: BigInt) {
+    this.value0 = value0;
+    this.value1 = value1;
+    this.value2 = value2;
+  }
+
+  toMap(): TypedMap<string, ethereum.Value> {
+    let map = new TypedMap<string, ethereum.Value>();
+    map.set('value0', ethereum.Value.fromUnsignedBigIntArray(this.value0));
+    map.set('value1', ethereum.Value.fromUnsignedBigIntArray(this.value1));
+    map.set('value2', ethereum.Value.fromUnsignedBigInt(this.value2));
+    return map;
+  }
+
+  getCollateralIds(): Array<BigInt> {
+    return this.value0;
+  }
+
+  getCollateralAmounts(): Array<BigInt> {
+    return this.value1;
+  }
+
+  getAccountDebt(): BigInt {
+    return this.value2;
+  }
+}
+
+export class PerpsMarketProxy__getAccountFullPositionInfoResultDetailedPositionsStruct extends ethereum.Tuple {
+  get marketId(): BigInt {
+    return this[0].toBigInt();
+  }
+
+  get size(): BigInt {
+    return this[1].toBigInt();
+  }
+
+  get pnl(): BigInt {
+    return this[2].toBigInt();
+  }
+
+  get accruedFunding(): BigInt {
+    return this[3].toBigInt();
+  }
+
+  get chargedInterest(): BigInt {
+    return this[4].toBigInt();
+  }
+
+  get currentPrice(): BigInt {
+    return this[5].toBigInt();
+  }
+
+  get entryPrice(): BigInt {
+    return this[6].toBigInt();
+  }
+
+  get requiredInitialMargin(): BigInt {
+    return this[7].toBigInt();
+  }
+
+  get requiredMaintenanceMargin(): BigInt {
+    return this[8].toBigInt();
+  }
+
+  get marketName(): string {
+    return this[9].toString();
+  }
+
+  get marketSymbol(): string {
+    return this[10].toString();
   }
 }
 
@@ -1761,6 +1949,34 @@ export class PerpsMarketProxy__getOrderResultOrderRequestStruct extends ethereum
 
   get referrer(): Address {
     return this[6].toAddress();
+  }
+}
+
+export class PerpsMarketProxy__settleBookOrdersResultCancelledOrdersStruct extends ethereum.Tuple {
+  get status(): i32 {
+    return this[0].toI32();
+  }
+}
+
+export class PerpsMarketProxy__settleBookOrdersInputOrdersStruct extends ethereum.Tuple {
+  get accountId(): BigInt {
+    return this[0].toBigInt();
+  }
+
+  get sizeDelta(): BigInt {
+    return this[1].toBigInt();
+  }
+
+  get orderPrice(): BigInt {
+    return this[2].toBigInt();
+  }
+
+  get signedPriceData(): Bytes {
+    return this[3].toBytes();
+  }
+
+  get trackingCode(): Bytes {
+    return this[4].toBytes();
   }
 }
 
@@ -2189,20 +2405,20 @@ export class PerpsMarketProxy extends ethereum.SmartContract {
     return new PerpsMarketProxy('PerpsMarketProxy', address);
   }
 
-  facets(): Array<PerpsMarketProxy__facetsResultValue0Struct> {
+  facets(): Array<PerpsMarketProxy__facetsResultFacets_Struct> {
     let result = super.call('facets', 'facets():((address,bytes4[])[])', []);
 
-    return result[0].toTupleArray<PerpsMarketProxy__facetsResultValue0Struct>();
+    return result[0].toTupleArray<PerpsMarketProxy__facetsResultFacets_Struct>();
   }
 
-  try_facets(): ethereum.CallResult<Array<PerpsMarketProxy__facetsResultValue0Struct>> {
+  try_facets(): ethereum.CallResult<Array<PerpsMarketProxy__facetsResultFacets_Struct>> {
     let result = super.tryCall('facets', 'facets():((address,bytes4[])[])', []);
     if (result.reverted) {
       return new ethereum.CallResult();
     }
     let value = result.value;
     return ethereum.CallResult.fromValue(
-      value[0].toTupleArray<PerpsMarketProxy__facetsResultValue0Struct>()
+      value[0].toTupleArray<PerpsMarketProxy__facetsResultFacets_Struct>()
     );
   }
 
@@ -2696,6 +2912,43 @@ export class PerpsMarketProxy extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(value[0].toBigInt());
   }
 
+  getAccountAllCollateralAmounts(
+    accountId: BigInt
+  ): PerpsMarketProxy__getAccountAllCollateralAmountsResult {
+    let result = super.call(
+      'getAccountAllCollateralAmounts',
+      'getAccountAllCollateralAmounts(uint128):(uint256[],uint256[],uint256)',
+      [ethereum.Value.fromUnsignedBigInt(accountId)]
+    );
+
+    return new PerpsMarketProxy__getAccountAllCollateralAmountsResult(
+      result[0].toBigIntArray(),
+      result[1].toBigIntArray(),
+      result[2].toBigInt()
+    );
+  }
+
+  try_getAccountAllCollateralAmounts(
+    accountId: BigInt
+  ): ethereum.CallResult<PerpsMarketProxy__getAccountAllCollateralAmountsResult> {
+    let result = super.tryCall(
+      'getAccountAllCollateralAmounts',
+      'getAccountAllCollateralAmounts(uint128):(uint256[],uint256[],uint256)',
+      [ethereum.Value.fromUnsignedBigInt(accountId)]
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(
+      new PerpsMarketProxy__getAccountAllCollateralAmountsResult(
+        value[0].toBigIntArray(),
+        value[1].toBigIntArray(),
+        value[2].toBigInt()
+      )
+    );
+  }
+
   getAccountCollateralIds(accountId: BigInt): Array<BigInt> {
     let result = super.call(
       'getAccountCollateralIds',
@@ -2717,6 +2970,37 @@ export class PerpsMarketProxy extends ethereum.SmartContract {
     }
     let value = result.value;
     return ethereum.CallResult.fromValue(value[0].toBigIntArray());
+  }
+
+  getAccountFullPositionInfo(
+    accountId: BigInt
+  ): Array<PerpsMarketProxy__getAccountFullPositionInfoResultDetailedPositionsStruct> {
+    let result = super.call(
+      'getAccountFullPositionInfo',
+      'getAccountFullPositionInfo(uint128):((uint128,int256,int256,int256,uint256,uint256,uint256,uint256,uint256,string,string)[])',
+      [ethereum.Value.fromUnsignedBigInt(accountId)]
+    );
+
+    return result[0].toTupleArray<PerpsMarketProxy__getAccountFullPositionInfoResultDetailedPositionsStruct>();
+  }
+
+  try_getAccountFullPositionInfo(
+    accountId: BigInt
+  ): ethereum.CallResult<
+    Array<PerpsMarketProxy__getAccountFullPositionInfoResultDetailedPositionsStruct>
+  > {
+    let result = super.tryCall(
+      'getAccountFullPositionInfo',
+      'getAccountFullPositionInfo(uint128):((uint128,int256,int256,int256,uint256,uint256,uint256,uint256,uint256,string,string)[])',
+      [ethereum.Value.fromUnsignedBigInt(accountId)]
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(
+      value[0].toTupleArray<PerpsMarketProxy__getAccountFullPositionInfoResultDetailedPositionsStruct>()
+    );
   }
 
   getAccountOpenPositions(accountId: BigInt): Array<BigInt> {
@@ -3383,6 +3667,91 @@ export class PerpsMarketProxy extends ethereum.SmartContract {
     }
     let value = result.value;
     return ethereum.CallResult.fromValue(value[0].toBigInt());
+  }
+
+  requiredMarginImmut(accountId: BigInt, marketId: BigInt, sizeDelta: BigInt): BigInt {
+    let result = super.call(
+      'requiredMarginImmut',
+      'requiredMarginImmut(uint128,uint128,int128):(uint256)',
+      [
+        ethereum.Value.fromUnsignedBigInt(accountId),
+        ethereum.Value.fromUnsignedBigInt(marketId),
+        ethereum.Value.fromSignedBigInt(sizeDelta),
+      ]
+    );
+
+    return result[0].toBigInt();
+  }
+
+  try_requiredMarginImmut(
+    accountId: BigInt,
+    marketId: BigInt,
+    sizeDelta: BigInt
+  ): ethereum.CallResult<BigInt> {
+    let result = super.tryCall(
+      'requiredMarginImmut',
+      'requiredMarginImmut(uint128,uint128,int128):(uint256)',
+      [
+        ethereum.Value.fromUnsignedBigInt(accountId),
+        ethereum.Value.fromUnsignedBigInt(marketId),
+        ethereum.Value.fromSignedBigInt(sizeDelta),
+      ]
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBigInt());
+  }
+
+  getOrderMode(accountId: BigInt): Bytes {
+    let result = super.call('getOrderMode', 'getOrderMode(uint128):(bytes16)', [
+      ethereum.Value.fromUnsignedBigInt(accountId),
+    ]);
+
+    return result[0].toBytes();
+  }
+
+  try_getOrderMode(accountId: BigInt): ethereum.CallResult<Bytes> {
+    let result = super.tryCall('getOrderMode', 'getOrderMode(uint128):(bytes16)', [
+      ethereum.Value.fromUnsignedBigInt(accountId),
+    ]);
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBytes());
+  }
+
+  settleBookOrders(
+    marketId: BigInt,
+    orders: Array<PerpsMarketProxy__settleBookOrdersInputOrdersStruct>
+  ): Array<PerpsMarketProxy__settleBookOrdersResultCancelledOrdersStruct> {
+    let result = super.call(
+      'settleBookOrders',
+      'settleBookOrders(uint128,(uint128,int128,uint256,bytes,bytes32)[]):((uint8)[])',
+      [ethereum.Value.fromUnsignedBigInt(marketId), ethereum.Value.fromTupleArray(orders)]
+    );
+
+    return result[0].toTupleArray<PerpsMarketProxy__settleBookOrdersResultCancelledOrdersStruct>();
+  }
+
+  try_settleBookOrders(
+    marketId: BigInt,
+    orders: Array<PerpsMarketProxy__settleBookOrdersInputOrdersStruct>
+  ): ethereum.CallResult<Array<PerpsMarketProxy__settleBookOrdersResultCancelledOrdersStruct>> {
+    let result = super.tryCall(
+      'settleBookOrders',
+      'settleBookOrders(uint128,(uint128,int128,uint256,bytes,bytes32)[]):((uint8)[])',
+      [ethereum.Value.fromUnsignedBigInt(marketId), ethereum.Value.fromTupleArray(orders)]
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(
+      value[0].toTupleArray<PerpsMarketProxy__settleBookOrdersResultCancelledOrdersStruct>()
+    );
   }
 
   getDeniers(feature: Bytes): Array<Address> {
@@ -4305,7 +4674,7 @@ export class EmitDiamondCutEventCall__Outputs {
     this._call = call;
   }
 
-  get value0(): boolean {
+  get success(): boolean {
     return this._call.outputValues[0].value.toBoolean();
   }
 }
@@ -5069,6 +5438,148 @@ export class CommitOrderCallRetOrderRequestStruct extends ethereum.Tuple {
 
   get referrer(): Address {
     return this[6].toAddress();
+  }
+}
+
+export class RequiredMarginImmutCall extends ethereum.Call {
+  get inputs(): RequiredMarginImmutCall__Inputs {
+    return new RequiredMarginImmutCall__Inputs(this);
+  }
+
+  get outputs(): RequiredMarginImmutCall__Outputs {
+    return new RequiredMarginImmutCall__Outputs(this);
+  }
+}
+
+export class RequiredMarginImmutCall__Inputs {
+  _call: RequiredMarginImmutCall;
+
+  constructor(call: RequiredMarginImmutCall) {
+    this._call = call;
+  }
+
+  get accountId(): BigInt {
+    return this._call.inputValues[0].value.toBigInt();
+  }
+
+  get marketId(): BigInt {
+    return this._call.inputValues[1].value.toBigInt();
+  }
+
+  get sizeDelta(): BigInt {
+    return this._call.inputValues[2].value.toBigInt();
+  }
+}
+
+export class RequiredMarginImmutCall__Outputs {
+  _call: RequiredMarginImmutCall;
+
+  constructor(call: RequiredMarginImmutCall) {
+    this._call = call;
+  }
+
+  get requiredMargin(): BigInt {
+    return this._call.outputValues[0].value.toBigInt();
+  }
+}
+
+export class SetBookModeCall extends ethereum.Call {
+  get inputs(): SetBookModeCall__Inputs {
+    return new SetBookModeCall__Inputs(this);
+  }
+
+  get outputs(): SetBookModeCall__Outputs {
+    return new SetBookModeCall__Outputs(this);
+  }
+}
+
+export class SetBookModeCall__Inputs {
+  _call: SetBookModeCall;
+
+  constructor(call: SetBookModeCall) {
+    this._call = call;
+  }
+
+  get accountId(): BigInt {
+    return this._call.inputValues[0].value.toBigInt();
+  }
+
+  get useBook(): boolean {
+    return this._call.inputValues[1].value.toBoolean();
+  }
+}
+
+export class SetBookModeCall__Outputs {
+  _call: SetBookModeCall;
+
+  constructor(call: SetBookModeCall) {
+    this._call = call;
+  }
+}
+
+export class SettleBookOrdersCall extends ethereum.Call {
+  get inputs(): SettleBookOrdersCall__Inputs {
+    return new SettleBookOrdersCall__Inputs(this);
+  }
+
+  get outputs(): SettleBookOrdersCall__Outputs {
+    return new SettleBookOrdersCall__Outputs(this);
+  }
+}
+
+export class SettleBookOrdersCall__Inputs {
+  _call: SettleBookOrdersCall;
+
+  constructor(call: SettleBookOrdersCall) {
+    this._call = call;
+  }
+
+  get marketId(): BigInt {
+    return this._call.inputValues[0].value.toBigInt();
+  }
+
+  get orders(): Array<SettleBookOrdersCallOrdersStruct> {
+    return this._call.inputValues[1].value.toTupleArray<SettleBookOrdersCallOrdersStruct>();
+  }
+}
+
+export class SettleBookOrdersCall__Outputs {
+  _call: SettleBookOrdersCall;
+
+  constructor(call: SettleBookOrdersCall) {
+    this._call = call;
+  }
+
+  get cancelledOrders(): Array<SettleBookOrdersCallCancelledOrdersStruct> {
+    return this._call.outputValues[0].value.toTupleArray<SettleBookOrdersCallCancelledOrdersStruct>();
+  }
+}
+
+export class SettleBookOrdersCallOrdersStruct extends ethereum.Tuple {
+  get accountId(): BigInt {
+    return this[0].toBigInt();
+  }
+
+  get sizeDelta(): BigInt {
+    return this[1].toBigInt();
+  }
+
+  get orderPrice(): BigInt {
+    return this[2].toBigInt();
+  }
+
+  get signedPriceData(): Bytes {
+    return this[3].toBytes();
+  }
+
+  get trackingCode(): Bytes {
+    return this[4].toBytes();
+  }
+}
+
+export class SettleBookOrdersCallCancelledOrdersStruct extends ethereum.Tuple {
+  get status(): i32 {
+    return this[0].toI32();
   }
 }
 

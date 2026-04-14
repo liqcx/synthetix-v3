@@ -1465,8 +1465,8 @@ export class CollateralModified extends Entity {
     this.set('accountId', Value.fromBigInt(value));
   }
 
-  get collateralId(): BigInt {
-    let value = this.get('collateralId');
+  get synthMarketId(): BigInt {
+    let value = this.get('synthMarketId');
     if (!value || value.kind == ValueKind.NULL) {
       throw new Error('Cannot return null for a required field.');
     } else {
@@ -1474,8 +1474,8 @@ export class CollateralModified extends Entity {
     }
   }
 
-  set collateralId(value: BigInt) {
-    this.set('collateralId', Value.fromBigInt(value));
+  set synthMarketId(value: BigInt) {
+    this.set('synthMarketId', Value.fromBigInt(value));
   }
 
   get amount(): BigInt {

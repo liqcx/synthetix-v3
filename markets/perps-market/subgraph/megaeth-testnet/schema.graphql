@@ -101,7 +101,7 @@ type CollateralModified @entity {
   id: ID!
   timestamp: BigInt!
   accountId: BigInt!
-  synthMarketId: BigInt!
+  collateralId: BigInt!
   amount: BigInt!
   sender: Bytes!
 }

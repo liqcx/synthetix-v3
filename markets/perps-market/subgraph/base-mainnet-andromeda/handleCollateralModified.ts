@@ -13,7 +13,7 @@ export function handleCollateralModified(event: CollateralModifiedEvent): void {
 
   collateralModified.accountId = event.params.accountId;
   collateralModified.timestamp = event.block.timestamp;
-  collateralModified.synthMarketId = event.params.synthMarketId;
+  collateralModified.collateralId = event.params.collateralId;
   collateralModified.amount = event.params.amountDelta;
   collateralModified.sender = event.params.sender;
 
