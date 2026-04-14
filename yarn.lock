@@ -3241,7 +3241,7 @@ __metadata:
     prompts: "npm:^2.4.2"
     rfdc: "npm:^1.3.1"
     sinon: "npm:^18.0.0"
-    solc: "npm:0.8.21"
+    solc: "npm:0.8.34"
     solidity-ast: "npm:^0.4.55"
     ts-node: "npm:^10.9.2"
     typechain: "npm:^8.3.2"
@@ -3302,6 +3302,12 @@ __metadata:
     ethers: "npm:^5.7.2"
     hardhat: "npm:^2.19.5"
     solidity-docgen: "npm:^0.6.0-beta.36"
+  languageName: unknown
+  linkType: soft
+
+"@synthetixio/faucet@workspace:auxiliary/Faucet":
+  version: 0.0.0-use.local
+  resolution: "@synthetixio/faucet@workspace:auxiliary/Faucet"
   languageName: unknown
   linkType: soft
 
@@ -15518,9 +15524,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"solc@npm:0.8.21":
-  version: 0.8.21
-  resolution: "solc@npm:0.8.21"
+"solc@npm:0.8.34":
+  version: 0.8.34
+  resolution: "solc@npm:0.8.34"
   dependencies:
     command-exists: "npm:^1.2.8"
     commander: "npm:^8.1.0"
@@ -15531,7 +15537,7 @@ __metadata:
     tmp: "npm:0.0.33"
   bin:
     solcjs: solc.js
-  checksum: 10/e050323d171e38969b159567b0635ee9f58285f89e477a1650008e91b7c4ea176c3ad6d984e568ec4046fed0ff63d93b148ea53fa8177fe294278fea41af55a9
+  checksum: 10/b3b34ffd54bca95be7320ef06cd63d02bdb2afffbbe2892d9e7a36c3a3c92337e76d23eab6f0ad29cbf249ac2c4528d22ce0ee738a93586757ad7e0011bae9a2
   languageName: node
   linkType: hard
 
