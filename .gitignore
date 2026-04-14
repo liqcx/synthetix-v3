@@ -3,6 +3,7 @@
 .nyc_output
 .vscode
 .idea
+.worktrees
 **/coverage*
 **/deployments
 /**/test/generated
