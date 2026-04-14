@@ -20,7 +20,7 @@
     "@synthetixio/core-utils": "workspace:*",
     "@synthetixio/hardhat-storage": "workspace:*",
     "ethers": "^5.7.2",
-    "hardhat": "^2.19.5",
+    "hardhat": "^2.28.0",
     "hardhat-cannon": "2.25.1",
     "solidity-coverage": "^0.8.7"
   }
