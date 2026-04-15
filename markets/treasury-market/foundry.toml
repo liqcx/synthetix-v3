@@ -1,5 +1,7 @@
 [profile.default]
 ast = true
-solc_version = "0.8.27"
+solc_version = "0.8.34"
+evm_version = "prague"
+auto_detect_solc = false
 allow_paths = ["../../"]
 optimizer = true
