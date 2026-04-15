@@ -1,23 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.11 <0.9.0;
 
+/* solhint-disable */
+
 import {Test} from "forge-std/Test.sol";
 
 import {CannonDeploy} from "../script/Deploy.sol";
 import {IPerpsMarketProxy} from "./interfaces/IPerpsMarketProxy.sol";
-import {
-    IV3CoreProxy,
-    MarketConfiguration,
-    CollateralConfiguration
-} from "./interfaces/IV3CoreProxy.sol";
+import {IV3CoreProxy, MarketConfiguration, CollateralConfiguration} from "./interfaces/IV3CoreProxy.sol";
 import {MockV3Aggregator} from "@synthetixio/oracle-manager/contracts/mocks/MockV3Aggregator.sol";
 import {CollateralMock} from "@synthetixio/main/contracts/mocks/CollateralMock.sol";
 import {IERC20} from "@synthetixio/core-contracts/contracts/interfaces/IERC20.sol";
 import {IERC721} from "@synthetixio/core-contracts/contracts/interfaces/IERC721.sol";
 import {IOracleManagerProxy} from "./interfaces/IOracleManagerProxy.sol";
-import {
-    IERC721Receiver
-} from "@synthetixio/core-contracts/contracts/interfaces/IERC721Receiver.sol";
+import {IERC721Receiver} from "@synthetixio/core-contracts/contracts/interfaces/IERC721Receiver.sol";
 import "@synthetixio/oracle-manager/contracts/modules/NodeModule.sol";
 import {console} from "forge-std/console.sol";
 import {ICollateralConfigurationModule} from "../contracts/interfaces/ICollateralConfigurationModule.sol";
@@ -87,17 +83,17 @@ contract BootstrapTest is Test, IERC721Receiver {
 
         // Register oracle nodes for the perps markets
         bytes32[] memory parents = new bytes32[](0);
-        
+
         // Ensure we have properly initialized aggregators
         ethMockAggregator = new MockV3Aggregator();
         ethMockAggregator.mockSetCurrentPrice(2400e18, 18);
-        
+
         superMockAggregator = new MockV3Aggregator();
         superMockAggregator.mockSetCurrentPrice(1e18, 18);
-        
+
         secondSuperAggregator = new MockV3Aggregator();
         secondSuperAggregator.mockSetCurrentPrice(1e18, 18);
-        
+
         // Register nodes using the correct oracleManager reference
         bytes32 ethOracleNodeId = NodeModule(address(oracleManager)).registerNode(
             NodeDefinition.NodeType.CHAINLINK,
@@ -105,7 +101,7 @@ contract BootstrapTest is Test, IERC721Receiver {
             parents
         );
         perps.updatePriceData(ethMarketId, ethOracleNodeId, 0);
-        
+
         bytes32 superOracleNodeId = NodeModule(address(oracleManager)).registerNode(
             NodeDefinition.NodeType.CHAINLINK,
             abi.encode(address(superMockAggregator), uint256(0), uint8(18)),
@@ -119,7 +115,7 @@ contract BootstrapTest is Test, IERC721Receiver {
             parents
         );
         perps.updatePriceData(btcMarketId, btcOracleNodeId, 0);
-        
+
         // Allow SNX-USD collateral (id 0) for margin by setting a large max amount and no discount
         ICollateralConfigurationModule(address(perps)).setCollateralConfiguration({
             collateralId: collateralId,
@@ -128,16 +124,16 @@ contract BootstrapTest is Test, IERC721Receiver {
             lowerLimitDiscount: 1e18,
             discountScalar: 1e18
         });
-        
+
         // Cap accounts to at most one collateral type but unlimited positions
         IGlobalPerpsMarketModule(address(perps)).setPerAccountCaps({
             maxPositionsPerAccount: type(uint128).max,
             maxCollateralsPerAccount: 1
         });
-        
+
         // Set up the perps market configuration
         // perps.setPerpsMarketId(superMarketId);
-        
+
         // vm.stopPrank();
 
         // Configure the zero node separately
@@ -198,7 +194,6 @@ contract BootstrapTest is Test, IERC721Receiver {
         vm.label(trader1, "trader1Alice");
         vm.label(trader2, "trader2Bob");
         vm.label(whale, "whaleTrader");
-
 
         // Setup traders
 

@@ -1,33 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.11 <0.9.0;
 
+/* solhint-disable no-empty-blocks */
+
 // Synthetix V3 Core Module Interfaces
 import {IAccountModule} from "@synthetixio/main/contracts/interfaces/IAccountModule.sol";
-import {
-    IAssociatedSystemsModule
-} from "@synthetixio/core-modules/contracts/interfaces/IAssociatedSystemsModule.sol";
-import {
-    IFeatureFlagModule
-} from "@synthetixio/core-modules/contracts/interfaces/IFeatureFlagModule.sol";
-import {
-    ICollateralConfigurationModule
-} from "../../contracts/interfaces/ICollateralConfigurationModule.sol";
+import {IAssociatedSystemsModule} from "@synthetixio/core-modules/contracts/interfaces/IAssociatedSystemsModule.sol";
+import {IFeatureFlagModule} from "@synthetixio/core-modules/contracts/interfaces/IFeatureFlagModule.sol";
+import {ICollateralConfigurationModule} from "../../contracts/interfaces/ICollateralConfigurationModule.sol";
 
 // Synthetix V3 Perps Market Module Interfaces
-import {
-    IPerpsMarketFactoryModule
-} from "../../contracts/interfaces/IPerpsMarketFactoryModule.sol";
+import {IPerpsMarketFactoryModule} from "../../contracts/interfaces/IPerpsMarketFactoryModule.sol";
 import {IPerpsAccountModule} from "../../contracts/interfaces/IPerpsAccountModule.sol";
 import {IPerpsMarketModule} from "../../contracts/interfaces/IPerpsMarketModule.sol";
 import {IBookOrderModule} from "../../contracts/interfaces/IBookOrderModule.sol";
 import {IAsyncOrderModule} from "../../contracts/interfaces/IAsyncOrderModule.sol";
 import {ILiquidationModule} from "../../contracts/interfaces/ILiquidationModule.sol";
-import {
-    IMarketConfigurationModule
-} from "../../contracts/interfaces/IMarketConfigurationModule.sol";
-import {
-    IGlobalPerpsMarketModule
-} from "../../contracts/interfaces/IGlobalPerpsMarketModule.sol";
+import {IMarketConfigurationModule} from "../../contracts/interfaces/IMarketConfigurationModule.sol";
+import {IGlobalPerpsMarketModule} from "../../contracts/interfaces/IGlobalPerpsMarketModule.sol";
 import {IOwnable} from "@synthetixio/core-contracts/contracts/interfaces/IOwnable.sol";
 
 /**
