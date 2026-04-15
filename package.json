@@ -121,7 +121,9 @@
     "utils/**",
     "protocol/**",
     "markets/**",
-    "auxiliary/**"
+    "auxiliary/**",
+    "!auxiliary/*/lib/**",
+    "!auxiliary/*/lib/openzeppelin-contracts/**"
   ],
   "engines": {
     "node": "^20.17.0"

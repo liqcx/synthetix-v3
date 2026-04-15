@@ -20,6 +20,19 @@ commands:
           paths:
             - "~/.yarn/berry"
 
+  install-bun:
+    steps:
+      - run:
+          name: "Install Bun"
+          command: |
+            if command -v bun; then
+              echo "Bun already installed"
+              bun --version
+            else
+              curl -fsSL https://bun.sh/install | bash
+            fi
+            echo 'export PATH="$HOME/.bun/bin:$PATH"' >> $BASH_ENV
+
   install-foundry:
     steps:
       - restore_cache:
@@ -214,6 +227,7 @@ jobs:
       - checkout
       - install-foundry
       - yarn-install
+      - install-bun
 
       - run: yarn build:ts
 
@@ -361,6 +375,7 @@ jobs:
       #- install-ipfs
       #- run-ipfs-daemon
       - yarn-install
+      - install-bun
       #- wait-for-ipfs
 
       - restore_cache:
@@ -393,7 +408,7 @@ jobs:
             export RUNNER=$HOME/project/.circleci/test-batch.js
             export PATH=$PATH:$HOME/project/node_modules/.bin
             export TEST_FILES=$(cat /tmp/tests.txt)
-            node $RUNNER
+            bun $RUNNER
 
       - store_test_results:
           path: "/tmp/junit"
@@ -411,6 +426,7 @@ jobs:
     steps:
       - checkout
       - yarn-install
+      - install-bun
       - run: yarn workspace "<< parameters.workspace >>" test
 
   size-contracts:
@@ -419,6 +435,7 @@ jobs:
     steps:
       - checkout
       - yarn-install
+      - install-bun
       - run: yarn build:ts
       - run: yarn size-contracts
 
@@ -429,6 +446,7 @@ jobs:
       - checkout
       - install-foundry
       - yarn-install
+      - install-bun
       - run: yarn build:ts
       - run: yarn storage:dump
       - run: yarn check:storage
@@ -443,6 +461,7 @@ jobs:
     steps:
       - checkout
       - yarn-install
+      - install-bun
 
       - run: yarn dedupe --check
       - run: yarn deps
@@ -476,6 +495,7 @@ jobs:
       #- install-ipfs
       #- run-ipfs-daemon
       - yarn-install
+      - install-bun
       #- wait-for-ipfs
       - restore_cache:
           keys:
@@ -486,7 +506,7 @@ jobs:
           command: |
             set -eo pipefail
             yarn workspace "<< parameters.workspace >>" exec \
-              hardhat cannon:build \
+              bun x hardhat cannon:build \
                 --dry-run \
                 --network "<< parameters.hardhatNetwork >>" \
                 --upgrade-from << parameters.cannonPackage >>@<< parameters.cannonPreset >> \
@@ -523,6 +543,7 @@ jobs:
       #- install-ipfs
       #- run-ipfs-daemon
       - yarn-install
+      - install-bun
       #- wait-for-ipfs
 
       - run: yarn build:ts
@@ -578,6 +599,7 @@ jobs:
       #- install-ipfs
       #- run-ipfs-daemon
       - yarn-install
+      - install-bun
       #- wait-for-ipfs
 
       - run:
@@ -609,6 +631,7 @@ jobs:
       - checkout
       - install-foundry
       - yarn-install
+      - install-bun
       - run: yarn workspace "<< parameters.workspace >>" run forge-coverage
       - store_artifacts:
           path: "lcov.info"
@@ -637,6 +660,7 @@ jobs:
 
       - install-foundry
       - yarn-install
+      - install-bun
 
       - restore_cache:
           keys:

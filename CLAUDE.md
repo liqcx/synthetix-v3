@@ -28,14 +28,16 @@ yarn workspace @synthetixio/spot-market test
 ### Inside a package directory
 
 ```bash
-yarn build:contracts          # compile + storage dump + cannon build
-yarn test                     # run hardhat tests
+yarn build:contracts          # compile + storage dump + cannon build (runs `bun x hardhat` under the hood)
+yarn test                     # run hardhat tests via `bun x hardhat test`
 ```
+
+JS runtime: package.json scripts invoke `bun x hardhat …` (and `bun x mocha`, `bun …`). `yarn` remains the package manager — install with `yarn install --immutable`. Bun 1.3+ recommended (CI installs it via the `install-bun` step alongside `yarn-install`).
 
 ### Single test file (Hardhat/Mocha packages)
 
 ```bash
-CANNON_REGISTRY_PRIORITY=local npx hardhat test test/integration/Orders/BookOrder.test.ts
+CANNON_REGISTRY_PRIORITY=local bun x hardhat test test/integration/Orders/BookOrder.test.ts
 ```
 
 ### Foundry tests (perps-market, treasury-market, some auxiliary)
