@@ -7,7 +7,7 @@
   "main": "index.js",
   "types": "index.d.ts",
   "scripts": {
-    "abis": "node ./abis.js",
+    "abis": "bun ./abis.js",
     "docgen:contracts": "./docgen-contracts.sh"
   },
   "devDependencies": {

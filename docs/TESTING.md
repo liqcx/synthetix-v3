@@ -153,7 +153,7 @@ yarn build:contracts
 yarn test
 ```
 
-Это выполняет `CANNON_REGISTRY_PRIORITY=local hardhat test` в каждом workspace параллельно.
+Это выполняет `CANNON_REGISTRY_PRIORITY=local bun x hardhat test` в каждом workspace параллельно.
 
 ### Тесты конкретного пакета
 
@@ -166,7 +166,7 @@ yarn test
 
 ```bash
 cd markets/perps-market
-CANNON_REGISTRY_PRIORITY=local npx hardhat test test/integration/Orders/OffchainAsyncOrder.commit.test.ts
+CANNON_REGISTRY_PRIORITY=local bun x hardhat test test/integration/Orders/OffchainAsyncOrder.commit.test.ts
 ```
 
 ### Тесты по каталогам (рекомендуется для perps-market)
@@ -175,10 +175,10 @@ CANNON_REGISTRY_PRIORITY=local npx hardhat test test/integration/Orders/Offchain
 cd markets/perps-market
 
 # Конкретная папка
-CANNON_REGISTRY_PRIORITY=local npx hardhat test 'test/integration/Orders/*.test.ts'
+CANNON_REGISTRY_PRIORITY=local bun x hardhat test 'test/integration/Orders/*.test.ts'
 
 # Несколько папок
-CANNON_REGISTRY_PRIORITY=local npx hardhat test \
+CANNON_REGISTRY_PRIORITY=local bun x hardhat test \
   'test/integration/Orders/*.test.ts' \
   'test/integration/Market/*.test.ts'
 ```
@@ -270,7 +270,7 @@ export function bootstrapMarkets(data) {
 | Переменная | Описание | Где используется |
 |------------|----------|-----------------|
 | `CANNON_REGISTRY_PRIORITY=local` | Искать cannon-пакеты сначала в локальном кеше | `yarn test`, `yarn build` |
-| `REPORT_GAS=true` | Включить отчет по gas usage | `hardhat test` |
+| `REPORT_GAS=true` | Включить отчет по gas usage | `bun x hardhat test` |
 
 ---
 
@@ -335,7 +335,7 @@ yarn build-testable
 
 **Решение 2:** Запускать тесты по каталогам, а не все сразу:
 ```bash
-CANNON_REGISTRY_PRIORITY=local npx hardhat test 'test/integration/Orders/*.test.ts'
+CANNON_REGISTRY_PRIORITY=local bun x hardhat test 'test/integration/Orders/*.test.ts'
 ```
 
 ### `Failed to decode state dump` / `Best hash not found`

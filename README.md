@@ -212,13 +212,13 @@ Do **NOT** manually update `package.json` of any package.
     ```sh
     # This is only an example to illustrate what deploy shortcut is doing under the hood
     # 1. Compile the contracts and all the support files
-    yarn hardhat compile --force
+    bun x hardhat compile --force
     # 2. Dump the contract storage
-    yarn hardhat storage:dump --output storage.new.dump.json
+    bun x hardhat storage:dump --output storage.new.dump.json
     # 3. Deploy on chain (cannon's chain only 13370) and generate all the IPFS artifacts in cannon local folder
     #    CANNON_REGISTRY_PRIORITY=local ensures that cannon uses local cache first and not pulling packages from outside
     #    This is needed when there is a dependency between packages and we publishing a chain of packages one by one
-    CANNON_REGISTRY_PRIORITY=local yarn hardhat cannon:build
+    CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
     # 4. Publish given package to the cannon registry
     yarn cannon publish synthetix:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
     ```
