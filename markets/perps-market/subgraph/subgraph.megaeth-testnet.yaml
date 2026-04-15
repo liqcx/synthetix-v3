@@ -28,6 +28,7 @@ dataSources:
         - OrderSettled
         - PreviousOrderExpired
         - MarketUpdated
+        - Position
       eventHandlers:
         - event: AccountCreated(indexed uint128,indexed address)
           handler: handleAccountCreated

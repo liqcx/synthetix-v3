@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.20;
+pragma solidity >=0.8.11 <0.9.0;
 
 /// @title MockCallee
 /// @notice Receives calls from the Multicaller

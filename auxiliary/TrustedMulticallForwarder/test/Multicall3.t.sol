@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.20;
+pragma solidity >=0.8.11 <0.9.0;
 
 import {Test} from "forge-std/Test.sol";
 import {ERC2771Forwarder, Address} from "../lib/openzeppelin-contracts/contracts/metatx/ERC2771Forwarder.sol";

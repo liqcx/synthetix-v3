@@ -101,7 +101,7 @@ type CollateralModified @entity {
   id: ID!
   timestamp: BigInt!
   accountId: BigInt!
-  synthMarketId: BigInt!
+  collateralId: BigInt!
   amount: BigInt!
   sender: Bytes!
 }
@@ -160,4 +160,16 @@ type MarketUpdated @entity {
   sizeDelta: BigInt!
   currentFundingRate: BigInt!
   currentFundingVelocity: BigInt!
+}
+
+type Position @entity {
+  id: ID!
+  accountId: BigInt!
+  marketId: BigInt!
+  size: BigInt!
+  lastSettlementPrice: BigInt!
+  accruedFunding: BigInt!
+  lastFundingRate: BigInt!
+  updatedAt: BigInt!
+  isOpen: Boolean!
 }

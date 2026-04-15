@@ -14,33 +14,20 @@ import 'hardhat-ignore-warnings';
 // Load common .env file from root
 dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
 
-const lockedConfig = {
-  version: '0.8.17',
+const compilerConfig = {
+  version: '0.8.34',
   settings: {
     optimizer: {
-      enabled: false,
+      enabled: true,
       runs: 200,
     },
+    evmVersion: 'prague',
   },
 };
 
 const config = {
   solidity: {
-    compilers: [
-      {
-        version: '0.8.22',
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 200,
-          },
-        },
-      },
-    ],
-    overrides: {
-      'contracts/Proxy.sol': lockedConfig,
-      'contracts/modules/CoreModule.sol': lockedConfig,
-    },
+    compilers: [compilerConfig],
   },
   defaultNetwork: 'cannon',
   networks: {

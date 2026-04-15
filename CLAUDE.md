@@ -110,7 +110,7 @@ utils/hardhat-storage                       ← storage collision detection plug
 - **Cannon** (`hardhat-cannon`) for deployment packaging and reproducible builds
 - **Foundry** (forge) for Solidity-level tests in select packages
 - **TypeChain** generating ethers-v5 types
-- **Solidity** 0.8.17–0.8.29 depending on package (common default: 0.8.22, optimizer 200 runs)
+- **Solidity** 0.8.34 uniform, evmVersion: prague, optimizer 200 runs (10_000 for perps-market Foundry)
 - **Node** ≥20.17.0
 
 ## Workflow

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // solhint-disable one-contract-per-file, var-name-mixedcase, func-name-mixedcase
-pragma solidity ^0.8.21;
+pragma solidity >=0.8.11 <0.9.0;
 
 import {Test} from "forge-std/Test.sol";
 import {RewardsDistributorExternal} from "../src/RewardsDistributorExternal.sol";
