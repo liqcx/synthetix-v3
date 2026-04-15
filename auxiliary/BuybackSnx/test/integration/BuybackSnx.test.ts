@@ -34,15 +34,15 @@ describe('BuybackSnx', function () {
 
   describe('initial state is set', function () {
     it('get premium', async () => {
-      const premium = await BuybackSnx.getPremium();
+      const premium = await BuybackSnx.premium();
       assertBn.equal(premium, premiumValue);
     });
     it('get snxFeeShare', async () => {
-      const snxFeeShare = await BuybackSnx.getSnxFeeShare();
+      const snxFeeShare = await BuybackSnx.snxFeeShare();
       assertBn.equal(snxFeeShare, snxFeeShareRatio);
     });
     it('get snxNodeId', async () => {
-      const snxNodeId = await BuybackSnx.getSnxFeeShare();
+      const snxNodeId = await BuybackSnx.snxNodeId();
       assert.notEqual(snxNodeId, ethers.constants.HashZero);
     });
   });
@@ -71,20 +71,20 @@ describe('BuybackSnx', function () {
     });
 
     it('buys snx for usd', async () => {
-      const premium = await BuybackSnx.getPremium();
+      const premium = await BuybackSnx.premium();
       console.log('premium', premium.toString());
 
       console.log(
         '1 + premimum',
         bn(1)
-          .add(await BuybackSnx.getPremium())
+          .add(await BuybackSnx.premium())
           .toString()
       );
       console.log('snx price * snx amount ', snxPrice.mul(snxAmount).div(bn(1)).toString());
 
       const expectedAmountUSD = snxPrice
         .mul(snxAmount)
-        .mul(bn(1).add(await BuybackSnx.getPremium()))
+        .mul(bn(1).add(await BuybackSnx.premium()))
         .div(bn(1))
         .div(bn(1));
       console.log('expected usd amount:', expectedAmountUSD.toString());

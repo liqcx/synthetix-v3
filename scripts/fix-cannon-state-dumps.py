@@ -24,6 +24,8 @@ def migrate_chain_dump(hex_dump: str) -> str:
 
     if "best_block_number" in state:
         return hex_dump  # Already new format
+    if "block" not in state:
+        return hex_dump  # Unknown shape — don't touch
 
     # Add missing fields
     state["best_block_number"] = "0x0"
@@ -54,7 +56,7 @@ def migrate_file(fpath: str) -> int:
 
         raw = binascii.unhexlify(dump[2:])
         state = json.loads(gzip.decompress(raw))
-        if "best_block_number" in state:
+        if "best_block_number" in state or "block" not in state:
             continue
 
         step_data["chainDump"] = migrate_chain_dump(dump)
