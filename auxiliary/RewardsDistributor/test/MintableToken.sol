@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.21;
+pragma solidity >=0.8.11 <0.9.0;
 
 import {MockERC20} from "forge-std/mocks/MockERC20.sol";
 
