@@ -4,14 +4,14 @@
 auto_detect_solc = false
 block_timestamp = 1_738_368_000 # Feb 1, 2025 at 00:00 GMT
 bytecode_hash = "none"
-evm_version = "shanghai"
+evm_version = "prague"
 fuzz = { runs = 1_000 }
 gas_reports = ["BookOrderModule"]
 optimizer = true
 optimizer_runs = 10_000
 out = "out"
 script = "script"
-solc = "0.8.29"
+solc = "0.8.34"
 src = "contracts"
 test = "tests"
 tests = ["tests"]
@@ -28,7 +28,7 @@ remappings = [
     '@synthetixio/core-modules/=../../node_modules/@synthetixio/core-modules/',
     '@synthetixio/spot-market/=../../node_modules/@synthetixio/spot-market/',
 ]
-libs = ["../../node_modules","node_modules", "lib", "../../"]
+libs = ["../../node_modules", "node_modules", "lib", "../../"]
 
 [profile.ci]
 fuzz = { runs = 10_000 }
