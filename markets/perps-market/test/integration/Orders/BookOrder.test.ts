@@ -328,4 +328,38 @@ describe('Settle Orderbook order', () => {
       await assertEvent(tx, 'BookOrderSettled', systems().PerpsMarket);
     });
   });
+
+  // Regression for the ghost-market-0 bug: writing a new Position.Data via
+  // settleBookOrders must persist Position.marketId == marketId. Otherwise
+  // liquidations later call updateOpenPositions(self, 0, size) and add a
+  // phantom market 0 to openPositionMarketIds, which breaks every plural
+  // oracle fetch with UnprocessableNode(bytes32(0)).
+  describe('regression: Position.marketId after first book settlement', async () => {
+    before(restore);
+    before('run orderbook order for a brand-new account/market pair', async () => {
+      tx = await systems()
+        .PerpsMarket.connect(keeper())
+        .settleBookOrders(ethMarketId, [
+          {
+            accountId: 2,
+            sizeDelta: bn(1),
+            orderPrice: bn(1050),
+            signedPriceData: '0x',
+            trackingCode: ethers.utils.formatBytes32String(''),
+          },
+        ]);
+    });
+
+    it('persists Position.marketId equal to the settled marketId', async () => {
+      const detailed = await systems().PerpsMarket.getAccountFullPositionInfo(2);
+      assert.equal(detailed.length, 1);
+      assertBn.equal(detailed[0].marketId, ethMarketId);
+    });
+
+    it('lists only the settled marketId in openPositionMarketIds', async () => {
+      const ids = await systems().PerpsMarket.getAccountOpenPositions(2);
+      assert.equal(ids.length, 1);
+      assertBn.equal(ids[0], ethMarketId);
+    });
+  });
 });
