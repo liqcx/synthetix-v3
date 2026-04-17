@@ -194,10 +194,10 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
                 ctx.accountId = orders[i].accountId;
                 accumOrderData = AccumulatedOrderData(0, 0, 0, 0);
                 curPosition = market.positions[ctx.accountId];
-                // TODO: BUG — curPosition.marketId is 0 for new positions because storage default is 0.
-                // This causes getAccountFullPositionInfo to return marketId=0.
-                // Fix: uncomment the line below and redeploy.
-                // curPosition.marketId = marketId;
+                // Ensure Position.marketId is set — storage default is 0 for new positions,
+                // which would leak into liquidation (updateOpenPositions(self, 0, size) adds
+                // a ghost market 0 to openPositionMarketIds and breaks plural oracle fetches).
+                curPosition.marketId = marketId;
             } else if (orders[i].accountId < ctx.accountId) {
                 // order ids must be supplied in strictly ascending order
                 revert ParameterError.InvalidParameter(
@@ -259,6 +259,13 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
             pnl - accumOrderData.orderFee.toInt(),
             PerpsAccount.load(ctx.accountId).debt
         );
+
+        // Defensive check: a Position whose marketId diverges from the market it is being
+        // written into will silently corrupt `openPositionMarketIds` at liquidation time
+        // (ghost market 0 / strict-oracle UnprocessableNode). Fail loudly here instead.
+        if (pos.marketId != marketId) {
+            revert ParameterError.InvalidParameter("pos.marketId", "must equal marketId");
+        }
 
         MarketUpdate.Data memory updateData;
         {
