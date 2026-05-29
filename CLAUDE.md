@@ -11,28 +11,28 @@ Synthetix v3 monorepo — modular smart contract protocol for on-chain derivativ
 ### Root-level (all packages)
 
 ```bash
-yarn build                    # Full build (topological order)
-yarn test                     # All tests in parallel
-yarn lint                     # prettier + eslint + solhint
-yarn lint:fix                 # Auto-fix all linting
+pnpm build                    # Full build (topological order)
+pnpm test                     # All tests in parallel
+pnpm lint                     # prettier + eslint + solhint
+pnpm lint:fix                 # Auto-fix all linting
 ```
 
 ### Single package
 
 ```bash
-yarn workspace @synthetixio/perps-market test
-yarn workspace @synthetixio/main test
-yarn workspace @synthetixio/spot-market test
+pnpm --filter @synthetixio/perps-market test
+pnpm --filter @synthetixio/main test
+pnpm --filter @synthetixio/spot-market test
 ```
 
 ### Inside a package directory
 
 ```bash
-yarn build:contracts          # compile + storage dump + cannon build (runs `bun x hardhat` under the hood)
-yarn test                     # run hardhat tests via `bun x hardhat test`
+pnpm build:contracts          # compile + storage dump + cannon build (runs `bun x hardhat` under the hood)
+pnpm test                     # run hardhat tests via `bun x hardhat test`
 ```
 
-JS runtime: package.json scripts invoke `bun x hardhat …` (and `bun x mocha`, `bun …`). `yarn` remains the package manager — install with `yarn install --immutable`. Bun 1.3+ recommended (CI installs it via the `install-bun` step alongside `yarn-install`).
+JS runtime: package.json scripts invoke `bun x hardhat …` (and `bun x mocha`, `bun …`). **pnpm 11** is the package manager (migrated from Yarn 4 in P3b; node bumped 20.17→24.14 — pnpm 11 requires ≥22.13) — install with `pnpm install --frozen-lockfile`. Bun 1.3+ for runtime. **CI** is still CircleCI/yarn pending the **P3d** CircleCI→self-hosted-GHA migration; contract builds + the test suite (cannon/solc/forge, heavy) are validated by the operator/CI machines, not in-tree.
 
 ### Single test file (Hardhat/Mocha packages)
 
@@ -54,7 +54,7 @@ forge test -vvvvv                     # max verbosity
 import "hardhat/console.sol";
 ```
 
-Then run with `DEBUG=cannon:cli:rpc yarn test`.
+Then run with `DEBUG=cannon:cli:rpc pnpm test`.
 
 ## Architecture
 
@@ -71,7 +71,7 @@ State is defined as `library X { struct Data { ... } }` with `X.load(id)` return
 - Each package has `cannonfile.toml` (production) and `cannonfile.test.toml` (testing)
 - Cannon composes modules into routers and manages deployment artifacts
 - **Always use** `CANNON_REGISTRY_PRIORITY=local` when building/testing locally
-- **Always use** `yarn cannon` (not global cannon) to avoid version mismatches
+- **Always use** `pnpm exec cannon` (not global cannon) to avoid version mismatches
 
 ### Package Dependency Graph
 
@@ -107,13 +107,17 @@ utils/hardhat-storage                       ← storage collision detection plug
 
 ## Toolchain
 
-- **Yarn 4** (Berry) workspaces with Lerna Lite for versioning/publishing
+- **pnpm 11** workspaces with Lerna Lite for versioning/publishing
 - **Hardhat** for Solidity compilation and integration testing
 - **Cannon** (`hardhat-cannon`) for deployment packaging and reproducible builds
 - **Foundry** (forge) for Solidity-level tests in select packages
 - **TypeChain** generating ethers-v5 types
 - **Solidity** 0.8.34 uniform, evmVersion: prague, optimizer 200 runs (10_000 for perps-market Foundry)
-- **Node** ≥20.17.0
+- **Node** 24.14.0 (pnpm 11 requires ≥22.13; migrated from 20.17)
+
+## Fork Maintenance
+
+Permanent hard-fork of `Synthetixio/synthetix-v3` (no upstream sync in ~19 months; protocol-diverged — solc 0.8.34/prague, Bun runtime, custom `BookOrderModule`, now the pnpm migration). The `upstream` remote is kept for **cherry-pick-only** security/protocol fixes — never a full merge. Keep package-manager / CI changes in isolated commits so targeted cherry-picks stay low-conflict.
 
 ## Workflow
 
