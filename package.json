@@ -14,19 +14,19 @@
   "license": "MIT",
   "homepage": "https://github.com/Synthetixio/synthetix-v3#readme",
   "scripts": {
-    "clean": "yarn workspaces foreach --all --parallel --verbose run clean",
-    "generate-testable": "CANNON_REGISTRY_PRIORITY=local yarn workspaces foreach --all --verbose run generate-testable",
-    "build-testable": "CANNON_REGISTRY_PRIORITY=local yarn workspaces foreach --all --topological-dev --verbose run build-testable",
-    "compile-contracts": "CANNON_REGISTRY_PRIORITY=local yarn workspaces foreach --all --topological-dev --verbose run compile-contracts",
-    "build:ts": "yarn workspaces foreach --all --topological-dev --verbose run build:ts",
-    "build": "CANNON_REGISTRY_PRIORITY=local yarn workspaces foreach --all --topological-dev --verbose run build",
-    "size-contracts": "yarn workspaces foreach --all --verbose run size-contracts",
-    "storage:dump": "yarn workspaces foreach --all --verbose run storage:dump",
-    "storage:verify": "yarn workspaces foreach --all --verbose run storage:verify",
-    "build:contracts": "yarn workspaces foreach --all --topological-dev --verbose run build:contracts",
-    "check:storage": "yarn workspaces foreach --all --topological-dev --verbose run check:storage",
-    "test": "CANNON_REGISTRY_PRIORITY=local yarn workspaces foreach --all --parallel --verbose run test",
-    "coverage": "yarn workspaces foreach --all --verbose run coverage",
+    "clean": "pnpm -r --parallel run clean",
+    "generate-testable": "CANNON_REGISTRY_PRIORITY=local pnpm -r run generate-testable",
+    "build-testable": "CANNON_REGISTRY_PRIORITY=local pnpm -r run build-testable",
+    "compile-contracts": "CANNON_REGISTRY_PRIORITY=local pnpm -r run compile-contracts",
+    "build:ts": "pnpm -r run build:ts",
+    "build": "CANNON_REGISTRY_PRIORITY=local pnpm -r run build",
+    "size-contracts": "pnpm -r run size-contracts",
+    "storage:dump": "pnpm -r run storage:dump",
+    "storage:verify": "pnpm -r run storage:verify",
+    "build:contracts": "pnpm -r run build:contracts",
+    "check:storage": "pnpm -r run check:storage",
+    "test": "CANNON_REGISTRY_PRIORITY=local pnpm -r --parallel run test",
+    "coverage": "pnpm -r run coverage",
     "lint:progress": "ESLINT_PROGRESS=true eslint --max-warnings=0 .",
     "lint:js": "eslint --max-warnings=0 .",
     "lint:js:fix": "eslint --max-warnings=0 --fix .",
@@ -34,8 +34,8 @@
     "lint:sol:fix": "solhint --fix **/*.sol",
     "pretty:fix": "prettier --write --ignore-unknown '**/*'",
     "pretty": "prettier --check --ignore-unknown '**/*'",
-    "lint:fix": "yarn pretty:fix && yarn lint:js:fix && yarn lint:sol:fix",
-    "lint": "yarn pretty && yarn lint:js && yarn lint:sol",
+    "lint:fix": "pnpm pretty:fix && pnpm lint:js:fix && pnpm lint:sol:fix",
+    "lint": "pnpm pretty && pnpm lint:js && pnpm lint:sol",
     "deps": "deps",
     "deps:fix": "deps --fix",
     "deps:mismatched": "deps-mismatched",
@@ -43,17 +43,17 @@
     "publish:release": "lerna publish --force-publish",
     "publish:dev": "lerna publish from-package --force-publish --dist-tag dev --no-git-reset",
     "version:dev": "lerna version 0.0.0-dev.$(git rev-parse --short HEAD) --no-changelog --no-push --no-git-tag-version --force-publish --allow-branch $(git branch --show-current)",
-    "publish-contracts": "yarn workspaces foreach --all --verbose run publish-contracts",
-    "docgen:contracts": "yarn clean && yarn workspaces foreach --all --verbose run docgen && yarn workspace @synthetixio/docgen run docgen:contracts",
-    "subgraph:codegen": "yarn workspaces foreach --all --verbose run subgraph:codegen",
-    "subgraph:build": "yarn workspaces foreach --all --verbose run subgraph:build",
+    "publish-contracts": "pnpm -r run publish-contracts",
+    "docgen:contracts": "pnpm clean && pnpm -r run docgen && pnpm --filter @synthetixio/docgen run docgen:contracts",
+    "subgraph:codegen": "pnpm -r run subgraph:codegen",
+    "subgraph:build": "pnpm -r run subgraph:build",
     "check-staged": "lint-staged",
     "copy-storage": "bash -c 'for f in $(find . -name 'storage.new.dump.json'); do cp $f $(dirname $f)/storage.dump.json; git add $(dirname $f)/storage.dump.json; done'",
     "changed": "lerna changed --long",
-    "audit": "yarn npm audit --all --recursive --severity high",
-    "cannon:hotfix": "yarn up @usecannon/builder@hotfix @usecannon/cli@hotfix hardhat-cannon@hotfix --exact && yarn dedupe",
-    "cannon:latest": "yarn up @usecannon/builder@latest @usecannon/cli@latest hardhat-cannon@latest --exact && yarn dedupe",
-    "cannon:alpha": "yarn up @usecannon/builder@alpha @usecannon/cli@alpha hardhat-cannon@alpha --exact && yarn dedupe"
+    "audit": "pnpm audit --audit-level high",
+    "cannon:hotfix": "pnpm up @usecannon/builder@hotfix @usecannon/cli@hotfix hardhat-cannon@hotfix && pnpm dedupe",
+    "cannon:latest": "pnpm up @usecannon/builder@latest @usecannon/cli@latest hardhat-cannon@latest && pnpm dedupe",
+    "cannon:alpha": "pnpm up @usecannon/builder@alpha @usecannon/cli@alpha hardhat-cannon@alpha && pnpm dedupe"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.1.0",
@@ -91,9 +91,6 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
   },
-  "resolutions": {
-    "hardhat-gas-reporter/eth-gas-reporter": "git://github.com/dbeal-eth/eth-gas-reporter.git#fix-catch-errors"
-  },
   "pre-commit": [
     "check-staged",
     "copy-storage"
@@ -126,7 +123,7 @@
     "!auxiliary/*/lib/openzeppelin-contracts/**"
   ],
   "engines": {
-    "node": "^20.17.0"
+    "node": ">=22.13.0"
   },
-  "packageManager": "yarn@4.7.0"
+  "packageManager": "pnpm@11.1.2"
 }

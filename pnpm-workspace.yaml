@@ -1,0 +1,58 @@
+packages:
+  - 'utils/**'
+  - 'protocol/**'
+  - 'markets/**'
+  - 'auxiliary/**'
+  - '!auxiliary/*/lib/**'
+  - '!auxiliary/*/lib/openzeppelin-contracts/**'
+
+# Keep pnpm's default (isolated) linker — `bun x tsc` (used by every package's
+# build:ts) resolves its package-local typescript symlink correctly under
+# isolated, but breaks under the hoisted linker's flattened layout. To still
+# expose the phantom/undeclared deps the upstream-yarn monorepo relied on,
+# publicly hoist just those to top-level node_modules (visible via tsc/node
+# walk-up): all @types/* (e.g. @types/micromatch in hardhat-storage) + axios
+# (the cannon CLI's undeclared dep). pnpm 11 reads this from here, not .npmrc.
+publicHoistPattern:
+  - '*types*'
+  - 'axios'
+
+# pnpm 11 blocks dependency build scripts by default; approve the set yarn ran
+# implicitly (same scripts, no new trust). keccak/secp256k1 = load-bearing eth
+# hashing/signing (node-gyp); bufferutil/utf-8-validate = ws native accel;
+# the rest are postinstall banners/setup (core-js*, es5-ext, protobufjs, web3,
+# spawn-sync, postinstall-postinstall, pre-commit).
+allowBuilds:
+  bufferutil: true
+  core-js: true
+  core-js-pure: true
+  es5-ext: true
+  keccak: true
+  postinstall-postinstall: true
+  pre-commit: true
+  protobufjs: true
+  secp256k1: true
+  spawn-sync: true
+  utf-8-validate: true
+  web3: true
+
+# pnpm 11's blockExoticSubdeps (default on) rejects ANY git-sourced override as
+# an exotic subdependency — the block is git-vs-registry, independent of the
+# transport — so it must be off for the upstream-inherited eth-gas-reporter fork
+# below (Synthetix's dev/test gas-reporter patch). Security-hardened vs the
+# upstream form: git+https (not git://, which has no TLS + is GitHub-disabled)
+# and pinned to an IMMUTABLE commit SHA (not the mutable #fix-catch-errors
+# branch), so the dependency content cannot change under us. Long-term: republish
+# the fork to @liqcx GitHub Packages so blockExoticSubdeps can return to default.
+blockExoticSubdeps: false
+
+overrides:
+  'hardhat-gas-reporter>eth-gas-reporter': 'git+https://github.com/dbeal-eth/eth-gas-reporter.git#1772400f123bb9ddda777170f53594205fffda87'
+  # Pin the type-check toolchain to the yarn-base versions: pnpm re-resolved
+  # within the ^ ranges to newer releases whose stricter generics (TS 5.7+'s
+  # generic Uint8Array/Buffer<ArrayBuffer>, @types/node 20.19's Buffer change)
+  # break the existing merkle-tree code. The yarn lockfile pinned typescript
+  # 5.5.4 + @types/node 20.11.17, which type-check clean. (Contracts is a
+  # sanctioned exception; canon TS 6 is not in scope for the fork.)
+  typescript: 5.5.4
+  '@types/node': '20.11.17'
