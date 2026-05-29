@@ -97,22 +97,22 @@
   ],
   "lint-staged": {
     "*.js": [
-      "yarn prettier --check",
-      "yarn eslint --max-warnings=0"
+      "pnpm exec prettier --check",
+      "pnpm exec eslint --max-warnings=0"
     ],
     "*.ts": [
-      "yarn prettier --check",
-      "yarn eslint --max-warnings=0"
+      "pnpm exec prettier --check",
+      "pnpm exec eslint --max-warnings=0"
     ],
     "*.sol": [
-      "yarn prettier --check",
-      "yarn solhint"
+      "pnpm exec prettier --check",
+      "pnpm exec solhint"
     ],
-    "*.toml": "yarn prettier --check",
-    "*.yml": "yarn prettier --check",
-    "*.yaml": "yarn prettier --check",
-    "*.json": "yarn prettier --check",
-    "*.md": "yarn prettier --check"
+    "*.toml": "pnpm exec prettier --check",
+    "*.yml": "pnpm exec prettier --check",
+    "*.yaml": "pnpm exec prettier --check",
+    "*.json": "pnpm exec prettier --check",
+    "*.md": "pnpm exec prettier --check"
   },
   "workspaces": [
     "utils/**",

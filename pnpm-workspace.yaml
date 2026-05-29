@@ -16,6 +16,10 @@ packages:
 publicHoistPattern:
   - '*types*'
   - 'axios'
+  # @types/parse-path@7.x is a STUB (parse-path v7 self-types; no .d.ts), pulled
+  # transitively via parse-url. yarn never surfaced it; hoisting it makes tsc's
+  # auto-@types-inclusion fail with TS2688. Exclude the stub so tsc ignores it.
+  - '!@types/parse-path'
 
 # pnpm 11 blocks dependency build scripts by default; approve the set yarn ran
 # implicitly (same scripts, no new trust). keccak/secp256k1 = load-bearing eth
