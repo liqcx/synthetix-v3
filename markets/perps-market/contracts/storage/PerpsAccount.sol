@@ -696,8 +696,14 @@ library PerpsAccount {
         previousOrderMode = self.orderMode;
         self.orderMode = mode;
 
-        // solhint-disable-next-line numcast/safe-cast
-        self.orderModeChangeTime = uint128(block.timestamp);
+        // The grace window (RECENTLY_CHANGED) guards genuine mode switches against gaming.
+        // The first set from the unset default ("") is initialization, not a switch, so it
+        // takes effect immediately: a fresh account can opt into ONCHAIN without a 15s
+        // window in which async commits would revert with IncorrectAccountMode.
+        if (previousOrderMode != "") {
+            // solhint-disable-next-line numcast/safe-cast
+            self.orderModeChangeTime = uint128(block.timestamp);
+        }
     }
 
     function getOrderMode(Data storage self) internal view returns (bytes16 orderMode) {
