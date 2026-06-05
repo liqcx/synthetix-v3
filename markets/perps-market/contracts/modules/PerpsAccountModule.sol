@@ -62,6 +62,11 @@ contract PerpsAccountModule is IPerpsAccountModule {
 
         if (amountDelta == 0) revert InvalidAmountDelta(amountDelta);
 
+        // DEAD GUARD — DO NOT "FIX" TO ||. getOrderMode() can never be both "BOOK"
+        // and "RECENTLY_CHANGED" at once, so this never triggers. Now that BOOK is the
+        // default, changing `&&` to `||` would block collateral withdrawal for EVERY
+        // default account. Reworking this guard (e.g. only-when-open-book-orders) is a
+        // separate effort tracked in the BOOK-default design spec.
         if (
             amountDelta < 0 &&
             PerpsAccount.load(accountId).getOrderMode() == "BOOK" &&

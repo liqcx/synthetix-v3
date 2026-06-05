@@ -123,7 +123,7 @@ describe('Settle Orderbook order', () => {
     assert(
       ethers.utils.parseBytes32String(
         (await systems().PerpsMarket.getOrderMode(5)) + '00000000000000000000000000000000'
-      ) === ''
+      ) === 'BOOK'
     );
 
     await fastForwardTo((await getTime(provider())) + 1000, provider());
@@ -136,8 +136,31 @@ describe('Settle Orderbook order', () => {
     assert(
       ethers.utils.parseBytes32String(
         (await systems().PerpsMarket.getOrderMode(5)) + '00000000000000000000000000000000'
-      ) === ''
+      ) === 'BOOK'
     );
+  });
+
+  describe('default-mode account (BOOK by default)', () => {
+    before(restore);
+
+    it('settles a book order for account 5 even though setBookMode was never called', async () => {
+      // account 5 is funded (10_000 snxUSD) but never had setBookMode called on it.
+      // With BOOK as the default order mode, settleBookOrders must accept it.
+      await systems()
+        .PerpsMarket.connect(keeper())
+        .settleBookOrders(ethMarketId, [
+          {
+            accountId: 5,
+            sizeDelta: bn(1),
+            orderPrice: bn(1050),
+            signedPriceData: '0x',
+            trackingCode: ethers.utils.formatBytes32String(''),
+          },
+        ]);
+
+      const [, , size] = await systems().PerpsMarket.getOpenPosition(5, ethMarketId);
+      assertBn.equal(size, bn(1));
+    });
   });
 
   it('fails when the orders are not increasing account id order', async () => {
@@ -234,7 +257,11 @@ describe('Settle Orderbook order', () => {
 
       it('charges the account with pnl', async () => {
         const amount = await systems().PerpsMarket.getCollateralAmount(2, 0);
-        assertBn.equal(amount, bn(9983.965));
+        // bootstrapTraders opts every trader account into ONCHAIN (the suite's legacy
+        // default, now that BOOK is the protocol default). Those two extra setBookMode txs
+        // open account 2's position a couple of blocks later, shifting accrued funding by a
+        // deterministic ~7.4e6 wei. Allow a tight 1e10-wei tolerance instead of exact.
+        assertBn.near(amount, bn(9983.965), ethers.BigNumber.from('10000000000'));
       });
     });
   });

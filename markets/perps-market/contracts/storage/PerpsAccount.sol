@@ -696,13 +696,26 @@ library PerpsAccount {
         previousOrderMode = self.orderMode;
         self.orderMode = mode;
 
-        // solhint-disable-next-line numcast/safe-cast
-        self.orderModeChangeTime = uint128(block.timestamp);
+        // The grace window (RECENTLY_CHANGED) guards genuine mode switches against gaming.
+        // The first set from the unset default ("") is initialization, not a switch, so it
+        // takes effect immediately: a fresh account can opt into ONCHAIN without a 15s
+        // window in which async commits would revert with IncorrectAccountMode.
+        if (previousOrderMode != "") {
+            // solhint-disable-next-line numcast/safe-cast
+            self.orderModeChangeTime = uint128(block.timestamp);
+        }
     }
 
     function getOrderMode(Data storage self) internal view returns (bytes16 orderMode) {
         if (block.timestamp - self.orderModeChangeTime < ORDER_MODE_CHANGE_GRACE_PERIOD) {
             return "RECENTLY_CHANGED";
+        }
+
+        // BOOK is the default order mode: an account that never called setBookMode
+        // (orderMode unset) is treated as BOOK, so the orderbook can settle for it
+        // without an explicit onboarding tx. ONCHAIN is opt-in via setBookMode(false).
+        if (self.orderMode == "") {
+            return "BOOK";
         }
 
         return self.orderMode;

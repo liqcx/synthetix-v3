@@ -69,6 +69,10 @@ export function bootstrapTraders(data: Data) {
       await systems()
         .PerpsMarket.connect([trader1, trader2, trader3][idx])
         ['createAccount(uint128)'](id); // eslint-disable-line no-unexpected-multiline
+      // BOOK is the protocol default. The integration suite's async-order tests
+      // expect the legacy ONCHAIN path, so opt these accounts into ONCHAIN here.
+      // Tests that need BOOK call setBookMode(id, true) explicitly afterwards.
+      await systems().PerpsMarket.connect([trader1, trader2, trader3][idx]).setBookMode(id, false);
     });
   });
 

@@ -46,6 +46,10 @@ contract AsyncOrderModule is IAsyncOrderModule {
             AccountRBAC._PERPS_COMMIT_ASYNC_ORDER_PERMISSION
         );
 
+        // Async (ONCHAIN) orders require an account that has opted into ONCHAIN via
+        // setBookMode(false). Since BOOK is now the default, getOrderMode() never
+        // returns "" for a live account; the `!= ""` clause is retained as a defensive
+        // no-op only.
         if (
             PerpsAccount.load(commitment.accountId).getOrderMode() != "ONCHAIN" &&
             PerpsAccount.load(commitment.accountId).getOrderMode() != ""
