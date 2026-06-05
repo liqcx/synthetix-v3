@@ -213,11 +213,11 @@ rely on a default that isn't deployed yet.
   wei in `BookOrder.test.ts`; that one assertion uses `assertBn.near` with a 1e10-wei
   tolerance. Full-suite validation runs in CI; any other funding-exact assertions that
   drift are reconciled there.
-- **Known pre-existing bug (deferred).** `BookOrderModule.setBookMode` always emits
+- **Pre-existing event bug (fixed here).** `BookOrderModule.setBookMode` previously emitted
   `AccountOrderModeChanged(accountId, "BOOK")` even when setting `ONCHAIN`
-  (`BookOrderModule.sol:110`). Not introduced here, but the new `setBookMode(id, false)`
-  calls now exercise it. Harmless to tests; misleading to any indexer keying off the event.
-  Fix as a separate change.
+  (`BookOrderModule.sol:110`). The new `setBookMode(id, false)` calls exercised it, so it
+  now emits the actual mode (`BOOK`/`ONCHAIN`). No test asserts this event, so behavior is
+  otherwise unchanged.
 - **Behavioral note for Phase 2.** With BOOK as the default, `settleBookOrders` also passes
   the order-mode gate for thin-air accounts it auto-creates (`BookOrderModule.sol:174-188`).
   Consistent with intent; add explicit coverage for that path when hardening settlement.

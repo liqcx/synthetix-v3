@@ -105,9 +105,10 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
 
         PerpsAccount.Data storage perpsAccount = PerpsAccount.load(accountId);
 
-        perpsAccount.setOrderMode(useBook ? bytes16("BOOK") : bytes16("ONCHAIN"));
+        bytes16 newMode = useBook ? bytes16("BOOK") : bytes16("ONCHAIN");
+        perpsAccount.setOrderMode(newMode);
 
-        emit AccountOrderModeChanged(accountId, "BOOK");
+        emit AccountOrderModeChanged(accountId, newMode);
     }
 
     /**
