@@ -705,6 +705,13 @@ library PerpsAccount {
             return "RECENTLY_CHANGED";
         }
 
+        // BOOK is the default order mode: an account that never called setBookMode
+        // (orderMode unset) is treated as BOOK, so the orderbook can settle for it
+        // without an explicit onboarding tx. ONCHAIN is opt-in via setBookMode(false).
+        if (self.orderMode == "") {
+            return "BOOK";
+        }
+
         return self.orderMode;
     }
 
