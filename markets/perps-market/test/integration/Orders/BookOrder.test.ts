@@ -123,7 +123,7 @@ describe('Settle Orderbook order', () => {
     assert(
       ethers.utils.parseBytes32String(
         (await systems().PerpsMarket.getOrderMode(5)) + '00000000000000000000000000000000'
-      ) === ''
+      ) === 'BOOK'
     );
 
     await fastForwardTo((await getTime(provider())) + 1000, provider());
@@ -136,8 +136,31 @@ describe('Settle Orderbook order', () => {
     assert(
       ethers.utils.parseBytes32String(
         (await systems().PerpsMarket.getOrderMode(5)) + '00000000000000000000000000000000'
-      ) === ''
+      ) === 'BOOK'
     );
+  });
+
+  describe('default-mode account (BOOK by default)', () => {
+    before(restore);
+
+    it('settles a book order for account 5 even though setBookMode was never called', async () => {
+      // account 5 is funded (10_000 snxUSD) but never had setBookMode called on it.
+      // With BOOK as the default order mode, settleBookOrders must accept it.
+      await systems()
+        .PerpsMarket.connect(keeper())
+        .settleBookOrders(ethMarketId, [
+          {
+            accountId: 5,
+            sizeDelta: bn(1),
+            orderPrice: bn(1050),
+            signedPriceData: '0x',
+            trackingCode: ethers.utils.formatBytes32String(''),
+          },
+        ]);
+
+      const [, , size] = await systems().PerpsMarket.getOpenPosition(5, ethMarketId);
+      assertBn.equal(size, bn(1));
+    });
   });
 
   it('fails when the orders are not increasing account id order', async () => {
