@@ -24,6 +24,7 @@ contract BootstrapTest is Test, IERC721Receiver {
     address trader2 = address(0x222);
     address whale = address(0x333);
 
+    CannonDeploy deployer;
     IPerpsMarketProxy perps;
     IV3CoreProxy core;
     IOracleManagerProxy oracleManager;
@@ -50,7 +51,7 @@ contract BootstrapTest is Test, IERC721Receiver {
     uint128 constant collateralId = 0;
 
     function setUp() public virtual {
-        CannonDeploy deployer = new CannonDeploy();
+        deployer = new CannonDeploy();
         deployer.run();
 
         perps = IPerpsMarketProxy(deployer.getAddress("PerpsMarketProxy"));
@@ -297,7 +298,8 @@ contract BootstrapTest is Test, IERC721Receiver {
         uint256 sUSDToMint = (800_000e18 * uint256(collateralPrice)) /
             collateralConfig.issuanceRatioD18;
 
-        console.log("collateralPrice", collateralPrice);
+        console.log("collateralPrice");
+        console.logInt(collateralPrice);
         console.log("issuanceRatioD18", collateralConfig.issuanceRatioD18);
         console.log("sUSDToMint", sUSDToMint);
         core.mintUsd(accountIdToUse, poolId, address(collateralToken), sUSDToMint);
