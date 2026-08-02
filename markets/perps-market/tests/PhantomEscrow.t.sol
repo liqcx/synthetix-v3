@@ -37,23 +37,22 @@ import {console} from "forge-std/console.sol";
  *      3. `test_phantomEscrowLocksLpWithdrawals` — the production symptom:
  *         `CoreProxy.isMarketCapacityLocked` flips to true, i.e. LPs can no longer withdraw.
  *
- *      The broken invariant asserted here is the weakest possible one: the snxUSD escrow ledger
- *      may never exceed the snxUSD actually deposited into the market
- *      (`-CoreProxy.getMarketNetIssuance(marketId)`), because `minimumCredit` treats every wei of
- *      it as if it had arrived through `depositMarketUsd` (which raises `creditCapacityD18` by the
- *      same amount and is therefore capacity-neutral).
+ *      The invariant asserted here is the one that is genuinely broken: realised funding may only
+ *      ever reflect the time a position was actually held. There is exactly one defect — the
+ *      frozen anchor. Crediting realised PnL into `collateralAmounts[0]` without moving a token is
+ *      upstream's deliberate design (audit fix f557d648): the escrow is redeemable on demand
+ *      through `PerpsAccountModule._withdrawMargin` -> `CoreProxy.withdrawMarketUsd`, paid by the
+ *      pool, and its presence in `minimumCredit` is what stops LPs withdrawing the collateral
+ *      backing traders' profits. So `escrow <= netDeposited` is NOT a real invariant and is
+ *      deliberately not asserted — it would stay red against a fully fixed contract.
  *
  *      Measured counterfactual (candidate one-line patch — assigning
  *      `pos.latestInteractionFunding = market.lastFundingValue` right after `recomputeFunding` in
- *      `_applyAggregatedAccountPosition` — applied locally and then reverted):
- *        - tests 1 and 3 pass;
- *        - test 2 still fails, but the escrow excess collapses from 810.037500572256943800 snxUSD
- *          to 0.007500156076388760 snxUSD (~108 000x smaller).
- *      That residual is genuine 60-second funding profit, and it still lands in escrow: two
- *      distinct defects are stacked here. `PerpsAccount.charge(amount > 0)` crediting realised PnL
- *      into `collateralAmounts[0]` breaks the invariant on its own (that ledger is fed into
- *      `minimumCredit` as if deposit-backed); the frozen funding anchor is what turns a rounding
- *      -sized leak into a market-killing one.
+ *      `_applyAggregatedAccountPosition` — applied locally and then reverted): the escrow excess
+ *      collapses from 810.037500572256943800 snxUSD to 0.007500156076388760 (~108 000x). That
+ *      residual is genuine 60-second funding profit and is correct behaviour, which is why test 2
+ *      bounds the growth by what the churner could have earned while actually holding rather than
+ *      by deposits.
  */
 contract PhantomEscrowTest is BootstrapTest {
     uint128 marketIdUnderTest;
@@ -63,6 +62,13 @@ contract PhantomEscrowTest is BootstrapTest {
 
     uint256 constant DEPOSIT_PER_ACCOUNT = 100_000e18;
     uint256 constant ETH_PRICE = 2400e18;
+
+    uint256 constant CHURN_ROUND_TRIPS = 5;
+    uint256 constant CHURN_HOLD_SECONDS = 12;
+    uint256 constant CHURN_SIZE = 0.01e18;
+    /// @dev Absorbs funding-rate drift over the churn window; the defect overshoots by ~1e5, so
+    ///      the exact factor is not load-bearing.
+    uint256 constant GENUINE_FUNDING_SAFETY_FACTOR = 10;
 
     function setUp() public override {
         super.setUp();
@@ -156,10 +162,7 @@ contract PhantomEscrowTest is BootstrapTest {
         bytes32 base = keccak256(
             abi.encode("io.synthetix.perps-market.PerpsMarket", marketIdUnderTest)
         );
-        return
-            int256(
-                uint256(vm.load(address(perps), bytes32(uint256(base) + offset)))
-            );
+        return int256(uint256(vm.load(address(perps), bytes32(uint256(base) + offset))));
     }
 
     function _lastFundingValue() internal view returns (int256) {
@@ -228,7 +231,10 @@ contract PhantomEscrowTest is BootstrapTest {
         emit log_named_int("skewMaker accruedFunding", smFunding);
         emit log_named_int("skewMaker totalPnl", smPnl);
         emit log_named_int("market skew", perps.skew(marketIdUnderTest));
-        emit log_named_int("market currentFundingRate", perps.currentFundingRate(marketIdUnderTest));
+        emit log_named_int(
+            "market currentFundingRate",
+            perps.currentFundingRate(marketIdUnderTest)
+        );
         emit log_named_int("churner position size", positionSize);
         emit log_named_int("accruedFunding on a position opened 0 seconds ago", accruedFunding);
 
@@ -256,13 +262,13 @@ contract PhantomEscrowTest is BootstrapTest {
         emit log_named_uint("minimumCredit(superMarket)", minCreditBefore);
         emit log_named_int("net snxUSD deposited into market", netDepositedBefore);
 
-        // Five 12-second round trips. Each close realizes the FULL 30-day funding integral again,
-        // because the position's funding anchor was never advanced.
-        for (uint256 i = 0; i < 5; i++) {
-            _settleOne(churner, -0.01e18); // open short
-            _warp(12);
-            _settleOne(churner, 0.01e18); // close
-            _warp(12);
+        // Short round trips. Each close realizes the FULL 30-day funding integral again, because
+        // the position's funding anchor was never advanced.
+        for (uint256 i = 0; i < CHURN_ROUND_TRIPS; i++) {
+            _settleOne(churner, -int128(uint128(CHURN_SIZE))); // open short
+            _warp(CHURN_HOLD_SECONDS);
+            _settleOne(churner, int128(uint128(CHURN_SIZE))); // close
+            _warp(CHURN_HOLD_SECONDS);
         }
 
         uint256 supplyAfter = usdToken.totalSupply();
@@ -298,13 +304,45 @@ contract PhantomEscrowTest is BootstrapTest {
             int256(escrowAfter) - int256(escrowBefore)
         );
 
-        // The broken invariant: escrow is treated by minimumCredit as deposit-backed, so it can
-        // never legitimately exceed what was actually deposited.
-        assertLe(
-            int256(escrowAfter),
-            netDepositedAfter,
-            "escrow exceeds the snxUSD actually deposited into the market"
+        // The broken invariant: realised funding may only ever reflect the time a position was
+        // actually held. The churner held 0.01 for CHURN_ROUND_TRIPS * CHURN_HOLD_SECONDS in
+        // total, so that is the ceiling on what it can legitimately have earned — regardless of
+        // how large the market's accumulated funding integral happens to be.
+        //
+        // Deliberately NOT asserted: `escrow <= netDeposited`. Crediting realised PnL into
+        // collateralAmounts[0] with no token movement is upstream's intended design (the escrow is
+        // redeemable on demand via _withdrawMargin -> withdrawMarketUsd, paid by the pool), so that
+        // assertion would stay red even against a fully fixed contract.
+        uint256 genuineFundingCeiling = _genuineFundingCeiling();
+        emit log_named_uint(
+            "genuine funding ceiling for the time actually held",
+            genuineFundingCeiling
         );
+
+        assertLe(
+            escrowAfter - escrowBefore,
+            genuineFundingCeiling,
+            "escrow grew by more funding than the position could have accrued while held"
+        );
+    }
+
+    /**
+     * @dev Upper bound on the funding a CHURN_SIZE position can legitimately accrue over the
+     *      CHURN_ROUND_TRIPS * CHURN_HOLD_SECONDS it was actually open, at the market's current
+     *      rate, times a generous safety factor to absorb rate drift during the churn.
+     *
+     *      Against the current sources the loop realises the market's whole 30-day integral on
+     *      every close, so the measured delta overshoots this ceiling by ~5 orders of magnitude.
+     */
+    function _genuineFundingCeiling() internal view returns (uint256) {
+        int256 rate = perps.currentFundingRate(marketIdUnderTest);
+        uint256 absRatePerDay = rate < 0 ? uint256(-rate) : uint256(rate);
+        uint256 notional = (perps.indexPrice(marketIdUnderTest) * CHURN_SIZE) / 1e18;
+        uint256 heldSeconds = CHURN_ROUND_TRIPS * CHURN_HOLD_SECONDS;
+
+        return
+            (((absRatePerDay * notional) / 1e18) * heldSeconds * GENUINE_FUNDING_SAFETY_FACTOR) /
+            1 days;
     }
 
     /**
@@ -347,11 +385,7 @@ contract PhantomEscrowTest is BootstrapTest {
         );
 
         assertEq(usdToken.totalSupply(), supplyBefore, "snxUSD totalSupply must not change");
-        assertEq(
-            _netDepositedSnxUsd(),
-            netDepositedBefore,
-            "no snxUSD entered or left the market"
-        );
+        assertEq(_netDepositedSnxUsd(), netDepositedBefore, "no snxUSD entered or left the market");
         assertFalse(
             core.isMarketCapacityLocked(superMarketId),
             "LP withdrawals locked without any snxUSD entering the market"

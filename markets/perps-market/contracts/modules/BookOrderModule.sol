@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.11 <0.9.0;
 
-import {SafeCastU256} from "@synthetixio/core-contracts/contracts/utils/SafeCast.sol";
+import {SafeCastI256, SafeCastU256} from "@synthetixio/core-contracts/contracts/utils/SafeCast.sol";
 import {ERC2771Context} from "@synthetixio/core-contracts/contracts/utils/ERC2771Context.sol";
 import {ParameterError} from "@synthetixio/core-contracts/contracts/errors/ParameterError.sol";
 import {FeatureFlag} from "@synthetixio/core-modules/contracts/storage/FeatureFlag.sol";
@@ -34,6 +34,7 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
     using GlobalPerpsMarket for GlobalPerpsMarket.Data;
     using GlobalPerpsMarketConfiguration for GlobalPerpsMarketConfiguration.Data;
     using Position for Position.Data;
+    using SafeCastI256 for int256;
     using SafeCastU256 for uint256;
 
     /**
@@ -275,6 +276,17 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
             // we recompute to the price of the first order the user set. if they set multiple trades in te timeframe, its as if they fully close their order for a short period of time
             // between the first order and the last order they place
             market.recomputeFunding(accumOrderData.price);
+
+            // Re-anchor the position to the funding integral we just recomputed. Without this the
+            // anchor keeps its storage default of 0, so `netFundingPerUnit` (Position.sol) is the
+            // market's whole accumulated integral rather than the delta since the last touch, and
+            // every settlement realises it again. The async path does the same at
+            // AsyncOrder.sol:253, the liquidation path at PerpsAccount.sol:677.
+            //
+            // Must run after recomputeFunding (lastFundingValue is stale before it) and before
+            // updatePositionData (which copies this field into storage via Position.update).
+            // `latestInterestAccrued` needs no equivalent — updatePositionData sets it itself.
+            pos.latestInteractionFunding = market.lastFundingValue.to128();
 
             // skip verifications for the account having minimum collateral.
             // this is because they are undertaken by the orderbook and cancelling them would be unnecessary complication
