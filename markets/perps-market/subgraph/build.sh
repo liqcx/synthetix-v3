@@ -16,4 +16,5 @@ build() {
 
 build base-mainnet-andromeda
 build base-sepolia-andromeda
-build megaeth-testnet
+build megaeth-testnet-production
+build megaeth-testnet-staging
