@@ -1,6 +1,6 @@
 specVersion: 0.0.4
 schema:
-  file: ./megaeth-testnet/schema.graphql
+  file: ./megaeth-testnet-production/schema.graphql
 dataSources:
   - kind: ethereum
     network: megaeth-testnet-v2
@@ -13,7 +13,7 @@ dataSources:
       kind: ethereum/events
       apiVersion: 0.0.6
       language: wasm/assemblyscript
-      file: ./megaeth-testnet/index.ts
+      file: ./megaeth-testnet-production/index.ts
       abis:
         - name: PerpsMarketProxy
           file: ./artifacts/PerpsMarketProxy.json
