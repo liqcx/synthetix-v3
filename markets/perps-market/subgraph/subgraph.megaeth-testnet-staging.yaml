@@ -1,19 +1,19 @@
 specVersion: 0.0.4
 schema:
-  file: ./megaeth-testnet/schema.graphql
+  file: ./megaeth-testnet-staging/schema.graphql
 dataSources:
   - kind: ethereum
     network: megaeth-testnet-v2
     name: PerpsMarketProxy
     source:
       abi: PerpsMarketProxy
-      address: "0x330E5A387DFD403a71A81A368eC649b7c1be3AC9"
-      startBlock: 12908909
+      address: "0x60A9D256fdF5E60FcbA26cc85A51c075e9B7336B"
+      startBlock: 27936634
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.6
       language: wasm/assemblyscript
-      file: ./megaeth-testnet/index.ts
+      file: ./megaeth-testnet-staging/index.ts
       abis:
         - name: PerpsMarketProxy
           file: ./artifacts/PerpsMarketProxy.json

@@ -10,10 +10,11 @@ build() {
   echo
   echo
   echo '>' graph build "subgraph.$namespace.yaml" --output-dir "./build/$namespace"
-  yarn graph build "subgraph.$namespace.yaml" --output-dir "./build/$namespace"
-  yarn prettier --write "subgraph.$namespace.yaml"
+  pnpm exec graph build "subgraph.$namespace.yaml" --output-dir "./build/$namespace"
+  pnpm exec prettier --write "subgraph.$namespace.yaml"
 }
 
 build base-mainnet-andromeda
 build base-sepolia-andromeda
-build megaeth-testnet
+build megaeth-testnet-production
+build megaeth-testnet-staging
