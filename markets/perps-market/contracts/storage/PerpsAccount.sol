@@ -250,14 +250,25 @@ library PerpsAccount {
         }
     }
 
+    /**
+     * @notice Records whether the account still holds a position on this market.
+     * @dev A zero size must never enter the set: a batch that opens and closes within one
+     * settlement (book orders +1 then -1 on a fresh market) would otherwise register the
+     * market as open with no position behind it, and every plural read over
+     * `openPositionMarketIds` would carry that phantom entry until some later change
+     * happened to close a real position on the same market.
+     */
     function updateOpenPositions(
         Data storage self,
         uint256 positionMarketId,
         int256 size
     ) internal {
-        if (size == 0 && self.openPositionMarketIds.contains(positionMarketId)) {
-            self.openPositionMarketIds.remove(positionMarketId);
-        } else if (!self.openPositionMarketIds.contains(positionMarketId)) {
+        bool isOpen = self.openPositionMarketIds.contains(positionMarketId);
+        if (size == 0) {
+            if (isOpen) {
+                self.openPositionMarketIds.remove(positionMarketId);
+            }
+        } else if (!isOpen) {
             self.openPositionMarketIds.add(positionMarketId);
         }
     }
