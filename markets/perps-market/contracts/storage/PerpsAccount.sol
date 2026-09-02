@@ -650,6 +650,55 @@ library PerpsAccount {
         }
     }
 
+    /**
+     * @notice Applies one position change: the account's size on one market moves by `sizeDelta`.
+     * @param anchorPrice - the price the resulting position is anchored to. Async settlement passes
+     * the fill price, book settlement the price of the account's first order in the batch,
+     * liquidation the oracle price.
+     * @param fundingPrice - the price the market's funding is recomputed at, which is the oracle
+     * price on the async path and equal to `anchorPrice` on the other two. Recomputing twice at one
+     * timestamp is idempotent, so a caller that already recomputed may pass the same price again.
+     * @return oldPosition - the position as it stood before the change; callers realise its pnl.
+     * @return newPosition - the position as written.
+     * @return marketUpdate - what the market's own state became, for the caller's event.
+     * @dev The only way a position's size reaches storage. Callers stay responsible for what is
+     * theirs and not the position's: charging pnl and fees, paying keepers, and emitting their own
+     * settlement events.
+     * @dev Order is load, recompute funding, build, write, record openness. Building before the
+     * recompute anchors the position to a stale funding integral, and the account then realises that
+     * integral again on every later settlement.
+     */
+    function applyPositionChange(
+        Data storage self,
+        uint128 marketId,
+        int128 sizeDelta,
+        uint256 anchorPrice,
+        uint256 fundingPrice
+    )
+        internal
+        returns (
+            Position.Data memory oldPosition,
+            Position.Data memory newPosition,
+            MarketUpdate.Data memory marketUpdate
+        )
+    {
+        PerpsMarket.Data storage market = PerpsMarket.load(marketId);
+        oldPosition = market.positions[self.id];
+
+        market.recomputeFunding(fundingPrice);
+
+        newPosition = Position.next(
+            oldPosition,
+            marketId,
+            sizeDelta,
+            anchorPrice,
+            market.lastFundingValue
+        );
+
+        marketUpdate = market.updatePositionData(self.id, newPosition);
+        updateOpenPositions(self, marketId, newPosition.size);
+    }
+
     function liquidatePosition(
         Data storage self,
         Position.Data memory position,
@@ -679,23 +728,25 @@ library PerpsAccount {
             ? oldPositionSize - amtToLiquidationInt
             : oldPositionSize + amtToLiquidationInt;
 
-        // create new position in case of partial liquidation
-        Position.Data memory newPosition;
         if (newPositionSize != 0) {
-            newPosition = Position.Data({
-                marketId: position.marketId,
-                latestInteractionPrice: price.to128(),
-                latestInteractionFunding: perpsMarket.lastFundingValue.to128(),
-                latestInterestAccrued: 0,
-                size: newPositionSize
-            });
+            (, , marketUpdateData) = applyPositionChange(
+                self,
+                position.marketId,
+                newPositionSize - oldPositionSize,
+                price,
+                price
+            );
+
+            return (amountToLiquidate, newPositionSize, marketUpdateData);
         }
 
-        // update position markets
-        updateOpenPositions(self, position.marketId, newPositionSize);
-
-        // update market data
-        marketUpdateData = perpsMarket.updatePositionData(self.id, newPosition);
+        // A fully liquidated position is written as an empty struct rather than as a re-anchored
+        // zero-size one, so `updatePositionData` values the change at a price of zero. The async and
+        // book paths both write a priced zero-size position when they close one, so this path is the
+        // outlier, and making it consistent moves `debtCorrectionAccumulator` and therefore the
+        // market's reported debt. Left as it stands until that change can be made on its own.
+        updateOpenPositions(self, position.marketId, 0);
+        marketUpdateData = perpsMarket.updatePositionData(self.id, Position.Data(0, 0, 0, 0, 0));
 
         return (amountToLiquidate, newPositionSize, marketUpdateData);
     }

@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.11 <0.9.0;
 
-import {SafeCastU256, SafeCastU128} from "@synthetixio/core-contracts/contracts/utils/SafeCast.sol";
+import {SafeCastI256, SafeCastU256, SafeCastU128} from "@synthetixio/core-contracts/contracts/utils/SafeCast.sol";
 import {DecimalMath} from "@synthetixio/core-contracts/contracts/utils/DecimalMath.sol";
 import {PerpsMarket} from "./PerpsMarket.sol";
 import {PerpsMarketConfiguration} from "./PerpsMarketConfiguration.sol";
@@ -9,6 +9,7 @@ import {InterestRate} from "./InterestRate.sol";
 import {MathUtil} from "../utils/MathUtil.sol";
 
 library Position {
+    using SafeCastI256 for int256;
     using SafeCastU256 for uint256;
     using SafeCastU128 for uint128;
     using DecimalMath for uint256;
@@ -22,6 +23,37 @@ library Position {
         uint128 latestInteractionPrice;
         int128 latestInteractionFunding;
         uint256 latestInterestAccrued;
+    }
+
+    /**
+     * @notice The position that results from applying one size change at a price.
+     * @param old - the position being changed; a zero-valued struct for a market the account has not traded.
+     * @param marketId - the market the result will be written into; never read from `old`, whose
+     * stored id is zero for a position that has not been written yet.
+     * @param anchorPrice - the price the resulting position is anchored to.
+     * @param fundingValue - the market's funding integral at the moment of the change, which the
+     * result is anchored to; the caller must have recomputed funding first, or the anchor is stale
+     * and every later settlement realises the whole integral again (incident 2026-08-02).
+     * @dev `latestInterestAccrued` is deliberately left at zero: `PerpsMarket.updatePositionData`
+     * owns that anchor and overwrites it with the interest accrued as of the write.
+     * @dev The single builder behind every position change: async settlement, book settlement and
+     * liquidation. Keep it pure, so views can simulate a change without touching storage.
+     */
+    function next(
+        Data memory old,
+        uint128 marketId,
+        int128 sizeDelta,
+        uint256 anchorPrice,
+        int256 fundingValue
+    ) internal pure returns (Data memory) {
+        return
+            Data({
+                marketId: marketId,
+                size: old.size + sizeDelta,
+                latestInteractionPrice: anchorPrice.to128(),
+                latestInteractionFunding: fundingValue.to128(),
+                latestInterestAccrued: 0
+            });
     }
 
     function update(

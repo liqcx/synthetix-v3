@@ -247,13 +247,13 @@ library AsyncOrder {
 
         fillPrice = perpsMarketData.calculateFillPrice(order.request.sizeDelta, orderPrice).to128();
         oldPosition = PerpsMarket.load(order.request.marketId).positions[order.request.accountId];
-        newPosition = Position.Data({
-            marketId: order.request.marketId,
-            latestInteractionPrice: fillPrice.to128(),
-            latestInteractionFunding: perpsMarketData.lastFundingValue.to128(),
-            latestInterestAccrued: 0,
-            size: oldPosition.size + order.request.sizeDelta
-        });
+        newPosition = Position.next(
+            oldPosition,
+            order.request.marketId,
+            order.request.sizeDelta,
+            fillPrice,
+            perpsMarketData.lastFundingValue
+        );
 
         // update the account positions list, so we can now conveniently recompute required margin
         newCtx = PerpsAccount.upsertPosition(ctx, newPosition);
