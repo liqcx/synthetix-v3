@@ -238,6 +238,7 @@ describe('liquidation margin only', () => {
 
       // liquidate margin only
       liquidateTxn = await systems().PerpsMarket.connect(keeper()).liquidateMarginOnly(2);
+      await liquidateTxn.wait();
     });
 
     const keeperReward = KeeperCosts.flagCost

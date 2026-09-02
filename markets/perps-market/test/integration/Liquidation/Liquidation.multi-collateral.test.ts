@@ -238,6 +238,7 @@ describe('Liquidation - multi collateral', () => {
       let liquidateTxn: ethers.providers.TransactionResponse;
       before('liquidate account', async () => {
         liquidateTxn = await systems().PerpsMarket.connect(keeper()).liquidate(2);
+        await liquidateTxn.wait();
       });
 
       it('empties account margin', async () => {
