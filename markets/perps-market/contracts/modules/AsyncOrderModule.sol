@@ -11,7 +11,6 @@ import {PerpsAccount} from "../storage/PerpsAccount.sol";
 import {AsyncOrder} from "../storage/AsyncOrder.sol";
 import {Position} from "../storage/Position.sol";
 import {PerpsPrice} from "../storage/PerpsPrice.sol";
-import {GlobalPerpsMarket} from "../storage/GlobalPerpsMarket.sol";
 import {PerpsMarketConfiguration} from "../storage/PerpsMarketConfiguration.sol";
 import {SettlementStrategy} from "../storage/SettlementStrategy.sol";
 import {MathUtil} from "../utils/MathUtil.sol";
@@ -24,7 +23,6 @@ import {Flags} from "../utils/Flags.sol";
 contract AsyncOrderModule is IAsyncOrderModule {
     using AsyncOrder for AsyncOrder.Data;
     using PerpsAccount for PerpsAccount.Data;
-    using GlobalPerpsMarket for GlobalPerpsMarket.Data;
 
     error IncorrectAccountMode(uint128 accountId, bytes16 mode);
 
@@ -60,8 +58,6 @@ contract AsyncOrderModule is IAsyncOrderModule {
             );
         }
 
-        GlobalPerpsMarket.load().checkLiquidation(commitment.accountId);
-
         SettlementStrategy.Data storage strategy = PerpsMarketConfiguration
             .loadValidSettlementStrategy(commitment.marketId, commitment.settlementStrategyId);
 
@@ -82,7 +78,7 @@ contract AsyncOrderModule is IAsyncOrderModule {
 
         order.updateValid(commitment);
 
-        (, uint256 feesAccrued, , ) = order.validateRequest(
+        (, uint256 feesAccrued) = order.validateRequest(
             strategy,
             PerpsPrice.getCurrentPrice(commitment.marketId, PerpsPrice.Tolerance.DEFAULT)
         );

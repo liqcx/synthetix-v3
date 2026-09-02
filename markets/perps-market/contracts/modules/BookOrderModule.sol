@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.11 <0.9.0;
 
-import {SafeCastI256, SafeCastU256} from "@synthetixio/core-contracts/contracts/utils/SafeCast.sol";
+import {SafeCastI256} from "@synthetixio/core-contracts/contracts/utils/SafeCast.sol";
 import {ERC2771Context} from "@synthetixio/core-contracts/contracts/utils/ERC2771Context.sol";
 import {ParameterError} from "@synthetixio/core-contracts/contracts/errors/ParameterError.sol";
 import {FeatureFlag} from "@synthetixio/core-modules/contracts/storage/FeatureFlag.sol";
@@ -12,13 +12,6 @@ import {IAccountEvents} from "../interfaces/IAccountEvents.sol";
 import {IMarketEvents} from "../interfaces/IMarketEvents.sol";
 import {PerpsMarket} from "../storage/PerpsMarket.sol";
 import {PerpsAccount} from "../storage/PerpsAccount.sol";
-import {AsyncOrder} from "../storage/AsyncOrder.sol";
-import {Position} from "../storage/Position.sol";
-import {PerpsPrice} from "../storage/PerpsPrice.sol";
-import {MarketUpdate} from "../storage/MarketUpdate.sol";
-import {GlobalPerpsMarket} from "../storage/GlobalPerpsMarket.sol";
-import {PerpsMarketConfiguration} from "../storage/PerpsMarketConfiguration.sol";
-import {SettlementStrategy} from "../storage/SettlementStrategy.sol";
 import {GlobalPerpsMarketConfiguration} from "../storage/GlobalPerpsMarketConfiguration.sol";
 import {PerpsMarketFactory} from "../storage/PerpsMarketFactory.sol";
 import {Flags} from "../utils/Flags.sol";
@@ -28,14 +21,10 @@ import {Flags} from "../utils/Flags.sol";
  * @dev See IBookOrderModule.
  */
 contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
-    using AsyncOrder for AsyncOrder.Data;
     using PerpsAccount for PerpsAccount.Data;
     using PerpsMarket for PerpsMarket.Data;
-    using GlobalPerpsMarket for GlobalPerpsMarket.Data;
     using GlobalPerpsMarketConfiguration for GlobalPerpsMarketConfiguration.Data;
-    using Position for Position.Data;
     using SafeCastI256 for int256;
-    using SafeCastU256 for uint256;
 
     /**
      * @notice Gets fired when a new order is settled.
@@ -78,17 +67,19 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
 
     event AccountOrderModeChanged(uint128 accountId, bytes16 newMode);
 
-    struct AccumulatedOrderData {
-        uint256 orderFee;
+    error IncorrectAccountMode(uint128 accountId, bytes16 mode);
+
+    /**
+     * @dev One account's orders in the batch, folded into a single position change.
+     * @dev `price` is the price of the account's first order: several orders in one batch read as
+     * one change at that price, which is the least gameable choice available offchain.
+     */
+    struct AccountGroup {
+        uint128 accountId;
         int256 sizeDelta;
-        uint256 orderCount;
+        uint256 orderFee;
         uint256 price;
     }
-
-    event DoneLoop(uint128 accountId);
-    event ItsGreater(uint128 accountId, uint128 cmpAccountId);
-
-    error IncorrectAccountMode(uint128 accountId, bytes16 mode);
 
     /**
      * @inheritdoc IBookOrderModule
@@ -123,10 +114,7 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
     /**
      * @inheritdoc IBookOrderModule
      */
-    function settleBookOrders(
-        uint128 marketId,
-        BookOrder[] memory orders
-    ) external override returns (BookOrderSettleStatus[] memory cancelledOrders) {
+    function settleBookOrders(uint128 marketId, BookOrder[] memory orders) external override {
         FeatureFlag.ensureAccessToFeature(Flags.PERPS_SYSTEM);
         PerpsMarket.Data storage market = PerpsMarket.loadValid(marketId);
 
@@ -144,55 +132,15 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
         // Until implemented, settleBookOrders should only be callable by a trusted settler address.
         // Consider adding access control: require(msg.sender == trustedSettler).
 
-        // loop 1: figure out the big picture change on the market
-        uint256 marketSkewScale = PerpsMarketConfiguration.load(marketId).skewScale;
-        {
-            int256 newMarketSkew = market.skew;
-            for (uint256 i = 0; i < orders.length; i++) {
-                newMarketSkew += orders[i].sizeDelta;
-            }
-        }
-
-        // TODO: verify total market size (?)
-
-        // loop 2: apply the order changes to account
-        PerpsAccount.MemoryContext memory ctx;
-        AccumulatedOrderData memory accumOrderData;
         uint256 totalCollectedFees;
+        AccountGroup memory group;
         for (uint256 i = 0; i < orders.length; i++) {
-            if (orders[i].accountId > ctx.accountId) {
-                totalCollectedFees += _applyAggregatedAccountPosition(
-                    marketId,
-                    ctx,
-                    accumOrderData
-                );
-
-                GlobalPerpsMarket.load().checkLiquidation(orders[i].accountId);
-
-                // load and verify existance of the new account
-                if (PerpsAccount.load(orders[i].accountId).id == 0) {
-                    // TODO: what to do if account doesnt exist
-                    // for now to make debugging easy accounts can be created out of thin air
-                    PerpsAccount.load(orders[i].accountId).id = orders[i].accountId;
+            if (i == 0 || orders[i].accountId > group.accountId) {
+                if (i > 0) {
+                    totalCollectedFees += _settleAccountGroup(marketId, group);
                 }
-
-                if (
-                    PerpsAccount.load(orders[i].accountId).getOrderMode() != "BOOK" &&
-                    PerpsAccount.load(orders[i].accountId).getOrderMode() != "RECENTLY_CHANGED"
-                ) {
-                    revert IncorrectAccountMode(
-                        orders[i].accountId,
-                        PerpsAccount.load(orders[i].accountId).getOrderMode()
-                    );
-                }
-
-                ctx = PerpsAccount.load(orders[i].accountId).getOpenPositionsAndCurrentPrices(
-                    PerpsPrice.Tolerance.DEFAULT
-                );
-                // todo: is the below line necessary? in the tests I have been finding it is
-                ctx.accountId = orders[i].accountId;
-                accumOrderData = AccumulatedOrderData(0, 0, 0, 0);
-            } else if (orders[i].accountId < ctx.accountId) {
+                group = AccountGroup(orders[i].accountId, 0, 0, orders[i].orderPrice);
+            } else if (orders[i].accountId < group.accountId) {
                 // order ids must be supplied in strictly ascending order
                 revert ParameterError.InvalidParameter(
                     "orders",
@@ -200,19 +148,13 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
                 );
             }
 
-            accumOrderData.sizeDelta += orders[i].sizeDelta;
-            accumOrderData.orderFee += market.calculateOrderFee(
-                orders[i].sizeDelta,
-                orders[i].orderPrice
-            );
-
-            // the first received price for the orders for an account will be used as the settling price for the previous order. Least gamable that way.
-            accumOrderData.price = accumOrderData.price == 0
-                ? orders[i].orderPrice
-                : accumOrderData.price;
+            group.sizeDelta += orders[i].sizeDelta;
+            // the fee reads the skew as the previous accounts of the batch left it
+            group.orderFee += market.calculateOrderFee(orders[i].sizeDelta, orders[i].orderPrice);
         }
-
-        totalCollectedFees += _applyAggregatedAccountPosition(marketId, ctx, accumOrderData);
+        if (orders.length > 0) {
+            totalCollectedFees += _settleAccountGroup(marketId, group);
+        }
 
         // send collected fees to the fee collector and etc.
         GlobalPerpsMarketConfiguration.load().collectFees(
@@ -225,75 +167,54 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
     }
 
     /**
-     * @dev Applies one account's orders from the batch as a single position change.
-     * @dev The batch is settled at the price of the account's first order: several orders in one
-     * batch read as one change at that price, which is the least gameable choice available offchain.
+     * @dev Settles one account's fold of the batch as a single position change at the group's
+     * price, which is also the price the change is judged at: the orderbook's price is the only
+     * price this path has.
+     * @dev The mode gate is the module's own; every check the change itself must pass lives in
+     * `PerpsAccount.settlePositionChange`, and a rejection there reverts the whole batch.
      */
-    function _applyAggregatedAccountPosition(
+    function _settleAccountGroup(
         uint128 marketId,
-        PerpsAccount.MemoryContext memory ctx,
-        AccumulatedOrderData memory accumOrderData
-    ) internal returns (uint256) {
-        if (ctx.accountId == 0) {
-            return 0;
-        }
-        int128 oldSize;
-        int128 newSize;
-        int256 pnl;
-        int256 accruedFunding;
-        uint256 chargedInterest;
-        {
-            Position.Data memory oldPosition = PerpsMarket.load(marketId).positions[ctx.accountId];
-            oldSize = oldPosition.size;
-
-            // charge the funding fee from the previously held position, the order fee, and whatever pnl has been accumulated from the last position.
-            (pnl, , chargedInterest, accruedFunding, , ) = oldPosition.getPnl(accumOrderData.price);
-
-            PerpsAccount.load(ctx.accountId).charge(pnl - accumOrderData.orderFee.toInt());
-
-            emit AccountCharged(
-                ctx.accountId,
-                pnl - accumOrderData.orderFee.toInt(),
-                PerpsAccount.load(ctx.accountId).debt
-            );
+        AccountGroup memory group
+    ) private returns (uint256) {
+        bytes16 mode = PerpsAccount.load(group.accountId).getOrderMode();
+        if (mode != "BOOK" && mode != "RECENTLY_CHANGED") {
+            revert IncorrectAccountMode(group.accountId, mode);
         }
 
-        {
-            // skip verifications for the account having minimum collateral.
-            // this is because they are undertaken by the orderbook and cancelling them would be unnecessary complication
-            (, Position.Data memory newPosition, MarketUpdate.Data memory updateData) = PerpsAccount
-                .load(ctx.accountId)
-                .applyPositionChange(
-                    marketId,
-                    accumOrderData.sizeDelta.to128(),
-                    accumOrderData.price,
-                    accumOrderData.price
-                );
-            newSize = newPosition.size;
+        PerpsAccount.SettledChange memory settled = PerpsAccount.settlePositionChange(
+            group.accountId,
+            marketId,
+            group.sizeDelta.to128(),
+            group.price,
+            group.price,
+            group.orderFee
+        );
 
-            emit MarketUpdated(
-                updateData.marketId,
-                accumOrderData.price,
-                updateData.skew,
-                PerpsMarket.load(marketId).size,
-                newSize - oldSize,
-                updateData.currentFundingRate,
-                updateData.currentFundingVelocity,
-                updateData.interestRate
-            );
-        }
+        emit AccountCharged(group.accountId, settled.chargedAmount, settled.debt);
 
-        emit InterestCharged(ctx.accountId, chargedInterest);
+        emit MarketUpdated(
+            settled.marketUpdate.marketId,
+            group.price,
+            settled.marketUpdate.skew,
+            settled.marketUpdate.size,
+            settled.marketSizeDelta,
+            settled.marketUpdate.currentFundingRate,
+            settled.marketUpdate.currentFundingVelocity,
+            settled.marketUpdate.interestRate
+        );
+
+        emit InterestCharged(group.accountId, settled.chargedInterest);
 
         emit OrderSettled(
             marketId,
-            ctx.accountId,
-            accumOrderData.price,
-            pnl,
-            accruedFunding,
-            newSize - oldSize,
-            newSize,
-            accumOrderData.orderFee,
+            group.accountId,
+            group.price,
+            settled.pnl,
+            settled.accruedFunding,
+            settled.newPosition.size - settled.oldPosition.size,
+            settled.newPosition.size,
+            group.orderFee,
             0, // referral fees
             0, // TODO: fee collector fees
             0, // settlement reward
@@ -301,6 +222,6 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
             ERC2771Context._msgSender()
         );
 
-        return accumOrderData.orderFee;
+        return group.orderFee;
     }
 }

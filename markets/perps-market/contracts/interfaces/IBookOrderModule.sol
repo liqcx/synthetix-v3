@@ -1,9 +1,6 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.11 <0.9.0;
 
-import {AsyncOrder} from "../storage/AsyncOrder.sol";
-import {SettlementStrategy} from "../storage/SettlementStrategy.sol";
-
 /**
  * @title Module for processing orders from the offchain orderbook
  */
@@ -43,24 +40,6 @@ interface IBookOrderModule {
     );
 
     /**
-     * @notice Indicates a summary as to the operation state of a subbmitted order for settlement
-     */
-    enum OrderStatus {
-        FILLED,
-        CANCELLED
-    }
-
-    /**
-     * @notice Returned by `settleBookOrders` to indicate the result of a submitted order for settlement
-     */
-    struct BookOrderSettleStatus {
-        /**
-         * @dev The result of the order
-         */
-        OrderStatus status;
-    }
-
-    /**
      * @notice Set the current order mode to BOOK
      * @param accountId the account id to set to BOOK
      * @param useBook whether or not to set hte mode to BOOK. If not BOOK, it will be ONCHAIN
@@ -75,14 +54,17 @@ interface IBookOrderModule {
     function getOrderMode(uint128 accountId) external view returns (bytes16);
 
     /**
-     * @notice Called by the offchain orderbook to settle a prevoiusly placed order onchain. Any orders submitted to this function will be processed as if they happened simultaneously, at the prices given by the orderbook.
-     * If an order is found to be unfillable (ex. insufficient account liquidity), it will be returned in the `statuses` return field.
+     * @notice Called by the offchain orderbook to settle previously matched orders onchain. The orders
+     * of one account are folded into a single position change at the price of the account's first
+     * order; the accounts are settled in the order given, which must be ascending by account id.
+     * @dev Every position change passes the same checks an async order passes at commitment and
+     * settlement: the account must exist, be neither flagged for liquidation nor liquidatable, have
+     * room for one more market if the change opens one, be able to pay its fees and stand above its
+     * initial margin afterwards, and, unless the change is same-side reducing, keep the market under
+     * its size caps and inside the pool's credit capacity. The batch is all or nothing: one change
+     * that fails a check reverts the call with that check's error, and nothing is settled.
      * @param marketId the market for which all of the following orders should be operated on
      * @param orders the list of orders to settle
-     * @return statuses the result of the `orders` supplied to this function.
      */
-    function settleBookOrders(
-        uint128 marketId,
-        BookOrder[] memory orders
-    ) external returns (BookOrderSettleStatus[] memory statuses);
+    function settleBookOrders(uint128 marketId, BookOrder[] memory orders) external;
 }
