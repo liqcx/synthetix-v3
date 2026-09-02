@@ -70,11 +70,6 @@ library AsyncOrder {
      */
     error ZeroSizeOrder();
 
-    /**
-     * @notice Thrown when there's not enough margin to cover the order and settlement costs associated.
-     */
-    error InsufficientMargin(int256 availableMargin, uint256 minMargin);
-
     struct Data {
         /**
          * @dev Time at which the order was committed.
@@ -150,12 +145,9 @@ library AsyncOrder {
     /**
      * @dev Updates the order with the new commitment request data and settlement time.
      * @dev Reverts if there's a pending order.
-     * @dev Reverts if accont cannot open a new position (due to max allowed reached).
      */
     function updateValid(Data storage self, OrderCommitmentRequest memory newRequest) internal {
         checkPendingOrder(newRequest.accountId);
-
-        PerpsAccount.validateMaxPositions(newRequest.accountId, newRequest.marketId);
 
         // Replace previous (or empty) order with the commitment request
         self.commitmentTime = block.timestamp;
@@ -265,127 +257,53 @@ library AsyncOrder {
     }
 
     /**
-     * @notice Checks if the order request can be settled. This function effectively simulates the future state and verifies it is good post settlement.
-     * @dev it recomputes market funding rate, calculates fill price and fees for the order
-     * @dev and with that data it checks that:
-     * @dev - the account is eligible for liquidation
-     * @dev - the fill price is within the acceptable price range
-     * @dev - the position size doesn't exceed market configured limits
-     * @dev - the account has enough margin to cover for the fees
-     * @dev - the account has enough margin to not be liquidable immediately after the order is settled
-     * @dev if the order can be executed, it returns (newPosition, orderFees, fillPrice, oldPosition)
+     * @notice Reverts unless the order could be settled now at `orderPrice`, and says what settling
+     * it would cost.
+     * @dev Recomputes the market's funding at `orderPrice` first, so a commitment records funding the
+     * way a settlement does. The checks themselves are `PerpsAccount.validatePositionChange`'s: the
+     * same gate settlement passes the change through, with the oracle price as the mark price.
+     * @return fillPrice - the price the order would fill at: `orderPrice` moved by the market's skew.
+     * @return totalFees - the order fee at that fill price plus the settlement reward.
      */
     function validateRequest(
         Data storage order,
         SettlementStrategy.Data storage strategy,
         uint256 orderPrice
-    )
-        internal
-        returns (
-            Position.Data memory newPosition,
-            uint256 orderFees,
-            uint256 fillPrice,
-            Position.Data memory oldPosition
-        )
-    {
+    ) internal returns (uint256 fillPrice, uint256 totalFees) {
         if (order.request.sizeDelta == 0) {
             revert ZeroSizeOrder();
         }
 
-        PerpsAccount.MemoryContext memory ctx = PerpsAccount
-            .load(order.request.accountId)
-            .getOpenPositionsAndCurrentPrices(PerpsPrice.Tolerance.DEFAULT);
-        (
-            uint256 totalCollateralValueWithDiscount,
-            uint256 totalCollateralValueWithoutDiscount
-        ) = PerpsAccount.load(order.request.accountId).getTotalCollateralValue(
-                PerpsPrice.Tolerance.DEFAULT
-            );
+        PerpsMarket.load(order.request.marketId).recomputeFunding(orderPrice);
 
-        // verify if the account is *currently* liquidatable
-        // we are only checking this here because once an account enters liquidation they are not allowed to dig themselves out by repaying
-        {
-            int256 currentAvailableMargin;
-            {
-                bool isEligibleForLiquidation;
-                (isEligibleForLiquidation, currentAvailableMargin, , , ) = PerpsAccount
-                    .isEligibleForLiquidation(
-                        ctx,
-                        totalCollateralValueWithDiscount,
-                        totalCollateralValueWithoutDiscount
-                    );
+        (fillPrice, totalFees) = quote(order, strategy, orderPrice);
 
-                if (isEligibleForLiquidation) {
-                    revert PerpsAccount.AccountLiquidatable(order.request.accountId);
-                }
-            }
+        PerpsAccount.validatePositionChange(
+            order.request.accountId,
+            order.request.marketId,
+            order.request.sizeDelta,
+            fillPrice,
+            orderPrice,
+            totalFees
+        );
+    }
 
-            // now get the new state of the market by calling `createUpdatedPosition(order, orderPrice);`
-            PerpsMarket.load(order.request.marketId).recomputeFunding(orderPrice);
-
-            (ctx, oldPosition, newPosition, fillPrice, orderFees) = createUpdatedPosition(
-                order,
-                orderPrice,
-                ctx
-            );
-
-            // add the additional settlement fee, which is not included as part of the updating position fee
-            orderFees += settlementRewardCost(strategy);
-
-            // compute order fees and verify we can pay for them
-            // only account for negative pnl
-            currentAvailableMargin += MathUtil.min(
-                order.request.sizeDelta.mulDecimal(
-                    // solhint-disable numcast/safe-cast
-                    orderPrice.toInt() - uint256(newPosition.latestInteractionPrice).toInt()
-                ),
-                0
-            );
-
-            if (currentAvailableMargin < orderFees.toInt()) {
-                revert InsufficientMargin(currentAvailableMargin, orderFees);
-            }
-
-            // now that we have verified fees are sufficient, we can go ahead and remove from the available margin to simplify later calculation
-            currentAvailableMargin -= orderFees.toInt();
-
-            // check that the new account margin would be satisfied
-            (uint256 totalRequiredMargin, , uint256 possibleLiquidationReward) = PerpsAccount
-                .getAccountRequiredMargins(ctx, totalCollateralValueWithoutDiscount);
-
-            if (
-                currentAvailableMargin < (totalRequiredMargin + possibleLiquidationReward).toInt()
-            ) {
-                revert InsufficientMargin(
-                    currentAvailableMargin,
-                    totalRequiredMargin + possibleLiquidationReward
-                );
-            }
-        }
-
-        // if the position is growing in magnitude, ensure market is not too big
-        // also verify that the credit capacity of the supermarket has not been exceeded
-        if (!MathUtil.isSameSideReducing(oldPosition.size, newPosition.size)) {
-            PerpsMarket.Data storage perpsMarketData = PerpsMarket.load(order.request.marketId);
-            perpsMarketData.validateGivenMarketSize(
-                (
-                    newPosition.size > 0
-                        ? perpsMarketData.getLongSize().toInt() +
-                            newPosition.size -
-                            MathUtil.max(0, oldPosition.size)
-                        : perpsMarketData.getShortSize().toInt() -
-                            newPosition.size +
-                            MathUtil.min(0, oldPosition.size)
-                ).toUint(),
-                orderPrice
-            );
-
-            int256 lockedCreditDelta = perpsMarketData.requiredCreditForSize(
-                MathUtil.abs(order.request.sizeDelta).toInt(),
-                PerpsPrice.Tolerance.DEFAULT
-            );
-            GlobalPerpsMarket.load().validateMarketCapacity(lockedCreditDelta);
-        }
+    /**
+     * @notice What settling the order at `orderPrice` would cost, without asking whether it may be
+     * settled.
+     * @return fillPrice - `orderPrice` moved by the market's skew.
+     * @return totalFees - the order fee at that fill price plus the settlement reward.
+     */
+    function quote(
+        Data storage order,
+        SettlementStrategy.Data storage strategy,
+        uint256 orderPrice
+    ) internal view returns (uint256 fillPrice, uint256 totalFees) {
+        PerpsMarket.Data storage market = PerpsMarket.load(order.request.marketId);
+        fillPrice = market.calculateFillPrice(order.request.sizeDelta, orderPrice);
+        totalFees =
+            market.calculateOrderFee(order.request.sizeDelta, fillPrice) +
+            settlementRewardCost(strategy);
     }
 
     /**
