@@ -19,7 +19,7 @@ const template = fs.readFileSync(path.join(ROOT, 'subgraph.template.yaml'), 'utf
 
 function render(name, net) {
   for (const field of ['network', 'address', 'startBlock']) {
-    if (net[field] === undefined || net[field] === null) {
+    if (net[field] === undefined || net[field] === null || net[field] === '') {
       throw new Error(`networks.json: ${name} is missing ${field}`);
     }
   }
@@ -66,6 +66,7 @@ if (process.argv.includes('--build')) {
       { cwd: ROOT, stdio: 'inherit' }
     );
     if (built.status !== 0) {
+      console.error(`graph build failed for ${name}`);
       process.exit(built.status ?? 1);
     }
   }
