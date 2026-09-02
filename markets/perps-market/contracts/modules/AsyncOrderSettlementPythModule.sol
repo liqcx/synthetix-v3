@@ -109,7 +109,6 @@ contract AsyncOrderSettlementPythModule is
 
         // only update position state after pnl has been realized
         runtime.updateData = _processPositionUpdate(price, runtime, market, originalMarketSize);
-        perpsAccount.updateOpenPositions(runtime.marketId, runtime.newPosition.size);
 
         runtime.settlementReward = AsyncOrder.settlementRewardCost(settlementStrategy);
 
@@ -123,18 +122,18 @@ contract AsyncOrderSettlementPythModule is
         asyncOrder.reset();
     }
 
-    /// @dev Updates the position and market data
+    /// @dev Applies the position change and reports what the market became
     function _processPositionUpdate(
         uint256 price,
         SettleOrderRuntime memory runtime,
         PerpsMarket.Data storage market,
         uint256 originalMarketSize
     ) internal returns (MarketUpdate.Data memory) {
-        // Update position data
-        MarketUpdate.Data memory updateData = market.updatePositionData(
-            runtime.accountId,
-            runtime.newPosition
-        );
+        // `validateRequest` already recomputed funding at this price and simulated the same change,
+        // so the position written here is the one the validations were made against.
+        (, , MarketUpdate.Data memory updateData) = PerpsAccount
+            .load(runtime.accountId)
+            .applyPositionChange(runtime.marketId, runtime.sizeDelta, runtime.fillPrice, price);
 
         // Calculate the market size delta (change in market size)
         int256 marketSizeDelta = market.size.toInt() - originalMarketSize.toInt();

@@ -157,16 +157,13 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
 
         // loop 2: apply the order changes to account
         PerpsAccount.MemoryContext memory ctx;
-        Position.Data memory curPosition;
         AccumulatedOrderData memory accumOrderData;
         uint256 totalCollectedFees;
         for (uint256 i = 0; i < orders.length; i++) {
             if (orders[i].accountId > ctx.accountId) {
-                curPosition.latestInteractionPrice = accumOrderData.price.to128();
                 totalCollectedFees += _applyAggregatedAccountPosition(
                     marketId,
                     ctx,
-                    curPosition,
                     accumOrderData
                 );
 
@@ -195,11 +192,6 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
                 // todo: is the below line necessary? in the tests I have been finding it is
                 ctx.accountId = orders[i].accountId;
                 accumOrderData = AccumulatedOrderData(0, 0, 0, 0);
-                curPosition = market.positions[ctx.accountId];
-                // Ensure Position.marketId is set — storage default is 0 for new positions,
-                // which would leak into liquidation (updateOpenPositions(self, 0, size) adds
-                // a ghost market 0 to openPositionMarketIds and breaks plural oracle fetches).
-                curPosition.marketId = marketId;
             } else if (orders[i].accountId < ctx.accountId) {
                 // order ids must be supplied in strictly ascending order
                 revert ParameterError.InvalidParameter(
@@ -208,7 +200,6 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
                 );
             }
 
-            curPosition.size += orders[i].sizeDelta;
             accumOrderData.sizeDelta += orders[i].sizeDelta;
             accumOrderData.orderFee += market.calculateOrderFee(
                 orders[i].sizeDelta,
@@ -221,13 +212,7 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
                 : accumOrderData.price;
         }
 
-        curPosition.latestInteractionPrice = accumOrderData.price.to128();
-        totalCollectedFees += _applyAggregatedAccountPosition(
-            marketId,
-            ctx,
-            curPosition,
-            accumOrderData
-        );
+        totalCollectedFees += _applyAggregatedAccountPosition(marketId, ctx, accumOrderData);
 
         // send collected fees to the fee collector and etc.
         GlobalPerpsMarketConfiguration.load().collectFees(
@@ -239,73 +224,64 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
         emit BookOrderSettled(marketId, orders, totalCollectedFees);
     }
 
+    /**
+     * @dev Applies one account's orders from the batch as a single position change.
+     * @dev The batch is settled at the price of the account's first order: several orders in one
+     * batch read as one change at that price, which is the least gameable choice available offchain.
+     */
     function _applyAggregatedAccountPosition(
         uint128 marketId,
         PerpsAccount.MemoryContext memory ctx,
-        Position.Data memory pos,
         AccumulatedOrderData memory accumOrderData
     ) internal returns (uint256) {
         if (ctx.accountId == 0) {
             return 0;
         }
-        Position.Data memory oldPosition = PerpsMarket.load(marketId).positions[ctx.accountId];
-        // charge the funding fee from the previously held position, the order fee, and whatever pnl has been accumulated from the last position.
-        (int256 pnl, , uint256 chargedInterest, int256 accruedFunding, , ) = oldPosition.getPnl(
-            accumOrderData.price
-        );
+        int128 oldSize;
+        int128 newSize;
+        int256 pnl;
+        int256 accruedFunding;
+        uint256 chargedInterest;
+        {
+            Position.Data memory oldPosition = PerpsMarket.load(marketId).positions[ctx.accountId];
+            oldSize = oldPosition.size;
 
-        PerpsAccount.load(ctx.accountId).charge(pnl - accumOrderData.orderFee.toInt());
+            // charge the funding fee from the previously held position, the order fee, and whatever pnl has been accumulated from the last position.
+            (pnl, , chargedInterest, accruedFunding, , ) = oldPosition.getPnl(accumOrderData.price);
 
-        emit AccountCharged(
-            ctx.accountId,
-            pnl - accumOrderData.orderFee.toInt(),
-            PerpsAccount.load(ctx.accountId).debt
-        );
+            PerpsAccount.load(ctx.accountId).charge(pnl - accumOrderData.orderFee.toInt());
 
-        // Defensive check: a Position whose marketId diverges from the market it is being
-        // written into will silently corrupt `openPositionMarketIds` at liquidation time
-        // (ghost market 0 / strict-oracle UnprocessableNode). Fail loudly here instead.
-        if (pos.marketId != marketId) {
-            revert ParameterError.InvalidParameter("pos.marketId", "must equal marketId");
+            emit AccountCharged(
+                ctx.accountId,
+                pnl - accumOrderData.orderFee.toInt(),
+                PerpsAccount.load(ctx.accountId).debt
+            );
         }
 
-        MarketUpdate.Data memory updateData;
         {
-            PerpsMarket.Data storage market = PerpsMarket.load(marketId);
-
-            // we recompute to the price of the first order the user set. if they set multiple trades in te timeframe, its as if they fully close their order for a short period of time
-            // between the first order and the last order they place
-            market.recomputeFunding(accumOrderData.price);
-
-            // Re-anchor the position to the funding integral we just recomputed. Without this the
-            // anchor keeps its storage default of 0, so `netFundingPerUnit` (Position.sol) is the
-            // market's whole accumulated integral rather than the delta since the last touch, and
-            // every settlement realises it again. The async path does the same at
-            // AsyncOrder.sol:253, the liquidation path at PerpsAccount.sol:677.
-            //
-            // Must run after recomputeFunding (lastFundingValue is stale before it) and before
-            // updatePositionData (which copies this field into storage via Position.update).
-            // `latestInterestAccrued` needs no equivalent — updatePositionData sets it itself.
-            pos.latestInteractionFunding = market.lastFundingValue.to128();
-
             // skip verifications for the account having minimum collateral.
             // this is because they are undertaken by the orderbook and cancelling them would be unnecessary complication
-            // commit order to the user's account
-            updateData = market.updatePositionData(ctx.accountId, pos);
+            (, Position.Data memory newPosition, MarketUpdate.Data memory updateData) = PerpsAccount
+                .load(ctx.accountId)
+                .applyPositionChange(
+                    marketId,
+                    accumOrderData.sizeDelta.to128(),
+                    accumOrderData.price,
+                    accumOrderData.price
+                );
+            newSize = newPosition.size;
+
+            emit MarketUpdated(
+                updateData.marketId,
+                accumOrderData.price,
+                updateData.skew,
+                PerpsMarket.load(marketId).size,
+                newSize - oldSize,
+                updateData.currentFundingRate,
+                updateData.currentFundingVelocity,
+                updateData.interestRate
+            );
         }
-
-        PerpsAccount.load(ctx.accountId).updateOpenPositions(marketId, pos.size);
-
-        emit MarketUpdated(
-            updateData.marketId,
-            accumOrderData.price,
-            updateData.skew,
-            PerpsMarket.load(marketId).size,
-            pos.size - oldPosition.size,
-            updateData.currentFundingRate,
-            updateData.currentFundingVelocity,
-            updateData.interestRate
-        );
 
         emit InterestCharged(ctx.accountId, chargedInterest);
 
@@ -315,8 +291,8 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
             accumOrderData.price,
             pnl,
             accruedFunding,
-            pos.size - oldPosition.size,
-            pos.size,
+            newSize - oldSize,
+            newSize,
             accumOrderData.orderFee,
             0, // referral fees
             0, // TODO: fee collector fees
