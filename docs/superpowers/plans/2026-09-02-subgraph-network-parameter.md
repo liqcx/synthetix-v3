@@ -15,7 +15,7 @@
 - All paths below are relative to `markets/perps-market/subgraph/` unless stated otherwise.
 - **Branch:** `feat-cld/subgraph-network-parameter` (already created from `origin/main`). Verify with `git branch --show-current` before each commit.
 - **Run every command from `markets/perps-market/subgraph/`**, and drive the toolchain through `pnpm exec` — global yarn cannot run in this repo since the pnpm migration (`23b19da3`).
-- **The build is the test.** Every task ends with all four networks built and compared against the baseline below. There is no unit-test framework for the manifest layer; matchstick covers the mappings only.
+- **The build is the test.** Every task ends with all four networks built and compared against the baseline below (read its correction note). There is no unit-test framework for the manifest layer; matchstick covers the mappings only.
 - **Never trust a wrapped `diff`.** Compare files by `md5`; a `diff` that prints "Files are identical" in this environment can be masking a real difference.
 
 ## Baseline (captured at `46fca4b7`, before any change)
@@ -24,10 +24,30 @@ These are the fixed values every task verifies against. They do not change durin
 
 | Fact                                                       | Value                                                                                                       |
 | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `PerpsMarketProxy.wasm` md5, **all four networks**         | `f3f4b7dd2ab02734f8ad706b0f308b95`                                                                          |
+| `PerpsMarketProxy.wasm` md5, **all four networks**         | `4898671c167919d93f188fe2642c47cd` (see the correction below)                                               |
 | Built `subgraph.yaml` differences between any two networks | exactly 4 lines: `network`, `address`, `startBlock`, and one `entities` entry                               |
 | Networks                                                   | `base-mainnet-andromeda`, `base-sepolia-andromeda`, `megaeth-testnet-production`, `megaeth-testnet-staging` |
 | `graph test` (matchstick)                                  | **`1 failed, 16 passed, 17 total`** — already red before this plan                                          |
+
+**Baseline correction, made during Task 1.** The first baseline recorded here was
+`f3f4b7dd2ab02734f8ad706b0f308b95`, captured by running `graph build` *without* `codegen` — so it
+compiled the stale types committed to git, the very 2 782-line rot this plan removes. Once codegen
+runs against the current ABI, and once the mappings live in `src/`, the wasm is
+`4898671c167919d93f188fe2642c47cd` for all four networks. The symbol set is unchanged: normalising
+`base-mainnet-andromeda/` to `src/`, the embedded names match the old build exactly — AssemblyScript
+carries each function's source path in its link name, so a directory move necessarily moves bytes.
+
+**The invariant is therefore not a fixed hash but four properties**, checked together after every
+task:
+
+1. all four networks build to **one and the same** wasm hash — the property this refactor asserts;
+2. that hash equals `4898671c167919d93f188fe2642c47cd` for every task after Task 1;
+3. matchstick stays at `1 failed, 16 passed, 17 total`;
+4. the built manifests differ in exactly three fields.
+
+A hash that differs between networks, or a fifth passing/failing test, is a regression. A hash that
+differs from `4898671c…` after Task 1 means something in the sources moved — find it before
+continuing.
 
 **The failing test is pre-existing and out of scope.** `tests/handleCollateralModified.ts` asserts a
 field `synthMarketId`; the schema calls it `collateralId` (upstream renamed it). This plan's job is to
@@ -57,7 +77,7 @@ for n in base-mainnet-andromeda base-sepolia-andromeda megaeth-testnet-productio
 done
 ```
 
-Expected output: the line `f3f4b7dd2ab02734f8ad706b0f308b95` four times, nothing else.
+Expected output: the line `4898671c167919d93f188fe2642c47cd` four times, nothing else.
 
 ---
 
@@ -237,7 +257,7 @@ for n in base-mainnet-andromeda base-sepolia-andromeda megaeth-testnet-productio
 done
 ```
 
-Expected: `f3f4b7dd2ab02734f8ad706b0f308b95` printed four times. A different hash means the mapping move changed behaviour — stop and find out why rather than accepting it.
+Expected: one hash, the same for all four networks. Task 1 is where the value is established (`4898671c167919d93f188fe2642c47cd`); if the four disagree with each other, stop.
 
 - [ ] **Step 11: Confirm the built manifests agree**
 
@@ -273,7 +293,10 @@ git commit -m "refactor(subgraph): mappings, schema and manifest shape get one o
 The handlers always compiled from one directory — every network's manifest
 resolved './generated/...' inside base-mainnet-andromeda, so all four networks
 produced the same PerpsMarketProxy.wasm (f3f4b7dd) and the other four generated/
-trees were unreachable from any import. Moving the mappings to src/ and the
+trees were unreachable from any import. They still produce one shared wasm; its value
+moves to 4898671c because the types are now regenerated from the current ABI rather
+than read from the stale copy in git, and because a moved directory moves the source
+paths AssemblyScript embeds in its link names. Moving the mappings to src/ and the
 schema to the root says that out loud, and deletes 35k lines git stored but the
 compiler never read.
 
@@ -355,7 +378,7 @@ for n in base-mainnet-andromeda base-sepolia-andromeda megaeth-testnet-productio
 done
 ```
 
-Expected: `f3f4b7dd2ab02734f8ad706b0f308b95` four times. `base-mainnet`'s built ABI file now carries the fork's 51 events instead of upstream's 47 — that is expected and does not touch the wasm, because the manifest names 15 events and all 15 exist in both.
+Expected: `4898671c167919d93f188fe2642c47cd` four times. `base-mainnet`'s built ABI file now carries the fork's 51 events instead of upstream's 47 — that is expected and does not touch the wasm, because the manifest names 15 events and all 15 exist in both.
 
 - [ ] **Step 6: Prove the clean-clone build now works**
 
@@ -369,7 +392,7 @@ pnpm exec graph build subgraph.megaeth-testnet-production.yaml --output-dir /tmp
 md5 -q /tmp/abi-check-build/PerpsMarketProxy/PerpsMarketProxy.wasm
 ```
 
-Expected: `f3f4b7dd2ab02734f8ad706b0f308b95` — built from a fresh clone, with no `artifacts/`, no `deployments/` and no Cannon call. If `pnpm install` needs the network, that is fine; the subgraph inputs must not.
+Expected: `4898671c167919d93f188fe2642c47cd` — built from a fresh clone, with no `artifacts/`, no `deployments/` and no Cannon call. If `pnpm install` needs the network, that is fine; the subgraph inputs must not.
 
 - [ ] **Step 7: Amend the commit with a real message**
 
@@ -564,7 +587,7 @@ for n in base-mainnet-andromeda base-sepolia-andromeda megaeth-testnet-productio
 done
 ```
 
-Expected: `f3f4b7dd2ab02734f8ad706b0f308b95` four times.
+Expected: `4898671c167919d93f188fe2642c47cd` four times.
 
 - [ ] **Step 7: Take the generated manifests out of git**
 
@@ -616,7 +639,7 @@ git commit -m "feat(subgraph): the network becomes a record, not a directory
 Four manifests differing in three fields become one template plus four records in
 networks.json. The generator is proved by construction: it reproduced the four
 committed manifests byte for byte before they left git, and all four networks
-still build to f3f4b7dd.
+still build to one shared wasm, 4898671c.
 
 Moving a contour is now one line in networks.json — the 2026-08-25 staging move
 took two commits, the second one unbreaking the manifest the first had silently
@@ -668,7 +691,7 @@ for n in base-mainnet-andromeda base-sepolia-andromeda megaeth-testnet-productio
 done
 ```
 
-Expected: `f3f4b7dd2ab02734f8ad706b0f308b95` four times, from nothing but committed sources.
+Expected: `4898671c167919d93f188fe2642c47cd` four times, from nothing but committed sources.
 
 - [ ] **Step 4: Document the record**
 
@@ -754,7 +777,7 @@ Plan: `docs/superpowers/plans/2026-09-02-subgraph-network-parameter.md`
 
 ## Test plan
 
-- [x] All four networks build to the baseline wasm `f3f4b7dd2ab02734f8ad706b0f308b95`
+- [x] All four networks build to one and the same wasm, `4898671c167919d93f188fe2642c47cd`
 - [x] Generator reproduced the four committed manifests byte for byte before they left git
 - [x] Clean clone builds `megaeth-testnet-production` offline — no `artifacts/`, no `deployments/`, no Cannon
 - [x] `graph test` unchanged at `1 failed, 16 passed` from a freshly generated tree — the failure is pre-existing (`handleCollateralModified` asserts `synthMarketId`, the schema says `collateralId`)
@@ -771,7 +794,7 @@ EOF
 ## Notes for the executor
 
 - **Task order matters.** Task 3's proof depends on the manifests being in git and unified; do not reorder it before Task 1.
-- **If the wasm hash ever differs from `f3f4b7dd2ab02734f8ad706b0f308b95`,** stop. The whole plan rests on the mappings being untouched; a changed hash means something semantic moved, and the fix is to find it, not to re-baseline.
+- **If the four networks stop agreeing on one hash, stop.** That agreement is the claim this refactor makes. A change to the shared value itself is only legitimate when a source input changed for a reason you can name — Task 1 changed two (the mappings' path and the regenerated types) and recorded both.
 - **`base-sepolia` gains `Position`** the moment the schema copies collapse. That network has no deploy of ours; the change is expected and needs no migration.
 - **Deploys stay manual.** `goldsky:*` scripts are unchanged, and no CI workflow indexes the subgraph in this fork.
 - **Mapping to the spec's phases.** The spec names three phases; this plan splits its Phase 1 into Task 1 (sources move) and Task 2 (ABI enters git), because each carries its own verification and a reviewer can reject one while accepting the other. Task 3 is the spec's Phase 2, Task 4 its Phase 3.
