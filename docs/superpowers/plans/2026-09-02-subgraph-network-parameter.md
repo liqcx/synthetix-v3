@@ -768,7 +768,7 @@ gh pr create --draft --base main \
   --body "$(cat <<'EOF'
 ## Summary
 
-Four per-network directories copied what already had one owner. Every network compiled to the same `PerpsMarketProxy.wasm` (`f3f4b7dd`), and three of the four `generated/` trees — plus the root one — were unreachable from any import: 35 233 lines git stored and the compiler never read. Staging and production had rotted 2 782 lines apart unnoticed, and `base-sepolia`'s schema copy has been missing `Position` since April.
+Four per-network directories copied what already had one owner. Every network compiled to the same `PerpsMarketProxy.wasm`, and three of the four `generated/` trees — plus the root one — were unreachable from any import: 35 233 lines git stored and the compiler never read. Staging and production had rotted 2 782 lines apart unnoticed, and `base-sepolia`'s schema copy has been missing `Position` since April.
 
 The network becomes a four-field record in `networks.json`; manifests and types are generated. The ABI enters git, so a clean clone builds every network offline — today three of four cannot build at all, because their ABI path is swallowed by the fork root's `.gitignore`.
 
