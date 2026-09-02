@@ -15,6 +15,11 @@ One subgraph, four networks. The network is a record in `networks.json`, not a d
 
 Generated and git-ignored: `subgraph.<network>.yaml`, `src/generated/`, `build/`.
 
+`abis/PerpsMarketProxy.json` is a pinned snapshot of the untracked `artifacts/PerpsMarketProxy.json`
+(the fork's own build output). Nothing produces it here and nothing checks it for drift — refreshing
+it is a deliberate, separate step. A surplus event in the ABI is harmless; a missing one is not
+silent — it surfaces as a build error, not as misindexing.
+
 ## Commands
 
 ```bash
@@ -26,7 +31,7 @@ pnpm goldsky:megaeth-testnet-staging
 
 ## Moving a contour
 
-Edit the network's `address` and `startBlock` in `networks.json`, run
+Edit the network's `address`, `startBlock` and `cannonPackage` in `networks.json`, run
 `pnpm subgraph:build`, redeploy. Nothing else moves — that is the point of the record.
 
 Addresses come from `synthetix-deployments`; `cannonPackage` names their origin. Production's

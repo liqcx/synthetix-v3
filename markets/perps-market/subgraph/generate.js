@@ -5,8 +5,9 @@
  * `networks.json`, then runs `graph codegen` once.
  *
  * Codegen is network-independent by construction — one schema, one ABI — so a
- * single run serves every network. Adding a network, or moving a contour, is an
- * edit to `networks.json` and nothing else.
+ * single run serves every network. Moving a contour is an edit to `networks.json`
+ * and nothing else; adding one also needs a hand-written `goldsky:` or `alchemy:`
+ * deploy script in `package.json`, since there is no other deploy path.
  */
 
 const fs = require('fs');
@@ -23,10 +24,16 @@ function render(name, net) {
       throw new Error(`networks.json: ${name} is missing ${field}`);
     }
   }
+  if (!/^0x[0-9a-fA-F]{40}$/.test(net.address)) {
+    throw new Error(`networks.json: ${name} has a malformed address`);
+  }
+  if (!Number.isInteger(net.startBlock) || net.startBlock < 0) {
+    throw new Error(`networks.json: ${name} has a malformed startBlock`);
+  }
   const out = template
-    .replace('__NETWORK__', net.network)
-    .replace('__ADDRESS__', net.address)
-    .replace('__START_BLOCK__', String(net.startBlock));
+    .replace('__NETWORK__', () => net.network)
+    .replace('__ADDRESS__', () => net.address)
+    .replace('__START_BLOCK__', () => String(net.startBlock));
   const unfilled = out.match(/__[A-Z_]+__/g);
   if (unfilled) {
     throw new Error(`${name}: template placeholders left unfilled: ${unfilled.join(', ')}`);

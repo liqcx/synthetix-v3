@@ -14,7 +14,7 @@ copies what has a single source and hides that fact behind four names.
 Measured against the tree at `46fca4b7`:
 
 - **All four networks compile to the same WebAssembly.** `graph build` on each of the four
-  manifests produces `PerpsMarketProxy.wasm` with md5 `f3f4b7dd2ab02734f8ad706b0f308b95` — one
+  manifests produces `PerpsMarketProxy.wasm` with md5 `4898671c167919d93f188fe2642c47cd` — one
   identical artifact four times. Only three manifest fields (`network`, `address`, `startBlock`)
   actually differ between contours.
 - **Three of four `generated/` directories are dead, and the root one too.** The handlers live in
@@ -132,16 +132,22 @@ and do not change.
 ## Verification
 
 The baseline is already captured at `46fca4b7`: four `graph build` runs, all yielding
-`PerpsMarketProxy.wasm` md5 `f3f4b7dd2ab02734f8ad706b0f308b95` plus four rendered `subgraph.yaml`
+`PerpsMarketProxy.wasm` md5 `4898671c167919d93f188fe2642c47cd` plus four rendered `subgraph.yaml`
 files.
+
+The first value recorded here was captured by running `graph build` without a `codegen` pass, so it
+compiled the stale committed types this design removes, and it does not reproduce. The real
+invariant is not a single frozen hash but four properties: all four networks agree on one hash;
+that hash is `4898671c167919d93f188fe2642c47cd`; matchstick stays at `1 failed, 16 passed, 17
+total`; the manifests differ in exactly three fields.
 
 1. **Byte equality of the build.** After each phase, rebuild all four networks and compare the
    `.wasm` md5 against the baseline. The rendered `build/<network>/subgraph.yaml` is compared after
    parsing and sorting keys, so formatting differences do not mask a field that changed. Equal
    bytes prove the move preserved behaviour; anything else is a regression to explain, not to
    accept.
-2. **`graph test`.** matchstick must pass after the mapping move; `matchstick.yaml` repoints at a
-   generated manifest, so codegen precedes the test run.
+2. **`graph test`.** matchstick must pass after the mapping move; `matchstick.yaml` was never
+   edited — the manifest it already names becomes generated, so codegen precedes the test run.
 3. **Clean-clone build.** Build from a fresh clone with no `artifacts/`, no `deployments/` and no
    network. Today this fails for three networks; after the change it must succeed for all four.
    This is the check that proves the ABI decision, and it cannot pass before it.
