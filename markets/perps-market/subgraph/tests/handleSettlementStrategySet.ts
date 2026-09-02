@@ -1,8 +1,5 @@
 import { assert, log } from 'matchstick-as';
-import {
-  handleSettlementStrategyAdded,
-  handleSettlementStrategySet,
-} from '../base-mainnet-andromeda';
+import { handleSettlementStrategyAdded, handleSettlementStrategySet } from '../src';
 import { createSettlementStrategyAddedEvent } from './event-factories/createSettlementStrategyAddedEvent';
 import { createSettlementStrategySetEvent } from './event-factories/createSettlementStrategySetEvent';
 

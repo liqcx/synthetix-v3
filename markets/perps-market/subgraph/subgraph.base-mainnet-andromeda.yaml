@@ -1,6 +1,6 @@
 specVersion: 0.0.4
 schema:
-  file: ./base-mainnet-andromeda/schema.graphql
+  file: ./schema.graphql
 dataSources:
   - kind: ethereum
     network: base
@@ -13,22 +13,22 @@ dataSources:
       kind: ethereum/events
       apiVersion: 0.0.6
       language: wasm/assemblyscript
-      file: ./base-mainnet-andromeda/index.ts
+      file: ./src/index.ts
       abis:
         - name: PerpsMarketProxy
-          file: ./base-mainnet-andromeda/deployments/perpsFactory/PerpsMarketProxy.json
+          file: ./artifacts/PerpsMarketProxy.json
       entities:
         - Account
         - Market
         - Order
         - SettlementStrategy
         - CollateralModified
-        - AccountLiquidated
         - PositionLiquidated
         - OrderCommitted
         - OrderSettled
         - PreviousOrderExpired
         - MarketUpdated
+        - Position
       eventHandlers:
         - event: AccountCreated(indexed uint128,indexed address)
           handler: handleAccountCreated
@@ -50,9 +50,6 @@ dataSources:
           handler: handleOrderFeesSet
         - event: SettlementStrategyAdded(indexed uint128,(uint8,uint256,uint256,address,bytes32,uint256,bool,uint256),indexed uint256)
           handler: handleSettlementStrategyAdded
-        # TODO: Need to implement handler for SettlementStrategySet (replaces SettlementStrategyEnabled)
-        #- event: SettlementStrategySet(indexed uint128,indexed uint256,(uint8,uint256,uint256,address,bytes32,uint256,bool,uint256))
-        #  handler: handleSettlementStrategySet
         - event: OrderCommitted(indexed uint128,indexed uint128,uint8,int128,uint256,uint256,uint256,uint256,uint256,indexed bytes32,address)
           handler: handleOrderCommitted
         - event: OrderSettled(indexed uint128,indexed
@@ -64,9 +61,6 @@ dataSources:
           handler: handlePreviousOrderExpired
         - event: PositionLiquidated(indexed uint128,indexed uint128,uint256,int128)
           handler: handlePositionLiquidated
-        # TODO: figure out what happened to AccountLiquidated and what to replace it with
-        #- event: AccountLiquidated(indexed uint128,uint256,bool)
-        #  handler: handleAccountLiquidated
         - event:
             CollateralModified(indexed uint128,indexed uint128,int256,indexed
             address)

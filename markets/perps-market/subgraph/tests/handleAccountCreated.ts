@@ -1,5 +1,5 @@
 import { assert, log } from 'matchstick-as';
-import { handleAccountCreated } from '../base-mainnet-andromeda';
+import { handleAccountCreated } from '../src';
 import { createAccountCreatedEvent } from './event-factories/createAccountCreatedEvent';
 
 export default function test(): void {

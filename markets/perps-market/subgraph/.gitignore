@@ -4,3 +4,4 @@ tests/.latest.json
 subgraph.yaml
 deployments/
 build/
+src/generated/

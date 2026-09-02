@@ -3,7 +3,7 @@ import { newTypedMockEvent } from 'matchstick-as';
 import {
   SettlementStrategySet as SettlementStrategySetEvent,
   SettlementStrategySetStrategyStruct,
-} from '../../base-mainnet-andromeda/generated/PerpsMarketProxy/PerpsMarketProxy';
+} from '../../src/generated/PerpsMarketProxy/PerpsMarketProxy';
 
 export function createSettlementStrategySetEvent(
   marketId: i32,

@@ -1,6 +1,6 @@
 import { Address, BigInt, ethereum } from '@graphprotocol/graph-ts';
 import { newTypedMockEvent } from 'matchstick-as';
-import { CollateralModified as CollateralModifiedEvent } from '../../base-mainnet-andromeda/generated/PerpsMarketProxy/PerpsMarketProxy';
+import { CollateralModified as CollateralModifiedEvent } from '../../src/generated/PerpsMarketProxy/PerpsMarketProxy';
 
 export function createCollateralModifiedEvent(
   id: i32,

@@ -1,5 +1,5 @@
 import { assert, log } from 'matchstick-as';
-import { handleMarketCreated, handleMarketPriceDataUpdated } from '../base-mainnet-andromeda';
+import { handleMarketCreated, handleMarketPriceDataUpdated } from '../src';
 import { createMarketCreatedEvent } from './event-factories/createMarketCreatedEvent';
 import { createMarketPriceDataUpdatedEvent } from './event-factories/createMarketPriceDataUpdatedEvent';
 
