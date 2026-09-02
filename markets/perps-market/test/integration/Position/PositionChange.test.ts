@@ -62,6 +62,7 @@ describe('Position change', () => {
   const LIQUIDATION_SUBJECT = 5; // BOOK
   const NET_ZERO_SUBJECT = 6; // BOOK
   const REANCHOR_SUBJECT = 7; // BOOK
+  const FULL_LIQUIDATION_SUBJECT = 8; // BOOK
 
   let market: PerpsMarket;
   let marketId: ethers.BigNumber;
@@ -82,6 +83,7 @@ describe('Position change', () => {
       [LIQUIDATION_SUBJECT, bn(500)],
       [NET_ZERO_SUBJECT, bn(1_000)],
       [REANCHOR_SUBJECT, bn(1_000)],
+      [FULL_LIQUIDATION_SUBJECT, bn(170)],
     ];
     for (const [accountId, collateral] of extraBookAccounts) {
       await perps.connect(trader2())['createAccount(uint128)'](accountId);
@@ -227,6 +229,21 @@ describe('Position change', () => {
 
     it('shrinks the position and re-anchors the remainder', async () => {
       await assertPositionChanged(LIQUIDATION_SUBJECT, bn(50));
+    });
+  });
+
+  describe('full liquidation', () => {
+    before(restore);
+    before('open 50 OP through the book, then halve the price', async () => {
+      await settleBook([bookOrder(FULL_LIQUIDATION_SUBJECT, bn(50))]);
+      await market.aggregator().mockSetCurrentPrice(bn(5));
+    });
+    before('liquidate: 50 OP fits inside the window', async () => {
+      await systems().PerpsMarket.connect(keeper()).liquidate(FULL_LIQUIDATION_SUBJECT);
+    });
+
+    it('closes the position and leaves no open market behind', async () => {
+      await assertPositionChanged(FULL_LIQUIDATION_SUBJECT, bn(0));
     });
   });
 });

@@ -741,10 +741,16 @@ library PerpsAccount {
         }
 
         // A fully liquidated position is written as an empty struct rather than as a re-anchored
-        // zero-size one, so `updatePositionData` values the change at a price of zero. The async and
-        // book paths both write a priced zero-size position when they close one, so this path is the
-        // outlier, and making it consistent moves `debtCorrectionAccumulator` and therefore the
-        // market's reported debt. Left as it stands until that change can be made on its own.
+        // zero-size one, so `updatePositionData` values the change at a price of zero, and the
+        // position keeps neither its market nor its anchors. The async and book paths both write a
+        // priced zero-size position when they close one, so this path is the outlier.
+        //
+        // Reported debt is not what holds it here: for a close the price cancels out of
+        // `notionalDelta + pricePnl`, and `MarketDebt.withFunding` pins the market's reported debt
+        // exactly, right after a full liquidation, either way. Something else does hold it. Routing
+        // this branch through `applyPositionChange` leaves $24k of collateral on the account in
+        // `Liquidation.multi-collateral`'s "empties account margin", so the outlier is load-bearing
+        // for a reason not yet understood and its own change has to find out why.
         updateOpenPositions(self, position.marketId, 0);
         marketUpdateData = perpsMarket.updatePositionData(self.id, Position.Data(0, 0, 0, 0, 0));
 
