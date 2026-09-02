@@ -1,0 +1,26 @@
+{
+  "base-mainnet-andromeda": {
+    "network": "base",
+    "address": "0x0A2AF931eFFd34b81ebcc57E3d3c9B1E1dE1C9Ce",
+    "startBlock": 7889389,
+    "cannonPackage": "synthetix-omnibus:latest@andromeda"
+  },
+  "base-sepolia-andromeda": {
+    "network": "base-sepolia",
+    "address": "0x814A983656582067C6F880e36Cd4D6fC2A7Ef37F",
+    "startBlock": 37970508,
+    "cannonPackage": "synthetix-omnibus:latest@andromeda"
+  },
+  "megaeth-testnet-production": {
+    "network": "megaeth-testnet-v2",
+    "address": "0x330E5A387DFD403a71A81A368eC649b7c1be3AC9",
+    "startBlock": 12908909,
+    "cannonPackage": "snx-omnibus-megaeth-production:1-dev@andromeda"
+  },
+  "megaeth-testnet-staging": {
+    "network": "megaeth-testnet-v2",
+    "address": "0x60A9D256fdF5E60FcbA26cc85A51c075e9B7336B",
+    "startBlock": 27936634,
+    "cannonPackage": "snx-omnibus-megaeth-staging:3-dev@andromeda"
+  }
+}

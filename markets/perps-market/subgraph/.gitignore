@@ -1,6 +1,9 @@
 .bin/
 tests/.bin/
 tests/.latest.json
+subgraph.*.yaml
+!subgraph.template.yaml
 subgraph.yaml
 deployments/
 build/
+src/generated/

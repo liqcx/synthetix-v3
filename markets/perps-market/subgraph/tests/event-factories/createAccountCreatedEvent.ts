@@ -1,6 +1,6 @@
 import { Address, BigInt, ethereum } from '@graphprotocol/graph-ts';
 import { newTypedMockEvent } from 'matchstick-as';
-import { AccountCreated } from '../../base-mainnet-andromeda/generated/PerpsMarketProxy/PerpsMarketProxy';
+import { AccountCreated } from '../../src/generated/PerpsMarketProxy/PerpsMarketProxy';
 
 export function createAccountCreatedEvent(
   id: i32,

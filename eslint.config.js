@@ -133,9 +133,18 @@ module.exports = [
         i64: true,
         assert: true,
       },
+
+      // Мэппинги сабграфов — AssemblyScript, а не TypeScript: корневой tsconfig.json
+      // исключает `**/subgraph/**/*`, поэтому типизированный парсинг для них невозможен
+      // («The file was not found in any of the provided project(s)»). Снимаем проект здесь
+      // и вместе с ним правила, которым нужна типовая информация.
+      parserOptions: {
+        project: null,
+      },
     },
 
     rules: {
+      '@typescript-eslint/no-floating-promises': 'off',
       'prefer-const': 'off',
       '@typescript-eslint/ban-ts-comment': 'off',
       '@typescript-eslint/no-unused-vars': 'off',

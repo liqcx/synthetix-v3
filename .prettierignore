@@ -22,6 +22,7 @@ lerna.json
 **/subgraph/build
 **/subgraph/.bin
 **/artifacts/
+**/subgraph/abis/
 **/cache/
 **/docs/
 **/tests/.latest.json
