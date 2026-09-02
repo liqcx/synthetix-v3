@@ -3,8 +3,9 @@ pragma solidity >=0.8.11 <0.9.0;
 
 import {ERC2771Context} from "@synthetixio/core-contracts/contracts/utils/ERC2771Context.sol";
 import {DecimalMath} from "@synthetixio/core-contracts/contracts/utils/DecimalMath.sol";
-import {SafeCastI256, SafeCastU256, SafeCastU128} from "@synthetixio/core-contracts/contracts/utils/SafeCast.sol";
+import {SafeCastI128, SafeCastI256, SafeCastU256, SafeCastU128} from "@synthetixio/core-contracts/contracts/utils/SafeCast.sol";
 import {SetUtil} from "@synthetixio/core-contracts/contracts/utils/SetUtil.sol";
+import {Account} from "@synthetixio/main/contracts/storage/Account.sol";
 import {ISpotMarketSystem} from "../interfaces/external/ISpotMarketSystem.sol";
 import {Position} from "./Position.sol";
 import {PerpsMarket} from "./PerpsMarket.sol";
@@ -26,6 +27,7 @@ uint128 constant SNX_USD_MARKET_ID = 0;
  */
 library PerpsAccount {
     using SetUtil for SetUtil.UintSet;
+    using SafeCastI128 for int128;
     using SafeCastI256 for int256;
     using SafeCastU128 for uint128;
     using SafeCastU256 for uint256;
@@ -66,6 +68,36 @@ library PerpsAccount {
         uint256[] prices;
     }
 
+    /**
+     * @notice What one settled position change amounted to: the caller's accounting and events
+     * are written from it.
+     * @dev `debt` is the account's debt after the charge; `marketSizeDelta` is the change in the
+     * market's open interest, which a same-side reduction makes negative.
+     */
+    struct SettledChange {
+        Position.Data oldPosition;
+        Position.Data newPosition;
+        int256 pnl;
+        int256 accruedFunding;
+        uint256 chargedInterest;
+        int256 chargedAmount;
+        uint256 debt;
+        MarketUpdate.Data marketUpdate;
+        int256 marketSizeDelta;
+    }
+
+    /**
+     * @dev Working values of `validatePositionChange`, kept in memory to stay under the stack limit.
+     */
+    struct ChangeValidation {
+        MemoryContext ctx;
+        uint256 collateralValueWithDiscount;
+        uint256 collateralValueWithoutDiscount;
+        int256 availableMargin;
+        Position.Data oldPosition;
+        Position.Data newPosition;
+    }
+
     error InsufficientCollateralAvailableForWithdraw(
         int256 withdrawableMarginUsd,
         uint256 requestedMarginUsd
@@ -84,6 +116,12 @@ library PerpsAccount {
     error AccountMarginLiquidatable(uint128 accountId);
 
     error MaxPositionsPerAccountReached(uint128 maxPositionsPerAccount);
+
+    /**
+     * @notice Thrown when the account cannot pay for a position change, or would stand below its
+     * initial margin plus the liquidation reward once it is made.
+     */
+    error InsufficientMargin(int256 availableMargin, uint256 minMargin);
 
     error MaxCollateralsPerAccountReached(uint128 maxCollateralsPerAccount);
 
@@ -106,17 +144,6 @@ library PerpsAccount {
         account = load(id);
         if (account.id == 0) {
             account.id = id;
-        }
-    }
-
-    function validateMaxPositions(uint128 accountId, uint128 marketId) internal view {
-        if (PerpsMarket.accountPosition(marketId, accountId).size == 0) {
-            uint128 maxPositionsPerAccount = GlobalPerpsMarketConfiguration
-                .load()
-                .maxPositionsPerAccount;
-            if (maxPositionsPerAccount <= load(accountId).openPositionMarketIds.length()) {
-                revert MaxPositionsPerAccountReached(maxPositionsPerAccount);
-            }
         }
     }
 
@@ -651,19 +678,176 @@ library PerpsAccount {
     }
 
     /**
+     * @notice Reverts unless the change may be made. In order: the account exists; it is neither
+     * flagged for liquidation nor liquidatable now; if the change opens a market the account is not
+     * on, the account has room for it; the account can pay `fees` and still stands above its initial
+     * margin plus the liquidation reward; and, unless the change is same-side reducing, the market
+     * stays under its size caps and inside the credit the pool has delegated.
+     * @param fillPrice - the price the change is made at; the resulting position is anchored to it.
+     * @param markPrice - the price the rest of the system sees the change at: the market's size cap
+     * is valued at it, and a fill worse than it counts against the available margin. Async
+     * settlement passes the oracle price, book settlement passes its own price twice.
+     * @param fees - what the change costs the account besides its pnl: order fees, plus the
+     * settlement reward where there is one.
+     * @dev The account's other positions are valued at oracle prices. The checks run in the order
+     * listed, so an account with several defects is told about the first.
+     * @dev The one gate for every position change that is not a liquidation. Callers keep only
+     * what is theirs and not the change's: order mode, acceptable price, settlement windows.
+     */
+    function validatePositionChange(
+        uint128 accountId,
+        uint128 marketId,
+        int128 sizeDelta,
+        uint256 fillPrice,
+        uint256 markPrice,
+        uint256 fees
+    ) internal view {
+        Account.exists(accountId);
+        GlobalPerpsMarket.load().checkLiquidation(accountId);
+
+        Data storage self = load(accountId);
+        ChangeValidation memory v;
+        v.ctx = getOpenPositionsAndCurrentPrices(self, PerpsPrice.Tolerance.DEFAULT);
+        // an account that exists but never deposited has no stored id yet
+        v.ctx.accountId = accountId;
+        (v.collateralValueWithDiscount, v.collateralValueWithoutDiscount) = getTotalCollateralValue(
+            self,
+            PerpsPrice.Tolerance.DEFAULT
+        );
+
+        // once an account is liquidatable it may not trade its way out, not even by reducing
+        bool liquidatable;
+        (liquidatable, v.availableMargin, , , ) = isEligibleForLiquidation(
+            v.ctx,
+            v.collateralValueWithDiscount,
+            v.collateralValueWithoutDiscount
+        );
+        if (liquidatable) {
+            revert AccountLiquidatable(accountId);
+        }
+
+        PerpsMarket.Data storage market = PerpsMarket.load(marketId);
+        v.oldPosition = market.positions[accountId];
+        if (v.oldPosition.size == 0 && sizeDelta != 0) {
+            uint128 maxPositionsPerAccount = GlobalPerpsMarketConfiguration
+                .load()
+                .maxPositionsPerAccount;
+            if (maxPositionsPerAccount <= self.openPositionMarketIds.length()) {
+                revert MaxPositionsPerAccountReached(maxPositionsPerAccount);
+            }
+        }
+        v.newPosition = Position.next(
+            v.oldPosition,
+            marketId,
+            sizeDelta,
+            fillPrice,
+            market.lastFundingValue
+        );
+        v.ctx = upsertPosition(v.ctx, v.newPosition);
+
+        // a fill worse than the mark price is a loss the account must already be able to bear
+        v.availableMargin += MathUtil.min(
+            sizeDelta.to256().mulDecimal(markPrice.toInt() - fillPrice.toInt()),
+            0
+        );
+        if (v.availableMargin < fees.toInt()) {
+            revert InsufficientMargin(v.availableMargin, fees);
+        }
+        v.availableMargin -= fees.toInt();
+
+        (
+            uint256 requiredInitialMargin,
+            ,
+            uint256 possibleLiquidationReward
+        ) = getAccountRequiredMargins(v.ctx, v.collateralValueWithoutDiscount);
+        if (v.availableMargin < (requiredInitialMargin + possibleLiquidationReward).toInt()) {
+            revert InsufficientMargin(
+                v.availableMargin,
+                requiredInitialMargin + possibleLiquidationReward
+            );
+        }
+
+        // growing exposure must fit the market's caps and the credit the pool has delegated
+        if (
+            sizeDelta != 0 && !MathUtil.isSameSideReducing(v.oldPosition.size, v.newPosition.size)
+        ) {
+            market.validateGivenMarketSize(
+                (
+                    v.newPosition.size > 0
+                        ? market.getLongSize().toInt() +
+                            v.newPosition.size -
+                            MathUtil.max(0, v.oldPosition.size)
+                        : market.getShortSize().toInt() -
+                            v.newPosition.size +
+                            MathUtil.min(0, v.oldPosition.size)
+                ).toUint(),
+                markPrice
+            );
+            GlobalPerpsMarket.load().validateMarketCapacity(
+                market.requiredCreditForSize(
+                    MathUtil.abs(sizeDelta).toInt(),
+                    PerpsPrice.Tolerance.DEFAULT
+                )
+            );
+        }
+    }
+
+    /**
+     * @notice Makes one position change: passes it through `validatePositionChange`, realises the
+     * old position's pnl, funding and interest at `fillPrice`, charges the account that less
+     * `fees`, and writes the new position.
+     * @dev Reverts as `validatePositionChange` does, and then nothing has been written.
+     * @dev Funding is recomputed at `markPrice` before the old position is valued, so the funding
+     * realised here is what the market recorded, not a second estimate at the fill price.
+     * @return settled - what the change amounted to, for the caller's events.
+     */
+    function settlePositionChange(
+        uint128 accountId,
+        uint128 marketId,
+        int128 sizeDelta,
+        uint256 fillPrice,
+        uint256 markPrice,
+        uint256 fees
+    ) internal returns (SettledChange memory settled) {
+        validatePositionChange(accountId, marketId, sizeDelta, fillPrice, markPrice, fees);
+
+        // the position is written under the stored id, which an account that never deposited lacks
+        Data storage self = create(accountId);
+        PerpsMarket.Data storage market = PerpsMarket.load(marketId);
+        market.recomputeFunding(markPrice);
+
+        settled.oldPosition = market.positions[accountId];
+        (settled.pnl, , settled.chargedInterest, settled.accruedFunding, , ) = settled
+            .oldPosition
+            .getPnl(fillPrice);
+        settled.chargedAmount = settled.pnl - fees.toInt();
+        settled.debt = charge(self, settled.chargedAmount);
+
+        uint256 sizeBefore = market.size;
+        (, settled.newPosition, settled.marketUpdate) = applyPositionChange(
+            self,
+            marketId,
+            sizeDelta,
+            fillPrice,
+            markPrice
+        );
+        settled.marketSizeDelta = market.size.toInt() - sizeBefore.toInt();
+    }
+
+    /**
      * @notice Applies one position change: the account's size on one market moves by `sizeDelta`.
      * @param anchorPrice - the price the resulting position is anchored to. Async settlement passes
      * the fill price, book settlement the price of the account's first order in the batch,
      * liquidation the oracle price.
-     * @param fundingPrice - the price the market's funding is recomputed at, which is the oracle
+     * @param markPrice - the price the market's funding is recomputed at, which is the oracle
      * price on the async path and equal to `anchorPrice` on the other two. Recomputing twice at one
      * timestamp is idempotent, so a caller that already recomputed may pass the same price again.
      * @return oldPosition - the position as it stood before the change; callers realise its pnl.
      * @return newPosition - the position as written.
      * @return marketUpdate - what the market's own state became, for the caller's event.
-     * @dev The only way a position's size reaches storage. Callers stay responsible for what is
-     * theirs and not the position's: charging pnl and fees, paying keepers, and emitting their own
-     * settlement events.
+     * @dev The only way a position's size reaches storage. Settlement reaches it through
+     * `settlePositionChange`, which gates the change first; liquidation reaches it directly, since a
+     * liquidation is the one change an account is not asked to afford.
      * @dev Order is load, recompute funding, build, write, record openness. Building before the
      * recompute anchors the position to a stale funding integral, and the account then realises that
      * integral again on every later settlement.
@@ -673,7 +857,7 @@ library PerpsAccount {
         uint128 marketId,
         int128 sizeDelta,
         uint256 anchorPrice,
-        uint256 fundingPrice
+        uint256 markPrice
     )
         internal
         returns (
@@ -685,7 +869,7 @@ library PerpsAccount {
         PerpsMarket.Data storage market = PerpsMarket.load(marketId);
         oldPosition = market.positions[self.id];
 
-        market.recomputeFunding(fundingPrice);
+        market.recomputeFunding(markPrice);
 
         newPosition = Position.next(
             oldPosition,
@@ -728,31 +912,13 @@ library PerpsAccount {
             ? oldPositionSize - amtToLiquidationInt
             : oldPositionSize + amtToLiquidationInt;
 
-        if (newPositionSize != 0) {
-            (, , marketUpdateData) = applyPositionChange(
-                self,
-                position.marketId,
-                newPositionSize - oldPositionSize,
-                price,
-                price
-            );
-
-            return (amountToLiquidate, newPositionSize, marketUpdateData);
-        }
-
-        // A fully liquidated position is written as an empty struct rather than as a re-anchored
-        // zero-size one, so `updatePositionData` values the change at a price of zero, and the
-        // position keeps neither its market nor its anchors. The async and book paths both write a
-        // priced zero-size position when they close one, so this path is the outlier.
-        //
-        // Reported debt is not what holds it here: for a close the price cancels out of
-        // `notionalDelta + pricePnl`, and `MarketDebt.withFunding` pins the market's reported debt
-        // exactly, right after a full liquidation, either way. Something else does hold it. Routing
-        // this branch through `applyPositionChange` leaves $24k of collateral on the account in
-        // `Liquidation.multi-collateral`'s "empties account margin", so the outlier is load-bearing
-        // for a reason not yet understood and its own change has to find out why.
-        updateOpenPositions(self, position.marketId, 0);
-        marketUpdateData = perpsMarket.updatePositionData(self.id, Position.Data(0, 0, 0, 0, 0));
+        (, , marketUpdateData) = applyPositionChange(
+            self,
+            position.marketId,
+            newPositionSize - oldPositionSize,
+            price,
+            price
+        );
 
         return (amountToLiquidate, newPositionSize, marketUpdateData);
     }

@@ -17,6 +17,39 @@
 
 **Overall:** CRIT-1 + CRIT-2 + CRIT-3 together mean any address with `perpsSystem` feature flag access can settle arbitrary trades at arbitrary prices against any BOOK-mode account without the account owner's consent. This would allow complete drainage of both LP collateral and trader margin.
 
+## Status as of 2026-09-02
+
+The findings below are kept as written on 2026-03-17; this table is the ledger. "Gate" is
+`PerpsAccount.validatePositionChange`, the one check both settlement paths pass through since
+2026-09-02 (see `docs/superpowers/specs/2026-09-02-position-change-gate-design.md`).
+
+| Finding | Status | Closed by |
+| ------- | ------ | --------- |
+| CRIT-1 price verification | Open | `signedPriceData` is still unread |
+| CRIT-2 access control on `settleBookOrders` | Open | |
+| CRIT-3 order consent | Open | |
+| HIGH-1 `maxMarketSize` / `maxMarketValue` | Fixed | gate check 6, `validateGivenMarketSize` at the group's price |
+| HIGH-2 credit capacity | Fixed | gate check 7, `validateMarketCapacity` |
+| HIGH-3 margin after settlement | Fixed | gate check 5: fees payable, then initial margin plus liquidation reward measured on the post-change positions |
+| HIGH-4 `latestInteractionFunding` | Fixed | `Position.next` re-anchors funding on every change (PRs #14–#16) |
+| HIGH-5 `marketId = 0` | Fixed | commit `f06b2c3b`; `Position.next` carries the id since PRs #14–#16 |
+| MED-1 `setBookMode` event | Fixed | the event carries the mode that was set |
+| MED-2 grace-period race | Open | the book path still accepts `RECENTLY_CHANGED` |
+| MED-3 phantom accounts | Fixed | gate check 1, `Account.exists`; the module no longer creates accounts |
+| MED-4 `cancelledOrders` | Fixed | the return value is gone: a batch settles whole or reverts whole |
+| MED-5 funding at per-account prices | Open | funding is still recomputed at each group's price |
+| MED-6 `maxPositionsPerAccount` | Fixed | gate check 4 |
+| LOW-1 liquidation check on the wrong account | Fixed | gate checks 2–3 run on the account being changed, before its change |
+| LOW-2 debug events | Fixed | gone with the rewrite of `settleBookOrders` |
+| LOW-3 referral fees | Open | |
+| LOW-4 `trackingCode` | Open | |
+| INFO-1 dead skew loop | Fixed | gone with the rewrite of `settleBookOrders` |
+| INFO-2 redundant pnl | Open | |
+| INFO-3 pending order on `setBookMode` | Open | |
+
+"Minimum Fixes for Testnet" below: CRIT-2 is the one still missing. "Required for Mainnet": MED-2,
+MED-5 and the three criticals remain.
+
 ---
 
 ## Critical
