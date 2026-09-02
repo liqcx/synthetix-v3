@@ -16,7 +16,7 @@ dataSources:
       file: ./src/index.ts
       abis:
         - name: PerpsMarketProxy
-          file: ./artifacts/PerpsMarketProxy.json
+          file: ./abis/PerpsMarketProxy.json
       entities:
         - Account
         - Market
