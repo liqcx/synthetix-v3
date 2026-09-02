@@ -68,7 +68,7 @@ The mappings already have one owner — they just live under a network's name, a
 **Files:**
 
 - Create: `src/` (18 files moved from `base-mainnet-andromeda/`), `schema.graphql` (moved)
-- Modify: `subgraph.base-mainnet-andromeda.yaml`, `subgraph.base-sepolia-andromeda.yaml`, `subgraph.megaeth-testnet-production.yaml`, `subgraph.megaeth-testnet-staging.yaml`, `.gitignore`, `codegen.sh`, `build.sh`, `matchstick.yaml`, 34 files under `tests/`
+- Modify: `subgraph.base-mainnet-andromeda.yaml`, `subgraph.base-sepolia-andromeda.yaml`, `subgraph.megaeth-testnet-production.yaml`, `subgraph.megaeth-testnet-staging.yaml`, `.gitignore`, `codegen.sh`, `build.sh`, 34 files under `tests/`
 - Delete: `base-mainnet-andromeda/`, `base-sepolia-andromeda/`, `megaeth-testnet-production/`, `megaeth-testnet-staging/`, `generated/`
 
 **Interfaces:**
@@ -398,7 +398,7 @@ rm -rf /tmp/abi-check /tmp/abi-check-build
 **Files:**
 
 - Create: `networks.json`, `subgraph.template.yaml`, `generate.js`
-- Modify: `.gitignore`, `matchstick.yaml`
+- Modify: `.gitignore`
 - Delete (from git, not from disk): the four `subgraph.<network>.yaml`
 
 **Interfaces:**
@@ -526,7 +526,24 @@ const prettier = spawnSync('pnpm', ['exec', 'prettier', '--write', 'src/generate
   cwd: ROOT,
   stdio: 'inherit',
 });
-process.exit(prettier.status ?? 1);
+if (prettier.status !== 0) {
+  process.exit(prettier.status ?? 1);
+}
+
+// `--build` continues into `graph build` for every network, so the two package.json
+// scripts differ by one flag instead of one of them carrying a shell loop.
+if (process.argv.includes('--build')) {
+  for (const name of Object.keys(networks)) {
+    const built = spawnSync(
+      'pnpm',
+      ['exec', 'graph', 'build', `subgraph.${name}.yaml`, '--output-dir', `./build/${name}`],
+      { cwd: ROOT, stdio: 'inherit' }
+    );
+    if (built.status !== 0) {
+      process.exit(built.status ?? 1);
+    }
+  }
+}
 ```
 
 - [ ] **Step 5: Run the test from Step 1 — it must now pass**
@@ -628,7 +645,7 @@ Change the two script entries to:
 
 ```json
     "subgraph:codegen": "node generate.js",
-    "subgraph:build": "node generate.js && node -e \"const n=require('./networks.json');const{spawnSync}=require('child_process');for(const k of Object.keys(n)){const r=spawnSync('pnpm',['exec','graph','build',`subgraph.${k}.yaml`,'--output-dir',`./build/${k}`],{stdio:'inherit'});if(r.status!==0)process.exit(r.status);}\"",
+    "subgraph:build": "node generate.js --build",
 ```
 
 The `goldsky:*` and `alchemy:*` deploy entries keep their `./build/<network>` paths and do not change.
