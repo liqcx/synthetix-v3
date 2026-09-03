@@ -40,6 +40,21 @@ interface IBookOrderModule {
     );
 
     /**
+     * @notice Thrown when an order's price sits further from the market's oracle price than the
+     * market's max book price deviation allows. Names the account so the settler can find the order.
+     * @param accountId the account of the order.
+     * @param orderPrice the price the order named.
+     * @param markPrice the oracle price the batch is judged at.
+     * @param maxBookPriceDeviationD18 the market's bound, as a fraction of the oracle price.
+     */
+    error BookPriceDeviationExceeded(
+        uint128 accountId,
+        uint256 orderPrice,
+        uint256 markPrice,
+        uint256 maxBookPriceDeviationD18
+    );
+
+    /**
      * @notice Set the current order mode to BOOK
      * @param accountId the account id to set to BOOK
      * @param useBook whether or not to set hte mode to BOOK. If not BOOK, it will be ONCHAIN
@@ -59,7 +74,9 @@ interface IBookOrderModule {
      * order; the accounts are settled in the order given, which must be ascending by account id.
      * Each change is judged at the market's oracle price, read once for the batch: funding is
      * recomputed at it, the market's value cap is measured at it, and a fill worse than it counts
-     * against the account's margin. The position itself is anchored to the order price.
+     * against the account's margin. The position itself is anchored to the order price. A market
+     * may bound how far any order's price sits from the oracle price (`setMaxBookPriceDeviation`);
+     * an order outside the bound reverts the batch with `BookPriceDeviationExceeded`.
      * @dev Every position change passes the same checks an async order passes at commitment and
      * settlement: the account must exist, be neither flagged for liquidation nor liquidatable, have
      * room for one more market if the change opens one, be able to pay its fees and stand above its

@@ -41,6 +41,7 @@ describe('MarketConfiguration', () => {
     },
     maxMarketSize: bn(10_000),
     maxMarketValue: bn(10_000_000),
+    maxBookPriceDeviation: bn(0.1),
     maxFundingVelocity: bn(0.3),
     skewScale: bn(1),
     initialMarginFraction: bn(2),
@@ -279,6 +280,20 @@ describe('MarketConfiguration', () => {
     );
   });
 
+  it('owner can set max book price deviation and events are emitted', async () => {
+    await assertEvent(
+      await systems()
+        .PerpsMarket.connect(owner())
+        .setMaxBookPriceDeviation(marketId, fixture.maxBookPriceDeviation),
+      'MaxBookPriceDeviationSet(' +
+        marketId.toString() +
+        ', ' +
+        fixture.maxBookPriceDeviation.toString() +
+        ')',
+      systems().PerpsMarket
+    );
+  });
+
   it('owner can set funding parameters and events are emitted', async () => {
     await assertEvent(
       await systems()
@@ -386,6 +401,13 @@ describe('MarketConfiguration', () => {
     await assertRevert(
       systems()
         .PerpsMarket.connect(randomUser)
+        .setMaxBookPriceDeviation(marketId, fixture.maxBookPriceDeviation),
+      'Unauthorized',
+      systems().PerpsMarket
+    );
+    await assertRevert(
+      systems()
+        .PerpsMarket.connect(randomUser)
         .setFundingParameters(marketId, fixture.skewScale, fixture.maxFundingVelocity),
       'Unauthorized',
       systems().PerpsMarket
@@ -434,6 +456,11 @@ describe('MarketConfiguration', () => {
   it('get maxMarketValue', async () => {
     const maxMarketValue = await systems().PerpsMarket.getMaxMarketValue(marketId);
     assertBn.equal(maxMarketValue, fixture.maxMarketValue);
+  });
+
+  it('get maxBookPriceDeviation', async () => {
+    const maxBookPriceDeviation = await systems().PerpsMarket.getMaxBookPriceDeviation(marketId);
+    assertBn.equal(maxBookPriceDeviation, fixture.maxBookPriceDeviation);
   });
 
   it('get orderFees', async () => {
