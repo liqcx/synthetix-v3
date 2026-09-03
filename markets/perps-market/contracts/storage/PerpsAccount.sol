@@ -206,10 +206,11 @@ library PerpsAccount {
         uint256 totalCollateralValueWithDiscount,
         uint256 totalCollateralValueWithoutDiscount
     ) internal view returns (bool isEligible, int256 availableMargin) {
-        // calculate keeper costs
+        // calculate keeper costs; the flag cost is priced per feed the keeper must update
         KeeperCosts.Data storage keeperCosts = KeeperCosts.load();
-        uint256 totalLiquidationCost = keeperCosts.getFlagKeeperCosts(ctx.accountId) +
-            keeperCosts.getLiquidateKeeperCosts();
+        uint256 totalLiquidationCost = keeperCosts.getFlagKeeperCosts(
+            getNumberOfUpdatedFeedsRequired(load(ctx.accountId))
+        ) + keeperCosts.getLiquidateKeeperCosts();
 
         GlobalPerpsMarketConfiguration.Data storage globalConfig = GlobalPerpsMarketConfiguration
             .load();
