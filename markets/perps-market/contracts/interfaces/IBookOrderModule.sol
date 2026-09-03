@@ -69,9 +69,11 @@ interface IBookOrderModule {
     function getOrderMode(uint128 accountId) external view returns (bytes16);
 
     /**
-     * @notice Called by the offchain orderbook to settle previously matched orders onchain. The orders
-     * of one account are folded into a single position change at the price of the account's first
-     * order; the accounts are settled in the order given, which must be ascending by account id.
+     * @notice Called by the offchain orderbook to settle previously matched orders onchain. Every
+     * order is its own position change at its own price, settled in the order given, which must be
+     * non-decreasing by account id; several orders of one account settle one after another, each
+     * realising the position the previous one left at the price of its own fill, and each emits
+     * its own `OrderSettled` carrying the order's `trackingCode`.
      * Each change is judged at the market's oracle price, read once for the batch: funding is
      * recomputed at it, the market's value cap is measured at it, and a fill worse than it counts
      * against the account's margin. The position itself is anchored to the order price. A market

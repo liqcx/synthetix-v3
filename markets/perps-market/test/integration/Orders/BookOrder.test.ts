@@ -257,11 +257,16 @@ describe('Settle Orderbook order', () => {
 
       it('charges the account with pnl', async () => {
         const amount = await systems().PerpsMarket.getCollateralAmount(2, 0);
+        // Account 2's twenty orders settle one after another at their own prices
+        // (1100..1109): the round trips inside the batch realise +99 for the account, and
+        // the fees, each read at the skew the previous orders left, come to 48.609. Folded
+        // into one change at the first order's price, the same batch charged fees only
+        // (15.195) and the +99 stayed with the pool: 9999.16 + 99 - 48.609 = 10049.551.
         // bootstrapTraders opts every trader account into ONCHAIN (the suite's legacy
         // default, now that BOOK is the protocol default). Those two extra setBookMode txs
         // open account 2's position a couple of blocks later, shifting accrued funding by a
-        // deterministic ~7.4e6 wei. Allow a tight 1e10-wei tolerance instead of exact.
-        assertBn.near(amount, bn(9983.965), ethers.BigNumber.from('10000000000'));
+        // deterministic ~7e6 wei. Allow a tight 1e10-wei tolerance instead of exact.
+        assertBn.near(amount, bn(10049.551), ethers.BigNumber.from('10000000000'));
       });
     });
   });
@@ -303,7 +308,9 @@ describe('Settle Orderbook order', () => {
 
     it('charges fees and deposits them to the RD', async () => {
       const balance = await systems().USD.balanceOf(systems().FeeCollectorMock.address);
-      assertBn.equal(balance, bn(8.68));
+      // each order reads the skew the previous ones left: +1 @ 1050 taker (0.84),
+      // +3 @ 1100 taker (2.64), -5 @ 1300 reduces 4 as maker (1.56) and flips 1 as taker (1.04)
+      assertBn.equal(balance, bn(6.08));
     });
 
     it('emits account events', async () => {

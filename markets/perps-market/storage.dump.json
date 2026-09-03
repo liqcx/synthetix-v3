@@ -1,40 +1,4 @@
 {
-  "contracts/modules/BookOrderModule.sol:BookOrderModule": {
-    "name": "BookOrderModule",
-    "kind": "contract",
-    "structs": {
-      "AccountGroup": [
-        {
-          "type": "uint128",
-          "name": "accountId",
-          "size": 16,
-          "slot": "0",
-          "offset": 0
-        },
-        {
-          "type": "int256",
-          "name": "sizeDelta",
-          "size": 32,
-          "slot": "1",
-          "offset": 0
-        },
-        {
-          "type": "uint256",
-          "name": "orderFee",
-          "size": 32,
-          "slot": "2",
-          "offset": 0
-        },
-        {
-          "type": "uint256",
-          "name": "price",
-          "size": 32,
-          "slot": "3",
-          "offset": 0
-        }
-      ]
-    }
-  },
   "contracts/storage/AsyncOrder.sol:AsyncOrder": {
     "name": "AsyncOrder",
     "kind": "library",
