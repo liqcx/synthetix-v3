@@ -1,12 +1,10 @@
 import { ethers } from 'ethers';
 import assert from 'assert/strict';
 import { bn, bootstrapMarkets } from '../../bootstrap';
-import { depositCollateral } from '../../helpers';
+import { stand, standMarket } from '../../bootstrap/stand';
+import { bookOrder, settleBook, BookOrder } from '../../helpers';
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
-import { wei } from '@synthetixio/wei';
-
-const _PRICE = bn(1000);
 
 // Every order of a book batch is its own position change at its own price. Several orders of
 // one account are not folded into one change at the price of the first: the taker who swept
@@ -16,66 +14,34 @@ const _PRICE = bn(1000);
 // and the result of the round trip. Fees are charged per order at its price, with the skew as
 // the previous orders of the batch left it.
 describe('Book orders settle one by one', () => {
-  const orderFees = {
-    makerFee: wei(0.0003), // 3bps
-    takerFee: wei(0.0008), // 8bps
-  };
   const { systems, perpsMarkets, provider, trader1, keeper } = bootstrapMarkets({
     synthMarkets: [],
-    perpsMarkets: [
-      {
-        requestedMarketId: 25,
-        name: 'Ether',
-        token: 'snxETH',
-        price: _PRICE,
-        fundingParams: { skewScale: bn(100_000), maxFundingVelocity: bn(10) },
-        orderFees: {
-          makerFee: orderFees.makerFee.toBN(),
-          takerFee: orderFees.takerFee.toBN(),
-        },
-      },
-    ],
-    traderAccountIds: [2],
+    perpsMarkets: [standMarket()],
+    traderAccountIds: [stand.bookAccounts[0]],
+    bookAccountIds: [stand.bookAccounts[0]],
   });
 
-  const ACCOUNT = 2;
+  const ACCOUNT = stand.bookAccounts[0];
   let ethMarketId: ethers.BigNumber;
 
   before('identify the market', () => {
     ethMarketId = perpsMarkets()[0].marketId();
   });
 
-  before('fund the account and put it on the book', async () => {
-    await depositCollateral({
-      systems,
-      trader: trader1,
-      accountId: () => ACCOUNT,
-      collaterals: [{ snxUSDAmount: () => bn(100_000) }],
-    });
-    await systems().PerpsMarket.connect(trader1()).setBookMode(ACCOUNT, true);
+  before('fund the account', async () => {
+    await systems().PerpsMarket.connect(trader1()).modifyCollateral(ACCOUNT, 0, bn(100_000));
   });
 
   const restore = snapshotCheckpoint(provider);
 
-  const bookOrder = (
+  // Bindings, not copies: one account trades one market with one keeper.
+  const order = (
     sizeDelta: ethers.BigNumber,
     orderPrice: ethers.BigNumber,
-    trackingCode = ethers.constants.HashZero
-  ) => ({
-    accountId: ACCOUNT,
-    sizeDelta,
-    orderPrice,
-    signedPriceData: '0x',
-    trackingCode,
-  });
-
-  // Waits for the receipt: the views below must read the state the batch left, not race the
-  // node's miner for it.
-  const settleBook = async (orders: ReturnType<typeof bookOrder>[]) => {
-    const tx = await systems().PerpsMarket.connect(keeper()).settleBookOrders(ethMarketId, orders);
-    await tx.wait();
-    return tx;
-  };
+    trackingCode?: string
+  ) => bookOrder(ACCOUNT, sizeDelta, orderPrice, trackingCode);
+  const settle = (orders: BookOrder[]) =>
+    settleBook({ systems, keeper: keeper(), marketId: ethMarketId, orders });
 
   const position = async () => {
     const [totalPnl, , positionSize] = await systems().PerpsMarket.getOpenPosition(
@@ -108,9 +74,9 @@ describe('Book orders settle one by one', () => {
 
     before('settle +1 at 1000 and +9 at 1100 in one batch', async () => {
       marginBefore = await systems().PerpsMarket.getAvailableMargin(ACCOUNT);
-      tx = await settleBook([
-        bookOrder(bn(1), bn(1000), ethers.utils.formatBytes32String('first')),
-        bookOrder(bn(9), bn(1100), ethers.utils.formatBytes32String('second')),
+      tx = await settle([
+        order(bn(1), bn(1000), ethers.utils.formatBytes32String('first')),
+        order(bn(9), bn(1100), ethers.utils.formatBytes32String('second')),
       ]);
     });
 
@@ -151,7 +117,7 @@ describe('Book orders settle one by one', () => {
 
     before('settle +10 at 1050 and -10 at 1000 in one batch', async () => {
       collateralBefore = await systems().PerpsMarket.getCollateralAmount(ACCOUNT, 0);
-      await settleBook([bookOrder(bn(10), bn(1050)), bookOrder(bn(-10), bn(1000))]);
+      await settle([order(bn(10), bn(1050)), order(bn(-10), bn(1000))]);
     });
 
     it('ends flat', async () => {
