@@ -116,12 +116,11 @@ library Settlement {
      * @notice Gate, charge, then the four events of a settled change, in the order both doors
      * have always emitted them: AccountCharged, MarketUpdated, InterestCharged, OrderSettled.
      * @dev Reverts as `PerpsAccount.settlePositionChange` does, and then nothing has been written.
+     * Returns nothing on purpose: a memory return value is twenty-five zeroed words per call, and
+     * the book door never frees memory within a batch, so every order would pay for them again.
      */
-    function settle(
-        Change memory change,
-        Fees memory fees
-    ) internal returns (PerpsAccount.SettledChange memory settled) {
-        settled = PerpsAccount.settlePositionChange(
+    function settle(Change memory change, Fees memory fees) internal {
+        PerpsAccount.SettledChange memory settled = PerpsAccount.settlePositionChange(
             change.accountId,
             change.marketId,
             change.sizeDelta,
