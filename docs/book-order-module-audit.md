@@ -46,6 +46,29 @@ The findings below are kept as written on 2026-03-17; this table is the ledger. 
 | INFO-1 dead skew loop | Fixed | gone with the rewrite of `settleBookOrders` |
 | INFO-2 redundant pnl | Open | |
 | INFO-3 pending order on `setBookMode` | Open | |
+| Fold at the first order's price (found 2026-09-03, not in the 2026-03-17 audit) | Fixed in the contract | every order is its own position change at its own price; the settler's half (one order per fill leg) is a monorepo change. See "Found after the audit" |
+
+## Found after the audit
+
+### First-price fold (2026-09-03)
+
+`settleBookOrders` folded all orders of one account in a batch into a single position change at
+the price of the account's first order, and the settler folded an account's fills the same way
+before sending. Size survived the fold, price did not: a taker who swept several levels anchored
+at the best of them while each maker anchored at its own, and a buy followed by a sell in one
+batch folded to a change of zero whose result vanished. The pool is the counterparty of every
+position, so the sum of unrealised results stopped being zero: the pool paid the price impact
+of every sweep and pocketed every intra-batch round trip. Measured on the stand at an oracle
+price of 1000: +1 @ 1000 then +9 @ 1100 left a pnl of 0 instead of −900; +10 @ 1050 then
+−10 @ 1000 charged only the fees. Two wallets inside the matching engine's 5 % executable band
+could take about 5 % of notional per cycle from the pool; an honest maker filled on both sides
+within one settler pass lost its spread.
+
+**Fix.** Every order is its own position change at its own price, with its own gate, fee and
+`OrderSettled`; the batch stays sorted by account and all or nothing. Pinned by
+`test/integration/Orders/BookOrderPerOrder.test.ts`. The settler must send one `BookOrder` per
+fill leg for the fix to reach the chain; until both halves are deployed the leak stays where the
+fold still is, no worse than before.
 
 "Minimum Fixes for Testnet" below: CRIT-2 is the one still missing. "Required for Mainnet": MED-2
 and the three criticals remain.
