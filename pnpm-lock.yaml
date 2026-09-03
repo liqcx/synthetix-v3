@@ -486,6 +486,12 @@ importers:
       '@synthetixio/oracle-manager':
         specifier: workspace:*
         version: link:../../protocol/oracle-manager
+      '@synthetixio/rewards-dist-ext':
+        specifier: workspace:*
+        version: link:../../auxiliary/RewardsDistributorExternal
+      '@synthetixio/rewards-distributor':
+        specifier: workspace:*
+        version: link:../../auxiliary/RewardsDistributor
       '@synthetixio/spot-market':
         specifier: workspace:*
         version: link:../spot-market

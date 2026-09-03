@@ -90,6 +90,9 @@ measured at it, and the loss between it and `fillPrice` is price impact the acco
 The async path passes the oracle price; the book path, whose fill price *is* its mark, passes the
 same price twice, as it already does for `applyPositionChange`.
 
+> Amended 2026-09-03 (review candidate 9): the book path now reads the oracle once per batch and
+> passes it as `markPrice`; only the fill is the book's own. MED-5 closes there.
+
 The gate checks, in this order, and reverts with the errors the async path has always raised:
 
 | # | Invariant | Error |
@@ -164,7 +167,10 @@ gate must turn its test red; this was verified by mutation for each check.
 
 Suites to run on the cached Cannon package (the first run after a contract edit rebuilds and is
 not to be trusted): `Position/`, `Orders/`, `Market/`, `Liquidation/`, `Account/`, and the
-root-level `Insolvent.test.ts`. `Liquidation/` has two failures on `main` that are the baseline.
+root-level `Insolvent.test.ts`. `Liquidation/` has one failure on `main` that is the baseline: the
+`Liquidation.flaggedLiquidation` before-all (`IncorrectAccountMode` at `commitOrder`). The
+`Account margins - Multicollateral` before-all can time out when the suites run back to back;
+alone, it passes.
 
 ## Out of scope
 

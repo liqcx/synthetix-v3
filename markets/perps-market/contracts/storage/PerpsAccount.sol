@@ -685,8 +685,8 @@ library PerpsAccount {
      * stays under its size caps and inside the credit the pool has delegated.
      * @param fillPrice - the price the change is made at; the resulting position is anchored to it.
      * @param markPrice - the price the rest of the system sees the change at: the market's size cap
-     * is valued at it, and a fill worse than it counts against the available margin. Async
-     * settlement passes the oracle price, book settlement passes its own price twice.
+     * is valued at it, and a fill worse than it counts against the available margin. Both
+     * settlement paths pass the oracle price.
      * @param fees - what the change costs the account besides its pnl: order fees, plus the
      * settlement reward where there is one.
      * @dev The account's other positions are valued at oracle prices. The checks run in the order
@@ -840,8 +840,9 @@ library PerpsAccount {
      * the fill price, book settlement the price of the account's first order in the batch,
      * liquidation the oracle price.
      * @param markPrice - the price the market's funding is recomputed at, which is the oracle
-     * price on the async path and equal to `anchorPrice` on the other two. Recomputing twice at one
-     * timestamp is idempotent, so a caller that already recomputed may pass the same price again.
+     * price on both settlement paths and equal to `anchorPrice` on liquidation. Recomputing twice
+     * at one timestamp is idempotent, so a caller that already recomputed may pass the same price
+     * again.
      * @return oldPosition - the position as it stood before the change; callers realise its pnl.
      * @return newPosition - the position as written.
      * @return marketUpdate - what the market's own state became, for the caller's event.

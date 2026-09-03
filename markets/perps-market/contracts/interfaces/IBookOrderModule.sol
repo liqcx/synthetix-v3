@@ -57,6 +57,9 @@ interface IBookOrderModule {
      * @notice Called by the offchain orderbook to settle previously matched orders onchain. The orders
      * of one account are folded into a single position change at the price of the account's first
      * order; the accounts are settled in the order given, which must be ascending by account id.
+     * Each change is judged at the market's oracle price, read once for the batch: funding is
+     * recomputed at it, the market's value cap is measured at it, and a fill worse than it counts
+     * against the account's margin. The position itself is anchored to the order price.
      * @dev Every position change passes the same checks an async order passes at commitment and
      * settlement: the account must exist, be neither flagged for liquidation nor liquidatable, have
      * room for one more market if the change opens one, be able to pay its fees and stand above its
