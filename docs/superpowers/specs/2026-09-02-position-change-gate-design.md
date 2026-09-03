@@ -167,7 +167,10 @@ gate must turn its test red; this was verified by mutation for each check.
 
 Suites to run on the cached Cannon package (the first run after a contract edit rebuilds and is
 not to be trusted): `Position/`, `Orders/`, `Market/`, `Liquidation/`, `Account/`, and the
-root-level `Insolvent.test.ts`. `Liquidation/` has two failures on `main` that are the baseline.
+root-level `Insolvent.test.ts`. `Liquidation/` has one failure on `main` that is the baseline: the
+`Liquidation.flaggedLiquidation` before-all (`IncorrectAccountMode` at `commitOrder`). The
+`Account margins - Multicollateral` before-all can time out when the suites run back to back;
+alone, it passes.
 
 ## Out of scope
 
