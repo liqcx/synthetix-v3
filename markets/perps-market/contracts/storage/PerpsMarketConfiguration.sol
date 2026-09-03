@@ -79,6 +79,12 @@ library PerpsMarketConfiguration {
          * @dev If set to zero then there is no cap with value, just units
          */
         uint256 maxMarketValue;
+        /**
+         * @dev How far a book fill may sit from the market's oracle price, as a fraction of that
+         * price (as decimal with 18 digits precision). Only the book path reads it.
+         * @dev If set to zero then there is no bound.
+         */
+        uint256 maxBookPriceDeviationD18;
     }
 
     function load(uint128 marketId) internal pure returns (Data storage store) {

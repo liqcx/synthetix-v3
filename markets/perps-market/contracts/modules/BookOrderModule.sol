@@ -1,6 +1,7 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.11 <0.9.0;
 
+import {DecimalMath} from "@synthetixio/core-contracts/contracts/utils/DecimalMath.sol";
 import {SafeCastI256} from "@synthetixio/core-contracts/contracts/utils/SafeCast.sol";
 import {ERC2771Context} from "@synthetixio/core-contracts/contracts/utils/ERC2771Context.sol";
 import {ParameterError} from "@synthetixio/core-contracts/contracts/errors/ParameterError.sol";
@@ -11,6 +12,7 @@ import {IBookOrderModule} from "../interfaces/IBookOrderModule.sol";
 import {IAccountEvents} from "../interfaces/IAccountEvents.sol";
 import {IMarketEvents} from "../interfaces/IMarketEvents.sol";
 import {PerpsMarket} from "../storage/PerpsMarket.sol";
+import {PerpsMarketConfiguration} from "../storage/PerpsMarketConfiguration.sol";
 import {PerpsAccount} from "../storage/PerpsAccount.sol";
 import {PerpsPrice} from "../storage/PerpsPrice.sol";
 import {GlobalPerpsMarketConfiguration} from "../storage/GlobalPerpsMarketConfiguration.sol";
@@ -26,6 +28,7 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
     using PerpsMarket for PerpsMarket.Data;
     using GlobalPerpsMarketConfiguration for GlobalPerpsMarketConfiguration.Data;
     using SafeCastI256 for int256;
+    using DecimalMath for uint256;
 
     /**
      * @notice Gets fired when a new order is settled.
@@ -122,13 +125,22 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
         // The oracle price is the mark price every change in the batch is judged at: funding is
         // recomputed at it, the market's value cap is measured at it, and a fill worse than it is
         // a loss the account must already bear. What the batch names is only where each account
-        // fills. Still missing (audit CRIT-1, CRIT-2): a per-market bound on how far a fill may
-        // sit from this price, and a check on who may call this.
+        // fills, and the market may bound how far from this price that may be. Still missing
+        // (audit CRIT-2): a check on who may call this.
         uint256 markPrice = PerpsPrice.getCurrentPrice(marketId, PerpsPrice.Tolerance.DEFAULT);
+        uint256 maxDeviation = PerpsMarketConfiguration.load(marketId).maxBookPriceDeviationD18;
 
         uint256 totalCollectedFees;
         AccountGroup memory group;
         for (uint256 i = 0; i < orders.length; i++) {
+            // every order's price is judged, not only the one its account's fold settles at
+            _checkPriceDeviation(
+                orders[i].accountId,
+                orders[i].orderPrice,
+                markPrice,
+                maxDeviation
+            );
+
             if (i == 0 || orders[i].accountId > group.accountId) {
                 if (i > 0) {
                     totalCollectedFees += _settleAccountGroup(marketId, group, markPrice);
@@ -158,6 +170,25 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
         );
 
         emit BookOrderSettled(marketId, orders, totalCollectedFees);
+    }
+
+    /**
+     * @dev Reverts, naming the account, if `orderPrice` sits further from `markPrice` than the
+     * market's bound allows. A bound of zero is no bound.
+     */
+    function _checkPriceDeviation(
+        uint128 accountId,
+        uint256 orderPrice,
+        uint256 markPrice,
+        uint256 maxDeviation
+    ) private pure {
+        if (maxDeviation == 0) {
+            return;
+        }
+        uint256 distance = orderPrice > markPrice ? orderPrice - markPrice : markPrice - orderPrice;
+        if (distance > markPrice.mulDecimal(maxDeviation)) {
+            revert BookPriceDeviationExceeded(accountId, orderPrice, markPrice, maxDeviation);
+        }
     }
 
     /**

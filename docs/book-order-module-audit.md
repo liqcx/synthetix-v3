@@ -25,7 +25,7 @@ The findings below are kept as written on 2026-03-17; this table is the ledger. 
 
 | Finding | Status | Closed by |
 | ------- | ------ | --------- |
-| CRIT-1 price verification | Open | `signedPriceData` is still unread; since 2026-09-03 the gate judges every fill against the oracle price, which is where a per-market deviation bound belongs |
+| CRIT-1 price verification | Bounded | Since 2026-09-03 the gate judges every fill against the oracle price, and a per-market bound (`setMaxBookPriceDeviation`, zero is no bound) reverts a batch with an order further from it than the bound, naming the account (`BookPriceDeviationExceeded`). `signedPriceData` is still unread: on MegaETH the price feed is a MockPyth with nothing to verify, and a fill still needs the settler to be honest about which side lost within the bound (CRIT-2, CRIT-3) |
 | CRIT-2 access control on `settleBookOrders` | Open | |
 | CRIT-3 order consent | Open | |
 | HIGH-1 `maxMarketSize` / `maxMarketValue` | Fixed | gate check 6, `validateGivenMarketSize` at the oracle price (at the group's price until 2026-09-03) |
@@ -69,6 +69,17 @@ and the three criticals remain.
 **Recommendation:**
 1. Immediate: add `trustedSettler` address check (`require(msg.sender == trustedSettler)`)
 2. Production: verify `signedPriceData` via `IPythERC7412Wrapper`, enforce `|orderPrice - oraclePrice| / oraclePrice < maxDeviationBps`
+
+**Status 2026-09-03.** The oracle price is read once per batch and every change is judged at it
+(funding, the market value cap, and the loss between it and the fill, which the account must
+already bear). `settleBookOrders` now also rejects any order whose price sits further from that
+oracle price than the market's `maxBookPriceDeviationD18` (per market, D18, zero is no bound;
+`MarketConfigurationModule.setMaxBookPriceDeviation`), reverting the batch with
+`BookPriceDeviationExceeded(accountId, orderPrice, markPrice, bound)`. Pinned by
+`test/integration/Orders/BookOrderPriceDeviation.test.ts`. What remains of the finding is
+freshness (the read uses the node's own staleness tolerance) and the signature itself, which
+has nothing to verify while the chain's feed is a MockPyth; both wait on a real Pyth and an
+ERC-7412 client in the settler.
 
 ---
 
@@ -299,7 +310,7 @@ Computes `newMarketSkew` in block scope then discards it. Intended for market si
 
 All Critical + High findings, plus:
 - MED-2 (race condition), MED-4 (return values), MED-5 (funding), MED-6 (max positions)
-- Pyth price verification (CRIT-1)
+- Pyth price verification (CRIT-1; the per-market deviation bound is in place since 2026-09-03, the signature check waits on a real Pyth)
 - EIP-712 order signatures (CRIT-3)
 - Market size limits (HIGH-1, HIGH-2)
 - Post-settlement margin check (HIGH-3)

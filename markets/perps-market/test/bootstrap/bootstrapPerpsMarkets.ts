@@ -41,6 +41,7 @@ export type PerpsMarketData = Array<{
   maxMarketSize?: ethers.BigNumber;
   maxMarketValue?: ethers.BigNumber;
   lockedOiRatioD18?: ethers.BigNumber;
+  maxBookPriceDeviation?: ethers.BigNumber;
   settlementStrategy?: Partial<{
     strategyType: ethers.BigNumber;
     commitmentPriceDelay: ethers.BigNumber;
@@ -118,6 +119,7 @@ export const bootstrapPerpsMarkets = (
         maxMarketSize,
         maxMarketValue,
         lockedOiRatioD18,
+        maxBookPriceDeviation,
         settlementStrategy,
       } = item;
 
@@ -182,6 +184,14 @@ export const bootstrapPerpsMarkets = (
       if (lockedOiRatioD18) {
         // set locked oi percent
         await contracts.PerpsMarket.connect(r.owner()).setLockedOiRatio(marketId, lockedOiRatioD18);
+      }
+
+      if (maxBookPriceDeviation) {
+        // bound how far a book fill may sit from the oracle price; unset means no bound
+        await contracts.PerpsMarket.connect(r.owner()).setMaxBookPriceDeviation(
+          marketId,
+          maxBookPriceDeviation
+        );
       }
 
       // create default settlement strategy

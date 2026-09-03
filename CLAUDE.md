@@ -135,8 +135,8 @@ Permanent hard-fork of `Synthetixio/synthetix-v3` (no upstream sync in ~19 month
 
 Security audit: [`docs/book-order-module-audit.md`](docs/book-order-module-audit.md) — 3 Critical, 5 High findings.
 
-Known bugs:
+Open findings (the ledger in the audit doc is authoritative; the High findings are fixed):
 
-- **`Position.marketId = 0`** for new positions (HIGH-5) — `curPosition.marketId` not set in settlement loop. Fix: add `curPosition.marketId = marketId;` after loading from storage.
-- **No price verification** (CRIT-1) — `signedPriceData` accepted but not verified onchain.
+- **Price verification** (CRIT-1) — every book fill is judged at the oracle price and bounded by the market's `maxBookPriceDeviation` (zero is no bound); `signedPriceData` is still not verified onchain.
 - **No access control** (CRIT-2) — any address with `perpsSystem` feature flag can call `settleBookOrders`.
+- **Order consent** (CRIT-3) — the settler names the accounts; no signature ties an order to its owner.

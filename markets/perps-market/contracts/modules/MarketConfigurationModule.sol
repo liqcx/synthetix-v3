@@ -143,6 +143,19 @@ contract MarketConfigurationModule is IMarketConfigurationModule {
     /**
      * @inheritdoc IMarketConfigurationModule
      */
+    function setMaxBookPriceDeviation(
+        uint128 marketId,
+        uint256 maxBookPriceDeviationD18
+    ) external override {
+        OwnableStorage.onlyOwner();
+        PerpsMarketConfiguration.Data storage config = PerpsMarketConfiguration.load(marketId);
+        config.maxBookPriceDeviationD18 = maxBookPriceDeviationD18;
+        emit MaxBookPriceDeviationSet(marketId, maxBookPriceDeviationD18);
+    }
+
+    /**
+     * @inheritdoc IMarketConfigurationModule
+     */
     function setFundingParameters(
         uint128 marketId,
         uint256 skewScale,
@@ -317,6 +330,17 @@ contract MarketConfigurationModule is IMarketConfigurationModule {
         PerpsMarketConfiguration.Data storage config = PerpsMarketConfiguration.load(marketId);
 
         maxMarketValue = config.maxMarketValue;
+    }
+
+    /**
+     * @inheritdoc IMarketConfigurationModule
+     */
+    function getMaxBookPriceDeviation(
+        uint128 marketId
+    ) external view override returns (uint256 maxBookPriceDeviationD18) {
+        PerpsMarketConfiguration.Data storage config = PerpsMarketConfiguration.load(marketId);
+
+        maxBookPriceDeviationD18 = config.maxBookPriceDeviationD18;
     }
 
     /**

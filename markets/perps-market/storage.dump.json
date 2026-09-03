@@ -3,11 +3,11 @@
     "name": "BookOrderModule",
     "kind": "contract",
     "structs": {
-      "AccumulatedOrderData": [
+      "AccountGroup": [
         {
-          "type": "uint256",
-          "name": "orderFee",
-          "size": 32,
+          "type": "uint128",
+          "name": "accountId",
+          "size": 16,
           "slot": "0",
           "offset": 0
         },
@@ -20,7 +20,7 @@
         },
         {
           "type": "uint256",
-          "name": "orderCount",
+          "name": "orderFee",
           "size": 32,
           "slot": "2",
           "offset": 0
@@ -766,6 +766,281 @@
           "slot": "2",
           "offset": 0
         }
+      ],
+      "SettledChange": [
+        {
+          "type": "struct",
+          "name": "oldPosition",
+          "members": [
+            {
+              "type": "uint128",
+              "name": "marketId"
+            },
+            {
+              "type": "int128",
+              "name": "size"
+            },
+            {
+              "type": "uint128",
+              "name": "latestInteractionPrice"
+            },
+            {
+              "type": "int128",
+              "name": "latestInteractionFunding"
+            },
+            {
+              "type": "uint256",
+              "name": "latestInterestAccrued"
+            }
+          ],
+          "size": 96,
+          "slot": "0",
+          "offset": 0
+        },
+        {
+          "type": "struct",
+          "name": "newPosition",
+          "members": [
+            {
+              "type": "uint128",
+              "name": "marketId"
+            },
+            {
+              "type": "int128",
+              "name": "size"
+            },
+            {
+              "type": "uint128",
+              "name": "latestInteractionPrice"
+            },
+            {
+              "type": "int128",
+              "name": "latestInteractionFunding"
+            },
+            {
+              "type": "uint256",
+              "name": "latestInterestAccrued"
+            }
+          ],
+          "size": 96,
+          "slot": "3",
+          "offset": 0
+        },
+        {
+          "type": "int256",
+          "name": "pnl",
+          "size": 32,
+          "slot": "6",
+          "offset": 0
+        },
+        {
+          "type": "int256",
+          "name": "accruedFunding",
+          "size": 32,
+          "slot": "7",
+          "offset": 0
+        },
+        {
+          "type": "uint256",
+          "name": "chargedInterest",
+          "size": 32,
+          "slot": "8",
+          "offset": 0
+        },
+        {
+          "type": "int256",
+          "name": "chargedAmount",
+          "size": 32,
+          "slot": "9",
+          "offset": 0
+        },
+        {
+          "type": "uint256",
+          "name": "debt",
+          "size": 32,
+          "slot": "10",
+          "offset": 0
+        },
+        {
+          "type": "struct",
+          "name": "marketUpdate",
+          "members": [
+            {
+              "type": "uint128",
+              "name": "marketId"
+            },
+            {
+              "type": "uint128",
+              "name": "interestRate"
+            },
+            {
+              "type": "int256",
+              "name": "skew"
+            },
+            {
+              "type": "uint256",
+              "name": "size"
+            },
+            {
+              "type": "int256",
+              "name": "currentFundingRate"
+            },
+            {
+              "type": "int256",
+              "name": "currentFundingVelocity"
+            }
+          ],
+          "size": 160,
+          "slot": "11",
+          "offset": 0
+        },
+        {
+          "type": "int256",
+          "name": "marketSizeDelta",
+          "size": 32,
+          "slot": "16",
+          "offset": 0
+        }
+      ],
+      "ChangeValidation": [
+        {
+          "type": "struct",
+          "name": "ctx",
+          "members": [
+            {
+              "type": "uint128",
+              "name": "accountId"
+            },
+            {
+              "type": "enum",
+              "name": "stalenessTolerance",
+              "members": [
+                "DEFAULT",
+                "STRICT",
+                "ONE_MONTH"
+              ]
+            },
+            {
+              "type": "array",
+              "name": "positions",
+              "value": {
+                "type": "struct",
+                "name": "Position.Data",
+                "members": [
+                  {
+                    "type": "uint128",
+                    "name": "marketId"
+                  },
+                  {
+                    "type": "int128",
+                    "name": "size"
+                  },
+                  {
+                    "type": "uint128",
+                    "name": "latestInteractionPrice"
+                  },
+                  {
+                    "type": "int128",
+                    "name": "latestInteractionFunding"
+                  },
+                  {
+                    "type": "uint256",
+                    "name": "latestInterestAccrued"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "array",
+              "name": "prices",
+              "value": {
+                "type": "uint256"
+              }
+            }
+          ],
+          "size": 96,
+          "slot": "0",
+          "offset": 0
+        },
+        {
+          "type": "uint256",
+          "name": "collateralValueWithDiscount",
+          "size": 32,
+          "slot": "3",
+          "offset": 0
+        },
+        {
+          "type": "uint256",
+          "name": "collateralValueWithoutDiscount",
+          "size": 32,
+          "slot": "4",
+          "offset": 0
+        },
+        {
+          "type": "int256",
+          "name": "availableMargin",
+          "size": 32,
+          "slot": "5",
+          "offset": 0
+        },
+        {
+          "type": "struct",
+          "name": "oldPosition",
+          "members": [
+            {
+              "type": "uint128",
+              "name": "marketId"
+            },
+            {
+              "type": "int128",
+              "name": "size"
+            },
+            {
+              "type": "uint128",
+              "name": "latestInteractionPrice"
+            },
+            {
+              "type": "int128",
+              "name": "latestInteractionFunding"
+            },
+            {
+              "type": "uint256",
+              "name": "latestInterestAccrued"
+            }
+          ],
+          "size": 96,
+          "slot": "6",
+          "offset": 0
+        },
+        {
+          "type": "struct",
+          "name": "newPosition",
+          "members": [
+            {
+              "type": "uint128",
+              "name": "marketId"
+            },
+            {
+              "type": "int128",
+              "name": "size"
+            },
+            {
+              "type": "uint128",
+              "name": "latestInteractionPrice"
+            },
+            {
+              "type": "int128",
+              "name": "latestInteractionFunding"
+            },
+            {
+              "type": "uint256",
+              "name": "latestInterestAccrued"
+            }
+          ],
+          "size": 96,
+          "slot": "9",
+          "offset": 0
+        }
       ]
     }
   },
@@ -1226,6 +1501,13 @@
           "name": "maxMarketValue",
           "size": 32,
           "slot": "16",
+          "offset": 0
+        },
+        {
+          "type": "uint256",
+          "name": "maxBookPriceDeviationD18",
+          "size": 32,
+          "slot": "17",
           "offset": 0
         }
       ]

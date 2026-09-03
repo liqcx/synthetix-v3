@@ -109,6 +109,13 @@ interface IMarketConfigurationModule {
     event MaxMarketValueSet(uint128 indexed marketId, uint256 maxMarketValue);
 
     /**
+     * @notice Gets fired when the max book price deviation is updated.
+     * @param marketId id of the market the bound applies to.
+     * @param maxBookPriceDeviationD18 how far a book fill may sit from the oracle price, as a fraction of it (as decimal with 18 digits precision); zero is no bound.
+     */
+    event MaxBookPriceDeviationSet(uint128 indexed marketId, uint256 maxBookPriceDeviationD18);
+
+    /**
      * @notice Gets fired when locked oi ratio is updated.
      * @param marketId udpates funding parameters to this specific market.
      * @param lockedOiRatioD18 the locked OI ratio skew scale (as decimal with 18 digits precision).
@@ -225,6 +232,14 @@ interface IMarketConfigurationModule {
     function setMaxMarketValue(uint128 marketId, uint256 maxMarketValue) external;
 
     /**
+     * @notice Bound how far a book fill may sit from the market's oracle price with this function.
+     * @dev An order of a book batch whose price lies further from the oracle price than this fraction of it reverts the batch. Zero is no bound. The async path is not affected: its fill is derived from the oracle price.
+     * @param marketId id of the market to bound.
+     * @param maxBookPriceDeviationD18 the bound as a fraction of the oracle price (as decimal with 18 digits precision).
+     */
+    function setMaxBookPriceDeviation(uint128 marketId, uint256 maxBookPriceDeviationD18) external;
+
+    /**
      * @notice Set the locked OI Ratio for a market with this function.
      * @param marketId id of the market to set locked OI ratio.
      * @param lockedOiRatioD18 the locked OI ratio skew scale (as decimal with 18 digits precision).
@@ -319,6 +334,15 @@ interface IMarketConfigurationModule {
      * @return maxMarketValue the max market size in market USD value.
      */
     function getMaxMarketValue(uint128 marketId) external view returns (uint256 maxMarketValue);
+
+    /**
+     * @notice Gets how far a book fill may sit from the market's oracle price.
+     * @param marketId id of the market.
+     * @return maxBookPriceDeviationD18 the bound as a fraction of the oracle price (as decimal with 18 digits precision); zero is no bound.
+     */
+    function getMaxBookPriceDeviation(
+        uint128 marketId
+    ) external view returns (uint256 maxBookPriceDeviationD18);
 
     /**
      * @notice Gets the order fees of a market.
