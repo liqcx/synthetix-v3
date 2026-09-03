@@ -44,6 +44,8 @@
     "@synthetixio/docgen": "workspace:*",
     "@synthetixio/main": "workspace:*",
     "@synthetixio/oracle-manager": "workspace:*",
+    "@synthetixio/rewards-dist-ext": "workspace:*",
+    "@synthetixio/rewards-distributor": "workspace:*",
     "@synthetixio/spot-market": "workspace:*",
     "@synthetixio/wei": "^2.74.4",
     "@usecannon/cli": "2.25.1",
