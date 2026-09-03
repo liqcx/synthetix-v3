@@ -2,7 +2,6 @@
 pragma solidity >=0.8.11 <0.9.0;
 
 import {DecimalMath} from "@synthetixio/core-contracts/contracts/utils/DecimalMath.sol";
-import {ERC2771Context} from "@synthetixio/core-contracts/contracts/utils/ERC2771Context.sol";
 import {ParameterError} from "@synthetixio/core-contracts/contracts/errors/ParameterError.sol";
 import {FeatureFlag} from "@synthetixio/core-modules/contracts/storage/FeatureFlag.sol";
 import {Account} from "@synthetixio/main/contracts/storage/Account.sol";
@@ -25,45 +24,6 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
     using PerpsAccount for PerpsAccount.Data;
     using PerpsMarket for PerpsMarket.Data;
     using DecimalMath for uint256;
-
-    /**
-     * @notice Gets fired when a new order is settled.
-     * @param marketId Id of the market used for the trade.
-     * @param accountId Id of the account used for the trade.
-     * @param fillPrice Price at which the order was settled.
-     * @param pnl Pnl of the previous closed position.
-     * @param accruedFunding Accrued funding of the previous closed position.
-     * @param sizeDelta Size delta from order.
-     * @param newSize New size of the position after settlement.
-     * @param totalFees Amount of fees collected by the protocol.
-     * @param referralFees Amount of fees collected by the referrer.
-     * @param collectedFees Amount of fees collected by fee collector.
-     * @param settlementReward reward to sender for settling order.
-     * @param trackingCode Optional code for integrator tracking purposes.
-     * @param settler address of the settler of the order.
-     */
-    event OrderSettled(
-        uint128 indexed marketId,
-        uint128 indexed accountId,
-        uint256 fillPrice,
-        int256 pnl,
-        int256 accruedFunding,
-        int128 sizeDelta,
-        int128 newSize,
-        uint256 totalFees,
-        uint256 referralFees,
-        uint256 collectedFees,
-        uint256 settlementReward,
-        bytes32 indexed trackingCode,
-        address settler
-    );
-
-    /**
-     * @notice Gets fired after order settles and includes the interest charged to the account.
-     * @param accountId Id of the account used for the trade.
-     * @param interest interest charges
-     */
-    event InterestCharged(uint128 indexed accountId, uint256 interest);
 
     event AccountOrderModeChanged(uint128 accountId, bytes16 newMode);
 
@@ -188,35 +148,16 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
             revert IncorrectAccountMode(order.accountId, mode);
         }
 
-        PerpsAccount.SettledChange memory settled = PerpsAccount.settlePositionChange(
-            order.accountId,
-            marketId,
-            order.sizeDelta,
-            order.orderPrice,
-            markPrice,
-            fees.total
-        );
-
-        emit AccountCharged(order.accountId, settled.chargedAmount, settled.debt);
-
-        Settlement.emitMarketUpdated(settled.marketUpdate, markPrice);
-
-        emit InterestCharged(order.accountId, settled.chargedInterest);
-
-        emit OrderSettled(
-            marketId,
-            order.accountId,
-            order.orderPrice,
-            settled.pnl,
-            settled.accruedFunding,
-            order.sizeDelta,
-            settled.newPosition.size,
-            fees.total,
-            fees.referral,
-            fees.collected,
-            fees.settlementReward,
-            order.trackingCode,
-            ERC2771Context._msgSender()
+        Settlement.settle(
+            Settlement.Change(
+                marketId,
+                order.accountId,
+                order.sizeDelta,
+                order.orderPrice,
+                markPrice,
+                order.trackingCode
+            ),
+            fees
         );
     }
 }

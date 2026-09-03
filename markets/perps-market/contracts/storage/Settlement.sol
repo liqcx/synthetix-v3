@@ -3,9 +3,12 @@ pragma solidity >=0.8.11 <0.9.0;
 
 import {DecimalMath} from "@synthetixio/core-contracts/contracts/utils/DecimalMath.sol";
 import {ERC2771Context} from "@synthetixio/core-contracts/contracts/utils/ERC2771Context.sol";
+import {IAccountEvents} from "../interfaces/IAccountEvents.sol";
 import {IMarketEvents} from "../interfaces/IMarketEvents.sol";
+import {ISettlementEvents} from "../interfaces/ISettlementEvents.sol";
 import {GlobalPerpsMarketConfiguration} from "./GlobalPerpsMarketConfiguration.sol";
 import {MarketUpdate} from "./MarketUpdate.sol";
+import {PerpsAccount} from "./PerpsAccount.sol";
 import {PerpsMarketFactory} from "./PerpsMarketFactory.sol";
 
 /**
@@ -28,6 +31,19 @@ library Settlement {
         uint256 referral;
         uint256 collected;
         address referrer;
+    }
+
+    /**
+     * @notice What changed and where: the arguments of both doors that `SettledChange` does not
+     * carry.
+     */
+    struct Change {
+        uint128 marketId;
+        uint128 accountId;
+        int128 sizeDelta;
+        uint256 fillPrice;
+        uint256 markPrice;
+        bytes32 trackingCode;
     }
 
     /**
@@ -94,6 +110,53 @@ library Settlement {
         batch.settlementReward += fees.settlementReward;
         batch.referral += fees.referral;
         batch.collected += fees.collected;
+    }
+
+    /**
+     * @notice Gate, charge, then the four events of a settled change, in the order both doors
+     * have always emitted them: AccountCharged, MarketUpdated, InterestCharged, OrderSettled.
+     * @dev Reverts as `PerpsAccount.settlePositionChange` does, and then nothing has been written.
+     */
+    function settle(
+        Change memory change,
+        Fees memory fees
+    ) internal returns (PerpsAccount.SettledChange memory settled) {
+        settled = PerpsAccount.settlePositionChange(
+            change.accountId,
+            change.marketId,
+            change.sizeDelta,
+            change.fillPrice,
+            change.markPrice,
+            fees.total
+        );
+
+        emit IAccountEvents.AccountCharged(change.accountId, settled.chargedAmount, settled.debt);
+        emitMarketUpdated(settled.marketUpdate, change.markPrice);
+        emit ISettlementEvents.InterestCharged(change.accountId, settled.chargedInterest);
+        _emitOrderSettled(change, settled, fees);
+    }
+
+    /// @dev Its own function: thirteen arguments next to three structs is past the stack.
+    function _emitOrderSettled(
+        Change memory change,
+        PerpsAccount.SettledChange memory settled,
+        Fees memory fees
+    ) private {
+        emit ISettlementEvents.OrderSettled(
+            change.marketId,
+            change.accountId,
+            change.fillPrice,
+            settled.pnl,
+            settled.accruedFunding,
+            change.sizeDelta,
+            settled.newPosition.size,
+            fees.total,
+            fees.referral,
+            fees.collected,
+            fees.settlementReward,
+            change.trackingCode,
+            ERC2771Context._msgSender()
+        );
     }
 
     /**

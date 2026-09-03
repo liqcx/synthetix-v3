@@ -1,10 +1,12 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.11 <0.9.0;
 
+import {ISettlementEvents} from "./ISettlementEvents.sol";
+
 /**
  * @title Module for processing orders from the offchain orderbook
  */
-interface IBookOrderModule {
+interface IBookOrderModule is ISettlementEvents {
     /**
      * @notice An order being settled by the orderbook.
      */
