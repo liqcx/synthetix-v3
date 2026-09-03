@@ -90,6 +90,9 @@ measured at it, and the loss between it and `fillPrice` is price impact the acco
 The async path passes the oracle price; the book path, whose fill price *is* its mark, passes the
 same price twice, as it already does for `applyPositionChange`.
 
+> Amended 2026-09-03 (review candidate 9): the book path now reads the oracle once per batch and
+> passes it as `markPrice`; only the fill is the book's own. MED-5 closes there.
+
 The gate checks, in this order, and reverts with the errors the async path has always raised:
 
 | # | Invariant | Error |

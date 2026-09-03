@@ -25,10 +25,10 @@ The findings below are kept as written on 2026-03-17; this table is the ledger. 
 
 | Finding | Status | Closed by |
 | ------- | ------ | --------- |
-| CRIT-1 price verification | Open | `signedPriceData` is still unread |
+| CRIT-1 price verification | Open | `signedPriceData` is still unread; since 2026-09-03 the gate judges every fill against the oracle price, which is where a per-market deviation bound belongs |
 | CRIT-2 access control on `settleBookOrders` | Open | |
 | CRIT-3 order consent | Open | |
-| HIGH-1 `maxMarketSize` / `maxMarketValue` | Fixed | gate check 6, `validateGivenMarketSize` at the group's price |
+| HIGH-1 `maxMarketSize` / `maxMarketValue` | Fixed | gate check 6, `validateGivenMarketSize` at the oracle price (at the group's price until 2026-09-03) |
 | HIGH-2 credit capacity | Fixed | gate check 7, `validateMarketCapacity` |
 | HIGH-3 margin after settlement | Fixed | gate check 5: fees payable, then initial margin plus liquidation reward measured on the post-change positions |
 | HIGH-4 `latestInteractionFunding` | Fixed | `Position.next` re-anchors funding on every change (PRs #14–#16) |
@@ -37,7 +37,7 @@ The findings below are kept as written on 2026-03-17; this table is the ledger. 
 | MED-2 grace-period race | Open | the book path still accepts `RECENTLY_CHANGED` |
 | MED-3 phantom accounts | Fixed | gate check 1, `Account.exists`; the module no longer creates accounts |
 | MED-4 `cancelledOrders` | Fixed | the return value is gone: a batch settles whole or reverts whole |
-| MED-5 funding at per-account prices | Open | funding is still recomputed at each group's price |
+| MED-5 funding at per-account prices | Fixed | `settleBookOrders` reads the oracle once per batch and passes it as the mark price; funding is recomputed at it, whatever prices the batch names (2026-09-03) |
 | MED-6 `maxPositionsPerAccount` | Fixed | gate check 4 |
 | LOW-1 liquidation check on the wrong account | Fixed | gate checks 2–3 run on the account being changed, before its change |
 | LOW-2 debug events | Fixed | gone with the rewrite of `settleBookOrders` |
@@ -47,8 +47,8 @@ The findings below are kept as written on 2026-03-17; this table is the ledger. 
 | INFO-2 redundant pnl | Open | |
 | INFO-3 pending order on `setBookMode` | Open | |
 
-"Minimum Fixes for Testnet" below: CRIT-2 is the one still missing. "Required for Mainnet": MED-2,
-MED-5 and the three criticals remain.
+"Minimum Fixes for Testnet" below: CRIT-2 is the one still missing. "Required for Mainnet": MED-2
+and the three criticals remain.
 
 ---
 
