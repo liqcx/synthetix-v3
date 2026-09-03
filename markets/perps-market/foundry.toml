@@ -2,31 +2,31 @@
 
 [profile.default]
 auto_detect_solc = false
-block_timestamp = 1_738_368_000 # Feb 1, 2025 at 00:00 GMT
+block_timestamp = 1_738_368_000   # Feb 1, 2025 at 00:00 GMT
 bytecode_hash = "none"
 evm_version = "prague"
 fuzz = { runs = 1_000 }
 gas_reports = ["BookOrderModule"]
 optimizer = true
-optimizer_runs = 10_000
+# The same runs as utils/common-config, so a module forge compiles is the module that ships.
+optimizer_runs = 200
 out = "out"
 script = "script"
 solc = "0.8.34"
 src = "contracts"
 test = "tests"
-tests = ["tests"]
+# pnpm links workspace packages under this package's node_modules, not the root's.
 remappings = [
     'forge-std/=../../node_modules/forge-std/src',
-    '@synthetixio/core-contracts/=../../node_modules/@synthetixio/core-contracts/',
-    '@synthetixio/core-utils/=../../node_modules/@synthetixio/core-utils/',
-    '@synthetixio/wei/=../../node_modules/@synthetixio/wei/',
-    '@openzeppelin/contracts/=../../node_modules/@openzeppelin/contracts/',
-    '@synthetixio/main/=../../node_modules/@synthetixio/main/',
-    '@synthetixio/oracle-manager/=../../node_modules/@synthetixio/oracle-manager/',
-    '@synthetixio/rewards-distributor/=../../node_modules/@synthetixio/rewards-distributor/',
-    '@synthetixio/rewards-dist-ext/=../../node_modules/@synthetixio/rewards-dist-ext/',
-    '@synthetixio/core-modules/=../../node_modules/@synthetixio/core-modules/',
-    '@synthetixio/spot-market/=../../node_modules/@synthetixio/spot-market/',
+    '@synthetixio/core-contracts/=node_modules/@synthetixio/core-contracts/',
+    '@synthetixio/core-utils/=node_modules/@synthetixio/core-utils/',
+    '@synthetixio/wei/=node_modules/@synthetixio/wei/',
+    '@synthetixio/main/=node_modules/@synthetixio/main/',
+    '@synthetixio/oracle-manager/=node_modules/@synthetixio/oracle-manager/',
+    '@synthetixio/rewards-distributor/=node_modules/@synthetixio/rewards-distributor/',
+    '@synthetixio/rewards-dist-ext/=node_modules/@synthetixio/rewards-dist-ext/',
+    '@synthetixio/core-modules/=node_modules/@synthetixio/core-modules/',
+    '@synthetixio/spot-market/=node_modules/@synthetixio/spot-market/',
 ]
 libs = ["../../node_modules", "node_modules", "lib", "../../"]
 
