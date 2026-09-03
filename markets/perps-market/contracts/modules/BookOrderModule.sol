@@ -12,6 +12,7 @@ import {IAccountEvents} from "../interfaces/IAccountEvents.sol";
 import {IMarketEvents} from "../interfaces/IMarketEvents.sol";
 import {PerpsMarket} from "../storage/PerpsMarket.sol";
 import {PerpsAccount} from "../storage/PerpsAccount.sol";
+import {PerpsPrice} from "../storage/PerpsPrice.sol";
 import {GlobalPerpsMarketConfiguration} from "../storage/GlobalPerpsMarketConfiguration.sol";
 import {PerpsMarketFactory} from "../storage/PerpsMarketFactory.sol";
 import {Flags} from "../utils/Flags.sol";
@@ -118,26 +119,19 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
         FeatureFlag.ensureAccessToFeature(Flags.PERPS_SYSTEM);
         PerpsMarket.Data storage market = PerpsMarket.loadValid(marketId);
 
-        // ADD: Pyth price verification — CRITICAL for production.
-        // Currently orderPrice is fully trusted from the settler with zero onchain verification.
-        // A malicious/compromised settler can settle at arbitrary prices, draining LP collateral.
-        //
-        // Implementation:
-        // 1. For each order, if signedPriceData.length > 0, verify it via PythERC7412Wrapper
-        //    and assert |orderPrice - pythPrice| < maxPriceDeviation (configurable per market).
-        // 2. If signedPriceData is empty, fall back to the onchain oracle price (PerpsPrice.getCurrentPrice)
-        //    and apply the same deviation check.
-        // 3. Add a configurable maxPriceDeviationBps (e.g. 50 bps) to PerpsMarketConfiguration.
-        //
-        // Until implemented, settleBookOrders should only be callable by a trusted settler address.
-        // Consider adding access control: require(msg.sender == trustedSettler).
+        // The oracle price is the mark price every change in the batch is judged at: funding is
+        // recomputed at it, the market's value cap is measured at it, and a fill worse than it is
+        // a loss the account must already bear. What the batch names is only where each account
+        // fills. Still missing (audit CRIT-1, CRIT-2): a per-market bound on how far a fill may
+        // sit from this price, and a check on who may call this.
+        uint256 markPrice = PerpsPrice.getCurrentPrice(marketId, PerpsPrice.Tolerance.DEFAULT);
 
         uint256 totalCollectedFees;
         AccountGroup memory group;
         for (uint256 i = 0; i < orders.length; i++) {
             if (i == 0 || orders[i].accountId > group.accountId) {
                 if (i > 0) {
-                    totalCollectedFees += _settleAccountGroup(marketId, group);
+                    totalCollectedFees += _settleAccountGroup(marketId, group, markPrice);
                 }
                 group = AccountGroup(orders[i].accountId, 0, 0, orders[i].orderPrice);
             } else if (orders[i].accountId < group.accountId) {
@@ -153,7 +147,7 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
             group.orderFee += market.calculateOrderFee(orders[i].sizeDelta, orders[i].orderPrice);
         }
         if (orders.length > 0) {
-            totalCollectedFees += _settleAccountGroup(marketId, group);
+            totalCollectedFees += _settleAccountGroup(marketId, group, markPrice);
         }
 
         // send collected fees to the fee collector and etc.
@@ -168,14 +162,14 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
 
     /**
      * @dev Settles one account's fold of the batch as a single position change at the group's
-     * price, which is also the price the change is judged at: the orderbook's price is the only
-     * price this path has.
+     * price, judged at `markPrice`, the oracle price read once for the batch.
      * @dev The mode gate is the module's own; every check the change itself must pass lives in
      * `PerpsAccount.settlePositionChange`, and a rejection there reverts the whole batch.
      */
     function _settleAccountGroup(
         uint128 marketId,
-        AccountGroup memory group
+        AccountGroup memory group,
+        uint256 markPrice
     ) private returns (uint256) {
         bytes16 mode = PerpsAccount.load(group.accountId).getOrderMode();
         if (mode != "BOOK" && mode != "RECENTLY_CHANGED") {
@@ -187,7 +181,7 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
             marketId,
             group.sizeDelta.to128(),
             group.price,
-            group.price,
+            markPrice,
             group.orderFee
         );
 
@@ -195,7 +189,7 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
 
         emit MarketUpdated(
             settled.marketUpdate.marketId,
-            group.price,
+            markPrice,
             settled.marketUpdate.skew,
             settled.marketUpdate.size,
             settled.marketSizeDelta,
