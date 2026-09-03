@@ -1,6 +1,8 @@
 import { createStakedPool } from '@synthetixio/main/test/common';
 import { Systems, bootstrap } from './bootstrap';
 import { bn } from './helpers';
+import { bps, stand } from './stand';
+import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
 import { ethers } from 'ethers';
 import { MockPythExternalNode } from '@synthetixio/oracle-manager/typechain-types';
 import { createPythNode } from '@synthetixio/oracle-manager/test/common';
@@ -69,17 +71,31 @@ export const DEFAULT_SETTLEMENT_STRATEGY = {
   feedId: ethers.utils.formatBytes32String('ETH/USD'),
 };
 
-export const STRICT_PRICE_TOLERANCE = ethers.BigNumber.from(60);
+export const STRICT_PRICE_TOLERANCE = ethers.BigNumber.from(
+  stand.marketDefaults.strictPriceTolerance
+);
 
 export const bootstrapPerpsMarkets = (
   data: PerpsMarketData,
   chainState: IncomingChainState | undefined
 ) => {
-  const r: IncomingChainState = chainState ?? createStakedPool(bootstrap(), bn(2000));
+  const r: IncomingChainState =
+    chainState ?? createStakedPool(bootstrap(), bn(stand.collateral.price), bn(stand.pool.lpStake));
 
   let contracts: Systems;
   let superMarketId: ethers.BigNumber;
   let perpsMarkets: PerpsMarkets;
+
+  // What this adapter cannot set — createStakedPool hard-codes the collateral ratios — it checks.
+  before('the core matches stand.json', async () => {
+    const core = r.systems().Core;
+    const collateral = await core.getCollateralConfiguration(r.systems().CollateralMock.address);
+    assertBn.equal(collateral.issuanceRatioD18, bps(stand.collateral.issuanceRatioBps));
+    assertBn.equal(collateral.liquidationRatioD18, bps(stand.collateral.liquidationRatioBps));
+    assertBn.equal(collateral.liquidationRewardD18, bn(stand.collateral.liquidationReward));
+    assertBn.equal(collateral.minDelegationD18, bn(stand.collateral.minDelegation));
+    assertBn.equal(ethers.BigNumber.from(r.poolId), stand.pool.id);
+  });
 
   before(async () => {
     // identify contracts
@@ -145,7 +161,7 @@ export const bootstrapPerpsMarkets = (
       // set max market value
       await contracts.PerpsMarket.connect(r.owner()).setMaxMarketSize(
         marketId,
-        maxMarketSize ? maxMarketSize : bn(10_000_000)
+        maxMarketSize ? maxMarketSize : bn(stand.marketDefaults.maxMarketSize)
       );
       await contracts.PerpsMarket.connect(r.owner()).setMaxMarketValue(
         marketId,
