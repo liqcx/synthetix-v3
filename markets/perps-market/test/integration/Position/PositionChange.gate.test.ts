@@ -40,6 +40,10 @@ const marketParams = {
 //     liquidation reward,
 //   - unless the change is same-side reducing: the market stays under its size cap and
 //     inside the pool's credit capacity.
+// Both paths judge the change at the oracle price, whatever price it fills at: a fill worse
+// than the oracle is a loss the account must already bear, the market's value cap is measured
+// at the oracle, and funding is recomputed at it. Only the book path can name a fill, so the
+// cases that need one are book-only.
 // Each rejection fixture is built so the named check is the one that fires: the flagged
 // account has recovered its margin, the liquidatable account is not flagged.
 describe('Position change gate', () => {
@@ -90,6 +94,8 @@ describe('Position change gate', () => {
   const SOUND = 22; // BOOK, 1,000
   const EMPTY = 23; // BOOK, exists, holds nothing
   const LATE = 24; // ONCHAIN, 600
+  const SLIPPED = 25; // BOOK, 1,000
+  const FUNDED = 26; // BOOK, 1,000
 
   let op: PerpsMarket, arb: PerpsMarket, cap: PerpsMarket;
 
@@ -122,14 +128,23 @@ describe('Position change gate', () => {
     await perps.connect(trader3())['createAccount(uint128)'](LATE);
     await perps.connect(trader3()).modifyCollateral(LATE, 0, bn(600));
     await perps.connect(trader3()).setBookMode(LATE, false);
+    for (const bookId of [SLIPPED, FUNDED]) {
+      await perps.connect(trader2())['createAccount(uint128)'](bookId);
+      await perps.connect(trader2()).modifyCollateral(bookId, 0, bn(1_000));
+      await perps.connect(trader2()).setBookMode(bookId, true);
+    }
   });
 
   const restore = snapshotCheckpoint(provider);
 
-  const bookOrder = (accountId: number, sizeDelta: ethers.BigNumber) => ({
+  const bookOrder = (
+    accountId: number,
+    sizeDelta: ethers.BigNumber,
+    orderPrice: ethers.BigNumber = _PRICE
+  ) => ({
     accountId,
     sizeDelta,
-    orderPrice: _PRICE,
+    orderPrice,
     signedPriceData: '0x',
     trackingCode: ethers.constants.HashZero,
   });
@@ -169,6 +184,22 @@ describe('Position change gate', () => {
   const liquidate = async (accountId: number) => {
     const tx = await systems().PerpsMarket.connect(keeper()).liquidate(accountId);
     await tx.wait();
+  };
+
+  // The arguments of the one event of that name the transaction emitted.
+  const eventArgs = async (tx: ethers.ContractTransaction, name: string) => {
+    const receipt = await tx.wait();
+    const events = [];
+    for (const log of receipt.logs) {
+      try {
+        events.push(systems().PerpsMarket.interface.parseLog(log));
+      } catch {
+        // a log of another contract
+      }
+    }
+    const found = events.filter((event) => event.name === name);
+    assert.equal(found.length, 1, `expected one ${name} event, saw ${found.length}`);
+    return found[0].args;
   };
 
   describe('an account that does not exist', () => {
@@ -295,6 +326,26 @@ describe('Position change gate', () => {
     });
   });
 
+  describe('a fill worse than the oracle price is a loss the account must already bear', () => {
+    before(restore);
+
+    // 150 OP needs 760: 995 remains after fees at the oracle price, 695 at a fill 20% worse.
+    it('is rejected by the book path', async () => {
+      await assertRevert(settleBook([bookOrder(SLIPPED, bn(150), bn(12))]), 'InsufficientMargin');
+    });
+
+    // 200 OP needs 1,015 and 995 remains; the 400 a fill 20% better would gain is not counted.
+    it('a fill better than the oracle price buys no margin', async () => {
+      await assertRevert(settleBook([bookOrder(SLIPPED, bn(200), bn(8))]), 'InsufficientMargin');
+    });
+
+    it('fixture: the same 150 OP at the oracle price settles', async () => {
+      const tx = await settleBook([bookOrder(SLIPPED, bn(150))]);
+      await tx.wait();
+      assertBn.equal(await positionSize(SLIPPED), bn(150));
+    });
+  });
+
   describe('a change that pushes the market over its size cap', () => {
     const [BOOK, ASYNC] = WHALE;
     before(restore);
@@ -310,6 +361,28 @@ describe('Position change gate', () => {
       await assertRevert(
         commitAsync(ASYNC, bn(1_100)),
         `MaxOpenInterestReached(${op.marketId()}, ${bn(1_000).toString()}, ${bn(1_100).toString()})`
+      );
+    });
+  });
+
+  describe('the market value cap is measured at the oracle price', () => {
+    const [BOOK, ASYNC] = WHALE;
+    before(restore);
+    before('the cap admits 5,000 of open interest: 500 OP at the oracle price', async () => {
+      await systems().PerpsMarket.connect(owner()).setMaxMarketValue(op.marketId(), bn(5_000));
+    });
+
+    it('is rejected by the async path', async () => {
+      await assertRevert(
+        commitAsync(ASYNC, bn(600)),
+        `MaxUSDOpenInterestReached(${op.marketId()}, ${bn(5_000)}, ${bn(600)}, ${_PRICE})`
+      );
+    });
+
+    it('is rejected by the book path, at a fill under which 600 OP would be worth 3,000', async () => {
+      await assertRevert(
+        settleBook([bookOrder(BOOK, bn(600), bn(5))]),
+        `MaxUSDOpenInterestReached(${op.marketId()}, ${bn(5_000)}, ${bn(600)}, ${_PRICE})`
       );
     });
   });
@@ -374,6 +447,54 @@ describe('Position change gate', () => {
       const tx = await settleBook([bookOrder(SOUND, bn(1))]);
       await tx.wait();
       assertBn.equal(await positionSize(SOUND), bn(1));
+    });
+  });
+
+  describe('a book settlement recomputes funding at the oracle price, whatever price it names', () => {
+    before(restore);
+    before('hold 100 OP for a day: the skew accrues funding', async () => {
+      await settleBook([bookOrder(FUNDED, bn(100))]);
+      await fastForwardTo((await getTime(provider())) + 24 * 60 * 60, provider());
+    });
+    // Both batches below settle one block after this checkpoint, so they realise the same
+    // elapsed time and differ only in the price they name.
+    const restoreAfterDay = snapshotCheckpoint(provider);
+
+    let fundingAtOracle: ethers.BigNumber;
+
+    describe('a batch at the oracle price', () => {
+      before(restoreAfterDay);
+      before('settle one more OP', async () => {
+        const tx = await settleBook([bookOrder(FUNDED, bn(1))]);
+        fundingAtOracle = (await eventArgs(tx, 'OrderSettled')).accruedFunding;
+      });
+
+      it('fixture: realises a day of funding, well away from zero', async () => {
+        assert(fundingAtOracle.abs().gt(bn(0.1)), `accrued funding ${fundingAtOracle}`);
+      });
+    });
+
+    describe('a batch at twice the oracle price', () => {
+      let settled: ethers.utils.Result;
+      let marketUpdate: ethers.utils.Result;
+      before(restoreAfterDay);
+      before('settle one more OP at 20', async () => {
+        const tx = await settleBook([bookOrder(FUNDED, bn(1), _PRICE.mul(2))]);
+        settled = await eventArgs(tx, 'OrderSettled');
+        marketUpdate = await eventArgs(tx, 'MarketUpdated');
+      });
+
+      it('realises the same funding as the batch at the oracle price', async () => {
+        assertBn.equal(settled.accruedFunding, fundingAtOracle);
+      });
+
+      it('fills at the price it named', async () => {
+        assertBn.equal(settled.fillPrice, _PRICE.mul(2));
+      });
+
+      it('reports the oracle price as the market price', async () => {
+        assertBn.equal(marketUpdate.price, _PRICE);
+      });
     });
   });
 
