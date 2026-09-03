@@ -140,6 +140,11 @@ itself comes at; a settler cannot buy margin by naming a price. `InsufficientMar
 - **Events.** Callers emit `AccountCharged`, `MarketUpdated`, `InterestCharged`, `OrderSettled`
   from the returned `SettledChange`, in the order they emit them today.
 
+> Amended 2026-09-03 (review card 2): the four events are written by `Settlement.settle` on both
+> doors, and `MarketUpdated` by `Settlement.emitMarketUpdated` on liquidation too; the fee split
+> is `Settlement.quoteFees` on both doors, and the book door pays the batch's sum once. See
+> `2026-09-03-settlement-events-design.md`.
+
 ### Both paths after
 
 Async commit: `updateValid` (pending order only) → `validateRequest` = `ZeroSizeOrder` →
@@ -197,8 +202,8 @@ alone, it passes.
 
 - The mode gate as a module (review candidate 3) and the remaining book-loop cleanups
   (candidate 4) beyond what the gate made dead.
-- Real `collectedFees`/`referralFees` in the book path's `OrderSettled` (would need
-  `collectFees` per account instead of per batch).
+- Real `collectedFees` in the book path's `OrderSettled` — done 2026-09-03
+  (`Settlement.quoteFees` per order, one transfer per batch).
 - CRIT-1 (price verification), CRIT-2 (access control), CRIT-3 (order consent), MED-2 (mode
   race), MED-5 (funding recomputed at per-account prices).
 - Per-account outcomes (approach B). If wanted later, the gate becomes a value and the book loop

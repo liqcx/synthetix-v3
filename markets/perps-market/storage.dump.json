@@ -519,16 +519,23 @@
         },
         {
           "type": "int256",
-          "name": "currentFundingRate",
+          "name": "sizeDelta",
           "size": 32,
           "slot": "3",
           "offset": 0
         },
         {
           "type": "int256",
-          "name": "currentFundingVelocity",
+          "name": "currentFundingRate",
           "size": 32,
           "slot": "4",
+          "offset": 0
+        },
+        {
+          "type": "int256",
+          "name": "currentFundingVelocity",
+          "size": 32,
+          "slot": "5",
           "offset": 0
         }
       ]
@@ -847,6 +854,10 @@
             },
             {
               "type": "int256",
+              "name": "sizeDelta"
+            },
+            {
+              "type": "int256",
               "name": "currentFundingRate"
             },
             {
@@ -854,15 +865,8 @@
               "name": "currentFundingVelocity"
             }
           ],
-          "size": 160,
+          "size": 192,
           "slot": "11",
-          "offset": 0
-        },
-        {
-          "type": "int256",
-          "name": "marketSizeDelta",
-          "size": 32,
-          "slot": "16",
           "offset": 0
         }
       ],
@@ -1594,6 +1598,93 @@
           "name": "latestInterestAccrued",
           "size": 32,
           "slot": "2",
+          "offset": 0
+        }
+      ]
+    }
+  },
+  "contracts/storage/Settlement.sol:Settlement": {
+    "name": "Settlement",
+    "kind": "library",
+    "structs": {
+      "Fees": [
+        {
+          "type": "uint256",
+          "name": "total",
+          "size": 32,
+          "slot": "0",
+          "offset": 0
+        },
+        {
+          "type": "uint256",
+          "name": "settlementReward",
+          "size": 32,
+          "slot": "1",
+          "offset": 0
+        },
+        {
+          "type": "uint256",
+          "name": "referral",
+          "size": 32,
+          "slot": "2",
+          "offset": 0
+        },
+        {
+          "type": "uint256",
+          "name": "collected",
+          "size": 32,
+          "slot": "3",
+          "offset": 0
+        },
+        {
+          "type": "address",
+          "name": "referrer",
+          "size": 20,
+          "slot": "4",
+          "offset": 0
+        }
+      ],
+      "Change": [
+        {
+          "type": "uint128",
+          "name": "marketId",
+          "size": 16,
+          "slot": "0",
+          "offset": 0
+        },
+        {
+          "type": "uint128",
+          "name": "accountId",
+          "size": 16,
+          "slot": "0",
+          "offset": 16
+        },
+        {
+          "type": "int128",
+          "name": "sizeDelta",
+          "size": 16,
+          "slot": "1",
+          "offset": 0
+        },
+        {
+          "type": "uint256",
+          "name": "fillPrice",
+          "size": 32,
+          "slot": "2",
+          "offset": 0
+        },
+        {
+          "type": "uint256",
+          "name": "markPrice",
+          "size": 32,
+          "slot": "3",
+          "offset": 0
+        },
+        {
+          "type": "bytes32",
+          "name": "trackingCode",
+          "size": 32,
+          "slot": "4",
           "offset": 0
         }
       ]

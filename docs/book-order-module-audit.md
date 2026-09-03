@@ -17,7 +17,7 @@
 
 **Overall:** CRIT-1 + CRIT-2 + CRIT-3 together mean any address with `perpsSystem` feature flag access can settle arbitrary trades at arbitrary prices against any BOOK-mode account without the account owner's consent. This would allow complete drainage of both LP collateral and trader margin.
 
-## Status as of 2026-09-02
+## Status as of 2026-09-03
 
 The findings below are kept as written on 2026-03-17; this table is the ledger. "Gate" is
 `PerpsAccount.validatePositionChange`, the one check both settlement paths pass through since
@@ -41,8 +41,8 @@ The findings below are kept as written on 2026-03-17; this table is the ledger. 
 | MED-6 `maxPositionsPerAccount` | Fixed | gate check 4 |
 | LOW-1 liquidation check on the wrong account | Fixed | gate checks 2–3 run on the account being changed, before its change |
 | LOW-2 debug events | Fixed | gone with the rewrite of `settleBookOrders` |
-| LOW-3 referral fees | Open | |
-| LOW-4 `trackingCode` | Open | |
+| LOW-3 referral fees | Closed by construction | one code path, `Settlement.quoteFees`, splits the fee on both doors; a `BookOrder` names no referrer, so its share is zero as a result, not a literal. Paying referrers on the book door starts with a field on `BookOrder`, a product decision |
+| LOW-4 `trackingCode` | Fixed | every book order's `OrderSettled` carries its `trackingCode` since PR #21 |
 | INFO-1 dead skew loop | Fixed | gone with the rewrite of `settleBookOrders` |
 | INFO-2 redundant pnl | Open | |
 | INFO-3 pending order on `setBookMode` | Open | |
