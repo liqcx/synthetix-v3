@@ -2,7 +2,6 @@
 pragma solidity >=0.8.11 <0.9.0;
 
 import {DecimalMath} from "@synthetixio/core-contracts/contracts/utils/DecimalMath.sol";
-import {SafeCastI256} from "@synthetixio/core-contracts/contracts/utils/SafeCast.sol";
 import {ERC2771Context} from "@synthetixio/core-contracts/contracts/utils/ERC2771Context.sol";
 import {ParameterError} from "@synthetixio/core-contracts/contracts/errors/ParameterError.sol";
 import {FeatureFlag} from "@synthetixio/core-modules/contracts/storage/FeatureFlag.sol";
@@ -27,7 +26,6 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
     using PerpsAccount for PerpsAccount.Data;
     using PerpsMarket for PerpsMarket.Data;
     using GlobalPerpsMarketConfiguration for GlobalPerpsMarketConfiguration.Data;
-    using SafeCastI256 for int256;
     using DecimalMath for uint256;
 
     /**
@@ -74,18 +72,6 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
     error IncorrectAccountMode(uint128 accountId, bytes16 mode);
 
     /**
-     * @dev One account's orders in the batch, folded into a single position change.
-     * @dev `price` is the price of the account's first order: several orders in one batch read as
-     * one change at that price, which is the least gameable choice available offchain.
-     */
-    struct AccountGroup {
-        uint128 accountId;
-        int256 sizeDelta;
-        uint256 orderFee;
-        uint256 price;
-    }
-
-    /**
      * @inheritdoc IBookOrderModule
      */
     function setBookMode(uint128 accountId, bool useBook) external override {
@@ -124,42 +110,34 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
 
         // The oracle price is the mark price every change in the batch is judged at: funding is
         // recomputed at it, the market's value cap is measured at it, and a fill worse than it is
-        // a loss the account must already bear. What the batch names is only where each account
+        // a loss the account must already bear. What the batch names is only where each order
         // fills, and the market may bound how far from this price that may be. Still missing
         // (audit CRIT-2): a check on who may call this.
         uint256 markPrice = PerpsPrice.getCurrentPrice(marketId, PerpsPrice.Tolerance.DEFAULT);
         uint256 maxDeviation = PerpsMarketConfiguration.load(marketId).maxBookPriceDeviationD18;
 
+        // Every order is its own position change at its own price. Several orders of one account
+        // settle one after another, each realising the position the previous one left at the
+        // price of its own fill. Folding them into one change at one price would hand the pool
+        // the price impact of a sweep and the result of a round trip within the batch.
         uint256 totalCollectedFees;
-        AccountGroup memory group;
+        uint128 previousAccountId;
         for (uint256 i = 0; i < orders.length; i++) {
-            // every order's price is judged, not only the one its account's fold settles at
-            _checkPriceDeviation(
-                orders[i].accountId,
-                orders[i].orderPrice,
-                markPrice,
-                maxDeviation
-            );
-
-            if (i == 0 || orders[i].accountId > group.accountId) {
-                if (i > 0) {
-                    totalCollectedFees += _settleAccountGroup(marketId, group, markPrice);
-                }
-                group = AccountGroup(orders[i].accountId, 0, 0, orders[i].orderPrice);
-            } else if (orders[i].accountId < group.accountId) {
-                // order ids must be supplied in strictly ascending order
+            BookOrder memory order = orders[i];
+            if (i > 0 && order.accountId < previousAccountId) {
+                // the settler sends the batch sorted by account; this keeps the batch canonical
                 revert ParameterError.InvalidParameter(
                     "orders",
                     "order's accountId must be increasing"
                 );
             }
+            previousAccountId = order.accountId;
 
-            group.sizeDelta += orders[i].sizeDelta;
-            // the fee reads the skew as the previous accounts of the batch left it
-            group.orderFee += market.calculateOrderFee(orders[i].sizeDelta, orders[i].orderPrice);
-        }
-        if (orders.length > 0) {
-            totalCollectedFees += _settleAccountGroup(marketId, group, markPrice);
+            _checkPriceDeviation(order.accountId, order.orderPrice, markPrice, maxDeviation);
+
+            // the fee reads the skew as the previous orders of the batch left it
+            uint256 orderFee = market.calculateOrderFee(order.sizeDelta, order.orderPrice);
+            totalCollectedFees += _settleOrder(marketId, order, markPrice, orderFee);
         }
 
         // send collected fees to the fee collector and etc.
@@ -192,31 +170,32 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
     }
 
     /**
-     * @dev Settles one account's fold of the batch as a single position change at the group's
-     * price, judged at `markPrice`, the oracle price read once for the batch.
+     * @dev Settles one order as a position change at the order's price, judged at `markPrice`,
+     * the oracle price read once for the batch.
      * @dev The mode gate is the module's own; every check the change itself must pass lives in
      * `PerpsAccount.settlePositionChange`, and a rejection there reverts the whole batch.
      */
-    function _settleAccountGroup(
+    function _settleOrder(
         uint128 marketId,
-        AccountGroup memory group,
-        uint256 markPrice
+        BookOrder memory order,
+        uint256 markPrice,
+        uint256 orderFee
     ) private returns (uint256) {
-        bytes16 mode = PerpsAccount.load(group.accountId).getOrderMode();
+        bytes16 mode = PerpsAccount.load(order.accountId).getOrderMode();
         if (mode != "BOOK" && mode != "RECENTLY_CHANGED") {
-            revert IncorrectAccountMode(group.accountId, mode);
+            revert IncorrectAccountMode(order.accountId, mode);
         }
 
         PerpsAccount.SettledChange memory settled = PerpsAccount.settlePositionChange(
-            group.accountId,
+            order.accountId,
             marketId,
-            group.sizeDelta.to128(),
-            group.price,
+            order.sizeDelta,
+            order.orderPrice,
             markPrice,
-            group.orderFee
+            orderFee
         );
 
-        emit AccountCharged(group.accountId, settled.chargedAmount, settled.debt);
+        emit AccountCharged(order.accountId, settled.chargedAmount, settled.debt);
 
         emit MarketUpdated(
             settled.marketUpdate.marketId,
@@ -229,24 +208,24 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
             settled.marketUpdate.interestRate
         );
 
-        emit InterestCharged(group.accountId, settled.chargedInterest);
+        emit InterestCharged(order.accountId, settled.chargedInterest);
 
         emit OrderSettled(
             marketId,
-            group.accountId,
-            group.price,
+            order.accountId,
+            order.orderPrice,
             settled.pnl,
             settled.accruedFunding,
-            settled.newPosition.size - settled.oldPosition.size,
+            order.sizeDelta,
             settled.newPosition.size,
-            group.orderFee,
+            orderFee,
             0, // referral fees
             0, // TODO: fee collector fees
             0, // settlement reward
-            "", // TODO: tracking code, may not have ever
+            order.trackingCode,
             ERC2771Context._msgSender()
         );
 
-        return group.orderFee;
+        return orderFee;
     }
 }

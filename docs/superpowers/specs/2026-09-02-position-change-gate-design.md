@@ -100,6 +100,19 @@ same price twice, as it already does for `applyPositionChange`.
 > has its own limit, the trader's `acceptablePrice`. Zero is no bound, which every existing
 > fixture relies on. Pinned by `test/integration/Orders/BookOrderPriceDeviation.test.ts`.
 
+> Amended 2026-09-03 (review candidate 11): the fold is gone. Every order of a book batch is its
+> own position change at its own price, settled in the order given (non-decreasing by account
+> id); several orders of one account settle one after another, each realising the position the
+> previous one left at the price of its own fill, and each emits its own `OrderSettled` with the
+> order's `trackingCode`. Folding them at the first order's price handed the pool the price
+> impact of a sweep and the result of a round trip within the batch: measured on the stand,
+> +1 @ 1000 and +9 @ 1100 at an oracle of 1000 left the account a pnl of 0 instead of −900, and
+> a round trip +10 @ 1050 / −10 @ 1000 charged only the fees. The gate runs per order, so an
+> account's buy-then-sell must pass initial margin on the buy alone, as two async orders would;
+> the total of realised and unrealised pnl does not depend on the order of an account's legs.
+> Pinned by `test/integration/Orders/BookOrderPerOrder.test.ts`. The settler's half, one
+> `BookOrder` per fill leg instead of one per account, is a monorepo change.
+
 The gate checks, in this order, and reverts with the errors the async path has always raised:
 
 | # | Invariant | Error |
@@ -135,10 +148,11 @@ Async commit: `updateValid` (pending order only) → `validateRequest` = `ZeroSi
 `settlePositionChange(fillPrice, oraclePrice)` → keeper reward, fee collection, events.
 `checkLiquidation` and `validateMaxPositions` leave the modules: the gate has them.
 
-Book: for each run of orders with one `accountId` (ascending, as before): mode gate →
-`settlePositionChange(groupPrice, groupPrice, groupFee)` → events. No `MemoryContext`, no
-first loop, no thin-air accounts, no `DoneLoop`/`ItsGreater`. A first order with `accountId == 0`
-is no longer silently skipped: it reaches the gate and fails invariant 1.
+Book: for each order (non-decreasing `accountId`, as before; one change per order since the
+2026-09-03 amendment, one per run of an account's orders at the first order's price until then):
+mode gate → `settlePositionChange(orderPrice, markPrice, orderFee)` → events. No
+`MemoryContext`, no first loop, no thin-air accounts, no `DoneLoop`/`ItsGreater`. A first order
+with `accountId == 0` is no longer silently skipped: it reaches the gate and fails invariant 1.
 
 ## Visible through the proxy
 
