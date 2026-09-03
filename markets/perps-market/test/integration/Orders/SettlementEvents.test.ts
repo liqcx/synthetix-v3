@@ -234,6 +234,11 @@ describe('Settlement events', () => {
       assert.equal(transfers.length, 1);
       assertBn.equal(transfers[0], bn(3));
     });
+
+    it("BookOrderSettled names the sum of the orders' fees", async () => {
+      const [batch] = await eventsNamed(tx, 'BookOrderSettled');
+      assertBn.equal(batch.totalFees, bn(12));
+    });
   });
 
   describe('MarketUpdated.sizeDelta is the change in open interest', () => {

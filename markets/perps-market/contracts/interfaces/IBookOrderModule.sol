@@ -35,11 +35,15 @@ interface IBookOrderModule is ISettlementEvents {
         bytes32 trackingCode;
     }
 
-    event BookOrderSettled(
-        uint128 indexed marketId,
-        BookOrder[] orders,
-        uint256 totalCollectedFees
-    );
+    /**
+     * @notice A batch of book orders settled.
+     * @param marketId the market of the batch.
+     * @param orders the orders, as sent.
+     * @param totalFees the sum of the batch's order fees: what its accounts paid, and the sum of
+     * the batch's `OrderSettled.totalFees`. What the fee collector received is in each order's
+     * `OrderSettled.collectedFees`.
+     */
+    event BookOrderSettled(uint128 indexed marketId, BookOrder[] orders, uint256 totalFees);
 
     /**
      * @notice Thrown when an order's price sits further from the market's oracle price than the
