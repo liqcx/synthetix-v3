@@ -243,6 +243,7 @@ library PerpsMarket {
         PositionDataRuntime memory runtime;
         Position.Data storage oldPosition = self.positions[accountId];
 
+        uint256 sizeBefore = self.size;
         self.size =
             (self.size + MathUtil.abs128(newPosition.size)) -
             MathUtil.abs128(oldPosition.size);
@@ -280,6 +281,7 @@ library PerpsMarket {
                 interestRate,
                 self.skew,
                 self.size,
+                self.size.toInt() - sizeBefore.toInt(),
                 self.lastFundingRate,
                 currentFundingVelocity(self)
             );

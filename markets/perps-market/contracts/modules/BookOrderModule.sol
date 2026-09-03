@@ -16,6 +16,7 @@ import {PerpsAccount} from "../storage/PerpsAccount.sol";
 import {PerpsPrice} from "../storage/PerpsPrice.sol";
 import {GlobalPerpsMarketConfiguration} from "../storage/GlobalPerpsMarketConfiguration.sol";
 import {PerpsMarketFactory} from "../storage/PerpsMarketFactory.sol";
+import {Settlement} from "../storage/Settlement.sol";
 import {Flags} from "../utils/Flags.sol";
 
 /**
@@ -197,16 +198,7 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
 
         emit AccountCharged(order.accountId, settled.chargedAmount, settled.debt);
 
-        emit MarketUpdated(
-            settled.marketUpdate.marketId,
-            markPrice,
-            settled.marketUpdate.skew,
-            settled.marketUpdate.size,
-            settled.marketSizeDelta,
-            settled.marketUpdate.currentFundingRate,
-            settled.marketUpdate.currentFundingVelocity,
-            settled.marketUpdate.interestRate
-        );
+        Settlement.emitMarketUpdated(settled.marketUpdate, markPrice);
 
         emit InterestCharged(order.accountId, settled.chargedInterest);
 

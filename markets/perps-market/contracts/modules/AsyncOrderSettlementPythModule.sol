@@ -14,6 +14,7 @@ import {GlobalPerpsMarketConfiguration} from "../storage/GlobalPerpsMarketConfig
 import {IMarketEvents} from "../interfaces/IMarketEvents.sol";
 import {IAccountEvents} from "../interfaces/IAccountEvents.sol";
 import {KeeperCosts} from "../storage/KeeperCosts.sol";
+import {Settlement} from "../storage/Settlement.sol";
 import {IPythERC7412Wrapper} from "../interfaces/external/IPythERC7412Wrapper.sol";
 import {SafeCastU256, SafeCastI256} from "@synthetixio/core-contracts/contracts/utils/SafeCast.sol";
 
@@ -100,16 +101,7 @@ contract AsyncOrderSettlementPythModule is
 
         emit AccountCharged(runtime.accountId, runtime.chargedAmount, runtime.newAccountDebt);
 
-        emit MarketUpdated(
-            runtime.updateData.marketId,
-            price,
-            runtime.updateData.skew,
-            runtime.updateData.size,
-            settled.marketSizeDelta,
-            runtime.updateData.currentFundingRate,
-            runtime.updateData.currentFundingVelocity,
-            runtime.updateData.interestRate
-        );
+        Settlement.emitMarketUpdated(runtime.updateData, price);
 
         runtime.settlementReward = AsyncOrder.settlementRewardCost(settlementStrategy);
 

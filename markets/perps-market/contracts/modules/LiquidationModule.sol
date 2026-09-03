@@ -21,6 +21,7 @@ import {IMarketEvents} from "../interfaces/IMarketEvents.sol";
 import {KeeperCosts} from "../storage/KeeperCosts.sol";
 import {AsyncOrder} from "../storage/AsyncOrder.sol";
 import {Position} from "../storage/Position.sol";
+import {Settlement} from "../storage/Settlement.sol";
 
 /**
  * @title Module for liquidating accounts.
@@ -290,16 +291,7 @@ contract LiquidationModule is ILiquidationModule, IMarketEvents {
 
             totalLiquidated += amountLiquidated;
 
-            emit MarketUpdated(
-                ctx.positions[i].marketId,
-                ctx.prices[i],
-                marketUpdateData.skew,
-                marketUpdateData.size,
-                newPositionSize - ctx.positions[i].size,
-                marketUpdateData.currentFundingRate,
-                marketUpdateData.currentFundingVelocity,
-                marketUpdateData.interestRate
-            );
+            Settlement.emitMarketUpdated(marketUpdateData, ctx.prices[i]);
 
             emit PositionLiquidated(
                 ctx.accountId,
