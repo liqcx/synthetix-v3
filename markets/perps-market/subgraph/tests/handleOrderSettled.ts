@@ -87,7 +87,13 @@ export default function test(): void {
   assert.fieldEquals('Order', orderId, 'timestamp', timestamp.toString());
 
   let orderSettledId =
-    perpsMarketId.toString() + '-' + accountId.toString() + '-' + blockNumber.toString();
+    perpsMarketId.toString() +
+    '-' +
+    accountId.toString() +
+    '-' +
+    blockNumber.toString() +
+    '-' +
+    logIndex.toString();
 
   assert.fieldEquals('OrderSettled', orderSettledId, 'timestamp', timestamp.toString());
   assert.fieldEquals('OrderSettled', orderSettledId, 'marketId', perpsMarketId.toString());
@@ -107,4 +113,54 @@ export default function test(): void {
   );
   assert.fieldEquals('OrderSettled', orderSettledId, 'trackingCode', trackingCode);
   assert.fieldEquals('OrderSettled', orderSettledId, 'settler', settler.toString());
+
+  log.info('Two legs of one account in one block are two records, keyed by log', []);
+
+  let secondFillPrice = 1100;
+  let secondSizeDelta = 200;
+  let secondNewSize = 1000;
+
+  handleOrderSettled(
+    createOrderSettledEvent(
+      perpsMarketId,
+      accountId,
+      secondFillPrice,
+      0,
+      0,
+      secondSizeDelta,
+      secondNewSize,
+      950,
+      0,
+      0,
+      0,
+      trackingCode,
+      settler,
+      timestamp,
+      blockNumber,
+      logIndex + 1
+    )
+  );
+
+  assert.entityCount('OrderSettled', 2);
+  assert.entityCount('Order', 1);
+
+  let secondLegId =
+    perpsMarketId.toString() +
+    '-' +
+    accountId.toString() +
+    '-' +
+    blockNumber.toString() +
+    '-' +
+    (logIndex + 1).toString();
+
+  // the first leg is still there, the second sits next to it
+  assert.fieldEquals('OrderSettled', orderSettledId, 'fillPrice', fillPrice.toString());
+  assert.fieldEquals('OrderSettled', orderSettledId, 'sizeDelta', sizeDelta.toString());
+  assert.fieldEquals('OrderSettled', secondLegId, 'fillPrice', secondFillPrice.toString());
+  assert.fieldEquals('OrderSettled', secondLegId, 'sizeDelta', secondSizeDelta.toString());
+  assert.fieldEquals('OrderSettled', secondLegId, 'newSize', secondNewSize.toString());
+
+  // the account's latest order follows the last leg
+  assert.fieldEquals('Order', orderId, 'newSize', secondNewSize.toString());
+  assert.fieldEquals('Order', orderId, 'fillPrice', secondFillPrice.toString());
 }

@@ -4,12 +4,15 @@ import { Market, Order, OrderSettled, Position } from './generated/schema';
 
 export function handleOrderSettled(event: OrderSettledEvent): void {
   const orderId = event.params.marketId.toString() + '-' + event.params.accountId.toString();
+  // one record per log: an account settles as many legs in a block as its batch has orders
   const orderSettledId =
     event.params.marketId.toString() +
     '-' +
     event.params.accountId.toString() +
     '-' +
-    event.block.number.toString();
+    event.block.number.toString() +
+    '-' +
+    event.logIndex.toString();
 
   // update Order entity
   let order = Order.load(orderId);
