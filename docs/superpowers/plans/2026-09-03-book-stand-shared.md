@@ -24,7 +24,7 @@
 
 ### Task 0: Branch
 
-- [ ] **Step 1: Branch off PR 1**
+- [x] **Step 1: Branch off PR 1**
 
 ```bash
 cd /Users/alex/Work/perps/synthetix-v3
@@ -46,7 +46,7 @@ Expected: `feat-cld/book-stand-shared`.
 - Produces (TS): `stand` (the parsed JSON, typed by `resolveJsonModule`), `bps(n: number): BigNumber` (basis points → D18 fraction), `snxUsdFor(stake: number): BigNumber` (the funding formula), `standMarket(i = 0): PerpsMarketData[number]` (a market of the description in the shape `bootstrapMarkets` takes; spread it to override).
 - Produces (JSON paths, read by Solidity in Task 5): `.collateral.{price,issuanceRatioBps,liquidationRatioBps,liquidationReward,minDelegation}`, `.pool.{id,lpStake}`, `.marketDefaults.{maxMarketSize,strictPriceTolerance}`, `.markets[i].{id,name,symbol,price,skewScale,maxFundingVelocity,makerFeeBps,takerFeeBps}`, `.trader.{stake,pool}`, `.bookAccounts`.
 
-- [ ] **Step 1: Write `test/stand.json`**
+- [x] **Step 1: Write `test/stand.json`**
 
 The values are what the Hardhat stand does today: `createStakedPool(bootstrap(), bn(2000))` prices the collateral at 2000 and stakes 1000 for the LP; the core helper configures the collateral at a 5× issuance ratio, 1.5× liquidation ratio, 20 liquidation reward, 20 minimum delegation; `bootstrapPerpsMarkets` caps a market at 10M and reads prices with a 60 s strict tolerance; the traders stake 100 000 in a pool of their own (pool 2); the market is the one the book tests trade.
 
@@ -78,7 +78,7 @@ The values are what the Hardhat stand does today: `createStakedPool(bootstrap(),
 }
 ```
 
-- [ ] **Step 2: Write `test/bootstrap/stand.ts`**
+- [x] **Step 2: Write `test/bootstrap/stand.ts`**
 
 ```ts
 import { ethers } from 'ethers';
@@ -122,7 +122,7 @@ export const standMarket = (i = 0): PerpsMarketData[number] => {
 };
 ```
 
-- [ ] **Step 3: Lint**
+- [x] **Step 3: Lint**
 
 ```bash
 cd /Users/alex/Work/perps/synthetix-v3
@@ -132,7 +132,7 @@ pnpm exec eslint --max-warnings=0 markets/perps-market/test/bootstrap/stand.ts &
 
 Expected: `ESLINT_OK`. (The type import of `PerpsMarketData` is a cycle only at the type level; `bootstrapPerpsMarkets.ts` imports the value `stand` from here in Task 2.)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add markets/perps-market/test/stand.json markets/perps-market/test/bootstrap/stand.ts
@@ -159,7 +159,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 - Consumes: `stand`, `snxUsdFor` from Task 1.
 - Produces: `bootstrapMarkets({ ..., traderAccountIds, bookAccountIds? })` — accounts listed in `bookAccountIds` are created and left on the book (the protocol default); the rest are switched to ONCHAIN as before. Trader wallets hold `snxUsdFor(stand.trader.stake)` = 40 000 000 snxUSD (they held 20 000 000, a `× 200` hard-coded in the core helper; no test reads the absolute balance — `PayDebt` and `ModifyCollateral.withdrawFull` compare deltas).
 
-- [ ] **Step 1: `bootstrapPerpsMarkets.ts`**
+- [x] **Step 1: `bootstrapPerpsMarkets.ts`**
 
 ```ts
 // imports: add
@@ -196,7 +196,7 @@ export const STRICT_PRICE_TOLERANCE = ethers.BigNumber.from(
         maxMarketSize ? maxMarketSize : bn(stand.marketDefaults.maxMarketSize)
 ```
 
-- [ ] **Step 2: Rewrite `bootstrapTraders.ts`**
+- [x] **Step 2: Rewrite `bootstrapTraders.ts`**
 
 ```ts
 import { stake } from '@synthetixio/main/test/common';
@@ -300,7 +300,7 @@ export function bootstrapTraders(data: Data) {
 
 `stake` (from `@synthetixio/main/test/common/stakers.ts`) mints 1000× the amount of mock collateral to the trader, creates the core account, deposits 300× and delegates the amount to the named pool and to pool 0 — the same steps `bootstrapStakers` took; only the mint differs: the formula instead of `× 200`.
 
-- [ ] **Step 3: `bootstrap.ts` passes `bookAccountIds` through**
+- [x] **Step 3: `bootstrap.ts` passes `bookAccountIds` through**
 
 ```ts
 // in BootstrapArgs, after `traderAccountIds: Array<number>;`
@@ -320,7 +320,7 @@ export function bootstrapTraders(data: Data) {
 
 (`provider` is already passed today although `Data` does not declare it; leave that as it is.)
 
-- [ ] **Step 4: Lint and smoke-test with an unchanged test file**
+- [x] **Step 4: Lint and smoke-test with an unchanged test file**
 
 ```bash
 cd /Users/alex/Work/perps/synthetix-v3
@@ -332,7 +332,7 @@ CANNON_REGISTRY_PRIORITY=local bun x hardhat test test/integration/Orders/BookOr
 
 Expected: `ESLINT_OK`; both files pass (`N passing`, no `failing`). `BookOrder.test.ts` is untouched at this point and still passes on the new funding: a fixture that fails here is a fixture that read the absolute wallet balance.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/alex/Work/perps/synthetix-v3
@@ -370,7 +370,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
   ```
 - Consumes: `stand`, `standMarket` (Task 1); `bookAccountIds` (Task 2).
 
-- [ ] **Step 1: Write `test/helpers/book.ts`**
+- [x] **Step 1: Write `test/helpers/book.ts`**
 
 ```ts
 import { ethers } from 'ethers';
@@ -450,7 +450,7 @@ export const openBookPosition = ({
 
 Add to `test/helpers/index.ts`: `export * from './book';`
 
-- [ ] **Step 2: `BookOrder.test.ts`**
+- [x] **Step 2: `BookOrder.test.ts`**
 
 Imports: add `import { stand, standMarket } from '../../bootstrap/stand';` and change the helpers import to `import { bookOrder, openBookAccount, settleBook } from '../../helpers';` (`depositCollateral` is no longer used here).
 
@@ -530,7 +530,7 @@ Every `systems().PerpsMarket.connect(keeper()).settleBookOrders(ethMarketId, [ {
 
 In the comment above `assertBn.near(amount, bn(10049.551), …)`, replace the two sentences that begin "bootstrapTraders opts every trader account into ONCHAIN" and "Those two extra setBookMode txs" with: "The accounts of this file are on the book from creation; the opening block of account 2's position still differs from the fixture that measured 10049.551 by a couple of blocks, which shifts accrued funding by a deterministic ~7e6 wei. Allow a tight 1e10-wei tolerance instead of exact." Keep the tolerance.
 
-- [ ] **Step 3: `BookOrderPerOrder.test.ts`**
+- [x] **Step 3: `BookOrderPerOrder.test.ts`**
 
 ```ts
 // imports: replace `import { depositCollateral } from '../../helpers';` with
@@ -562,7 +562,7 @@ import { stand, standMarket } from '../../bootstrap/stand';
 
 and every `bookOrder(` call site in the tests becomes `order(`, every `settleBook(` becomes `settle(`. `_PRICE` stays (it is `bn(stand.markets[0].price)` in value; write it as `const _PRICE = bn(stand.markets[0].price);`).
 
-- [ ] **Step 4: `BookOrderPriceDeviation.test.ts`**
+- [x] **Step 4: `BookOrderPriceDeviation.test.ts`**
 
 ```ts
 // imports: add
@@ -597,7 +597,7 @@ const _PRICE = bn(stand.markets[0].price);
 
 and every `settleBook(` call site becomes `settle(`. The assertions do not change: the market gains the description's 3/8 bps fees, which none of them reads.
 
-- [ ] **Step 5: Lint and run the three files**
+- [x] **Step 5: Lint and run the three files**
 
 ```bash
 cd /Users/alex/Work/perps/synthetix-v3
@@ -609,7 +609,7 @@ CANNON_REGISTRY_PRIORITY=local bun x hardhat test 'test/integration/Orders/BookO
 
 Expected: `ESLINT_OK`; `passing`, no `failing`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 cd /Users/alex/Work/perps/synthetix-v3
@@ -635,7 +635,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 **Interfaces:**
 - Consumes: `bookOrder`, `settleBook`, `openBookAccount`, `BookOrder` (Task 3); `bookAccountIds` (Task 2). These files keep their markets: OP at 10 with liquidation parameters is their parametrisation, not the stand's.
 
-- [ ] **Step 1: `PositionChange.test.ts`**
+- [x] **Step 1: `PositionChange.test.ts`**
 
 ```ts
 // imports: replace `import { openPosition } from '../../helpers';` with
@@ -671,7 +671,7 @@ import { bookOrder, openBookAccount, openPosition, settleBook, BookOrder } from 
 
 and every `bookOrder(` call site becomes `order(`, every `settleBook(` becomes `settle(`.
 
-- [ ] **Step 2: `PositionChange.gate.test.ts`**
+- [x] **Step 2: `PositionChange.gate.test.ts`**
 
 ```ts
 // imports: replace `import { openPosition, settleOrder } from '../../helpers';` with
@@ -714,7 +714,7 @@ import { bookOrder, openBookAccount, openPosition, settleBook, settleOrder, Book
 
 and every `bookOrder(` call site becomes `order(`, every `settleBook(` becomes `settle(`. Where the file did `const tx = await settleBook(...); await tx.wait();`, the `await tx.wait()` line goes (`settle` waits).
 
-- [ ] **Step 3: Lint and run**
+- [x] **Step 3: Lint and run**
 
 ```bash
 cd /Users/alex/Work/perps/synthetix-v3
@@ -726,7 +726,7 @@ CANNON_REGISTRY_PRIORITY=local bun x hardhat test 'test/integration/Position/Pos
 
 Expected: `ESLINT_OK`; `passing`, no `failing`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 cd /Users/alex/Work/perps/synthetix-v3
@@ -750,7 +750,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 - Consumes: the JSON paths of Task 1.
 - Produces (Solidity, on `BootstrapTest`): state `poolId`, `traderPool`, `lpStake`, `traderStake`, `marketIds[]`, `aggregators[]`, `bookAccounts[]`, `ethMarketId`/`ETH_PRICE` (the first market of the description; no longer `constant`), `collateralAggregator`, `collateralConfig`; helpers `stake(owner, pool, collateral)`, `fundStaker(owner, collateral)`, `openBookAccount(owner, accountId)`, `depositMargin(owner, accountId, snxUsd)`, `bookTrader(owner, accountId, snxUsd)`, `bookTrader(owner, snxUsd)`, `bookOrder`, `sortByAccountId`, `settleBook`, `openBookPosition`, `warp`, `createPerpsMarket(...)`, `chainlinkNode`.
 
-- [ ] **Step 1: `foundry.toml`**
+- [x] **Step 1: `foundry.toml`**
 
 After the `libs = [...]` line of `[profile.default]` add:
 
@@ -759,7 +759,7 @@ After the `libs = [...]` line of `[profile.default]` add:
 fs_permissions = [{ access = "read", path = "./test/stand.json" }]
 ```
 
-- [ ] **Step 2: Rewrite `Bootstrap.t.sol`**
+- [x] **Step 2: Rewrite `Bootstrap.t.sol`**
 
 ```solidity
 // SPDX-License-Identifier: MIT
@@ -1158,7 +1158,7 @@ contract BootstrapTest is Test, IERC721Receiver {
 
 Two values change against PR 1 on purpose: the pool weight and max debt share are the Hardhat adapter's `1e18`/`1e18` now (they were `1`/`int128.max`), and the BTC market is gone — the description names one market. `whale` is `lp`.
 
-- [ ] **Step 3: `PhantomEscrow.t.sol`** — the two accounts are the description's book accounts:
+- [x] **Step 3: `PhantomEscrow.t.sol`** — the two accounts are the description's book accounts:
 
 ```solidity
         skewMaker = bookAccounts[0];
@@ -1169,7 +1169,7 @@ Two values change against PR 1 on purpose: the pool weight and max debt share ar
 
 replaces the two `bookTrader(...)` lines. Nothing else: the test overrides the market's funding and fee parameters for its own scenario, as before.
 
-- [ ] **Step 4: `Orderbook.t.sol`**
+- [x] **Step 4: `Orderbook.t.sol`**
 
 `uint256 PRICE = ETH_PRICE;` at declaration reads a state variable that `setUp` has not set yet; make it `uint256 PRICE;` and set `PRICE = ETH_PRICE;` in `setUp` right after `marketId = ethMarketId;`. The 1-match test trades the description's accounts:
 
@@ -1189,7 +1189,7 @@ replaces the two `bookTrader(...)` lines. Nothing else: the test overrides the m
     }
 ```
 
-- [ ] **Step 5: Build, test, lint**
+- [x] **Step 5: Build, test, lint**
 
 ```bash
 cd /Users/alex/Work/perps/synthetix-v3/markets/perps-market
@@ -1199,7 +1199,7 @@ forge test 2>&1 | grep -E "\[PASS|\[FAIL|Suite result|Ran .* test suites|Error"
 
 Expected: 8 `[PASS]`, `0 failed`. A `vm.readFile` permission error means the `fs_permissions` path does not match; a `MaxOpenInterestReached` means `maxMarketSize` did not read; `InsufficientMargin` on the Orderbook batches means the fees or the price changed the margin math — raise `MARGIN`, not the description.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 cd /Users/alex/Work/perps/synthetix-v3
@@ -1223,7 +1223,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 - Modify: `docs/superpowers/specs/2026-09-03-one-stand-two-adapters-design.md` (the `stand.json` sample and the helper list follow what shipped)
 - Modify: `docs/superpowers/plans/2026-09-03-book-stand-shared.md` (tick the boxes)
 
-- [ ] **Step 1: `docs/TESTING.md`**
+- [x] **Step 1: `docs/TESTING.md`**
 
 In the section «Foundry-тесты perps-market», after the paragraph that ends «в git их нет.», add:
 
@@ -1237,7 +1237,7 @@ In the section «Foundry-тесты perps-market», after the paragraph that end
 (`test/helpers/book.ts` и `tests/Bootstrap.t.sol`).
 ```
 
-- [ ] **Step 2: The spec follows what shipped**
+- [x] **Step 2: The spec follows what shipped**
 
 In «The description (PR 2)», replace the JSON sample with the content of `test/stand.json` and the sentence before it with: «`markets/perps-market/test/stand.json`, integers in human units, every ratio and fee in basis points (stdJson has no decimals; 1 bps is 1e14 in D18):». Replace the paragraph after the sample with:
 
@@ -1258,7 +1258,7 @@ it names, the collateral ratios included.
 
 In «Decision», the sentence «`IOracleManagerProxy` from `INodeModule`, `IOwnerModule` and `IUUPSImplementation`» becomes «… from `INodeModule`, `IOwnable` and `IUUPSImplementation`» (what PR 1 shipped: `IOwnerModule` is an empty interface).
 
-- [ ] **Step 3: The wider Hardhat run**
+- [x] **Step 3: The wider Hardhat run**
 
 The funding change touches every test through `bootstrapTraders`. Run the directories that read balances or margins:
 
@@ -1270,7 +1270,7 @@ CANNON_REGISTRY_PRIORITY=local bun x hardhat test 'test/integration/Account/*.te
 
 Expected: `passing`, no `failing` in either run. (Anvil state between runs: `pnpm anvil-clean` if a run hangs on `restoreSnapshot`.)
 
-- [ ] **Step 4: Tick, lint, commit, push, PR**
+- [x] **Step 4: Tick, lint, commit, push, PR**
 
 ```bash
 cd /Users/alex/Work/perps/synthetix-v3
@@ -1285,7 +1285,7 @@ gh pr create --repo liqcx/synthetix-v3 --head feat-cld/book-stand-shared --base 
   --title "perps-market: one scenario description, executed by both stands" --body-file <the body written in Step 5>
 ```
 
-- [ ] **Step 5: The PR body** (write to the scratchpad first, then pass with `--body-file`)
+- [x] **Step 5: The PR body** (write to the scratchpad first, then pass with `--body-file`)
 
 ```markdown
 Candidate 5 of the 2026-09-02 architecture review, PR 2 of 2, stacked on #22 (retarget to `main` once it merges). Spec: `docs/superpowers/specs/2026-09-03-one-stand-two-adapters-design.md`, plan: `docs/superpowers/plans/2026-09-03-book-stand-shared.md`.

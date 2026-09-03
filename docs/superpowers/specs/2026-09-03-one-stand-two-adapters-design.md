@@ -59,8 +59,8 @@ therefore always runs the current sources on the same core version as the Hardha
 
 **Interfaces are composed, never copied.** `tests/interfaces/` keeps three compositions by
 inheritance: `IPerpsMarketProxy` as it is; `ICoreProxy` from the `@synthetixio/main` and
-`core-modules` interfaces; `IOracleManagerProxy` from `INodeModule`, `IOwnerModule` and
-`IUUPSImplementation`. `IV3CoreProxy.sol` and `CoreProxy.sol` are deleted.
+`core-modules` interfaces; `IOracleManagerProxy` from `INodeModule`, `IOwnable` and
+`IUUPSImplementation` (`IOwnerModule` is an empty interface). `IV3CoreProxy.sol` and `CoreProxy.sol` are deleted.
 
 **The scenario is described once, by `test/stand.json`, and both adapters execute it** (PR 2).
 The file names, in human units, the collateral (price, issuance ratio), the pool, the markets
@@ -118,7 +118,7 @@ markets/perps-market/
     interfaces/
       IPerpsMarketProxy.sol    unchanged
       ICoreProxy.sol           composition from @synthetixio/main
-      IOracleManagerProxy.sol  INodeModule + IOwnerModule + IUUPSImplementation
+      IOracleManagerProxy.sol  INodeModule + IOwnable + IUUPSImplementation
 ```
 
 `build-testable` becomes: build the Hardhat testable package as today; run
@@ -157,29 +157,51 @@ mechanism.
 
 ## The description (PR 2)
 
-`markets/perps-market/test/stand.json`, human units, integers where the protocol takes 18
-decimals, bps where it takes a fraction:
+`markets/perps-market/test/stand.json`, integers in human units, every ratio and fee in basis
+points (stdJson has no decimals; 1 bps is 1e14 in D18):
 
 ```json
 {
-  "collateral": { "price": 1, "issuanceRatio": 5, "liquidationRatio": 1.01 },
-  "pool": { "id": 1 },
+  "collateral": {
+    "price": 2000,
+    "issuanceRatioBps": 50000,
+    "liquidationRatioBps": 15000,
+    "liquidationReward": 20,
+    "minDelegation": 20
+  },
+  "pool": { "id": 1, "lpStake": 1000 },
+  "marketDefaults": { "maxMarketSize": 10000000, "strictPriceTolerance": 60 },
   "markets": [
-    { "id": 25, "name": "Ether", "symbol": "snxETH", "price": 1000,
-      "skewScale": 100000, "maxFundingVelocity": 10, "makerFeeBps": 3, "takerFeeBps": 8 }
+    {
+      "id": 25,
+      "name": "Ether",
+      "symbol": "snxETH",
+      "price": 1000,
+      "skewScale": 100000,
+      "maxFundingVelocity": 10,
+      "makerFeeBps": 3,
+      "takerFeeBps": 8
+    }
   ],
-  "trader": { "stake": 100000 },
+  "trader": { "stake": 100000, "pool": 2 },
   "bookAccounts": [2, 3]
 }
 ```
 
-Hardhat: `bootstrapTraders` stakes `trader.stake`; `bootstrapMarkets` accepts `bookAccountIds`
-(those accounts stay on the book, the protocol default; the others are switched to ONCHAIN as
-today); `test/helpers/book.ts` exports `bookOrder`, `settleBook` (waits for the receipt),
-`openBookAccount`, `openBookPosition`; `BookOrder.test.ts`, `BookOrderPerOrder.test.ts`,
-`BookOrderPriceDeviation.test.ts` and the two `PositionChange` tests use them and the market from
-`stand.json`. Foundry: `Bootstrap.t.sol` reads the file with `stdJson` (`fs_permissions` grants
-read access to that one file) and creates the markets and traders it names.
+Hardhat: `test/bootstrap/stand.ts` imports the file and holds the units rule, the funding formula
+(`snxUsdFor`: `stake × price / issuanceRatio`) and `standMarket()`; `bootstrapPerpsMarkets` takes
+the collateral price, the LP stake and the market defaults from it and asserts the collateral
+ratios the core helper `createStakedPool` hard-codes — what an adapter cannot set, it checks;
+`bootstrapTraders` stakes `trader.stake` in `trader.pool` and mints by the formula;
+`bootstrapMarkets` accepts `bookAccountIds` (those accounts stay on the book, the protocol
+default; the others are switched to ONCHAIN as before); `test/helpers/book.ts` exports
+`bookOrder`, `settleBook` (waits until the batch is mined — by asking the node for the receipt,
+not `tx.wait()`, which hangs after an `evm_revert`), `openBookAccount`, `openBookPosition`.
+`BookOrder.test.ts`, `BookOrderPerOrder.test.ts` and `BookOrderPriceDeviation.test.ts` trade the
+market of the description; the two `PositionChange` tests keep their own market (their
+parametrisation) and use the helpers and `bookAccountIds`. Foundry: `Bootstrap.t.sol` reads the
+file with `stdJson` (`fs_permissions` grants read access to that one file) and sets everything it
+names, the collateral ratios included.
 
 ## Verification
 
