@@ -77,8 +77,11 @@ contract PhantomEscrowTest is BootstrapTest {
         perps.setLockedOiRatio(marketIdUnderTest, 0);
         vm.stopPrank();
 
-        skewMaker = bookTrader(trader1, DEPOSIT_PER_ACCOUNT);
-        churner = bookTrader(trader2, DEPOSIT_PER_ACCOUNT);
+        // The description's two book accounts: the first belongs to trader1, the second to trader2.
+        skewMaker = bookAccounts[0];
+        churner = bookAccounts[1];
+        depositMargin(trader1, skewMaker, DEPOSIT_PER_ACCOUNT);
+        depositMargin(trader2, churner, DEPOSIT_PER_ACCOUNT);
     }
 
     // ---------------------------------------------------------------- helpers

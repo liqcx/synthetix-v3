@@ -4,6 +4,7 @@ pragma solidity >=0.8.11 <0.9.0;
 /* solhint-disable */
 
 import {Test} from "forge-std/Test.sol";
+import {stdJson} from "forge-std/StdJson.sol";
 
 import {CannonDeploy} from "../script/Deploy.sol";
 import {IPerpsMarketProxy} from "./interfaces/IPerpsMarketProxy.sol";
@@ -28,23 +29,23 @@ import {IERC721Receiver} from "@synthetixio/core-contracts/contracts/interfaces/
  *
  * @notice Replays the testable protocol that `build-testable` wrote into `script/Deploy.sol` —
  *         the cannonfile the Hardhat suite runs, with the core cloned so the script is
- *         self-contained — and describes the scenario on top of it: one pool with one LP, two
- *         perps markets on mock Chainlink aggregators, snxUSD as the only margin collateral, two
- *         traders funded by one formula.
+ *         self-contained — and executes the scenario `test/stand.json` describes: the
+ *         collateral and its ratios, the perps pool with one LP, the traders' own pool, the
+ *         markets on mock Chainlink aggregators, two traders funded by one formula, and the
+ *         accounts on the book. The Hardhat adapter (`test/bootstrap/`) executes the same file.
  *
- * @dev A trader is a staker. `fundStaker` stakes mock collateral in the pool and mints the
- *      snxUSD that stake supports, `stake * price / issuanceRatio`, into the owner's wallet;
- *      `bookTrader` deposits part of it into a perps account. Accounts are on the book by
- *      default (3b30b15e), so nothing here calls `setBookMode`.
- *
- *      The market caps, funding parameters and per-account caps are the defaults of the Hardhat
- *      adapter (`test/bootstrap/bootstrapPerpsMarkets.ts`, `bootstrap.ts`): a stand that sets
- *      none of them cannot open a position past the gate of PR #19.
+ * @dev Units of the file: integers in human units, ratios and fees in basis points (1 bps is
+ *      1e14 in D18). A trader is a staker: `fundStaker` stakes in the traders' pool and mints
+ *      the snxUSD that stake supports, `stake * price / issuanceRatio`, into the owner's
+ *      wallet; `depositMargin` moves part of it into a perps account. Accounts are on the book
+ *      by default, so nothing here calls `setBookMode`.
  */
 contract BootstrapTest is Test, IERC721Receiver {
+    using stdJson for string;
+
     address trader1 = makeAddr("trader1");
     address trader2 = makeAddr("trader2");
-    address whale = makeAddr("whale");
+    address lp = makeAddr("lp");
     /// @dev Spot is imported by the cannonfile, not cloned, so the script carries no spot
     ///      deployment. The factory only stores the address, and no Foundry test uses synth
     ///      collateral.
@@ -58,26 +59,32 @@ contract BootstrapTest is Test, IERC721Receiver {
     IERC721 accountNft;
     CollateralMock collateralToken;
 
-    MockV3Aggregator collateralAggregator;
-    MockV3Aggregator ethAggregator;
-    MockV3Aggregator btcAggregator;
-    CollateralConfiguration.Data collateralConfig;
+    // ---- test/stand.json
+    string stand;
+    uint256 collateralPrice; // D18
+    uint128 poolId;
+    uint256 lpStake;
+    uint256 maxMarketSize;
+    uint256 strictPriceTolerance;
+    uint128[] marketIds;
+    uint256[] marketPrices; // D18
+    MockV3Aggregator[] aggregators;
+    uint128 traderPool;
+    uint256 traderStake;
+    uint128[] bookAccounts;
 
-    uint128 constant poolId = 1;
-    uint128 constant ethMarketId = 2;
-    uint128 constant btcMarketId = 3;
+    /// @dev The first market of the description, for tests that trade one market.
+    uint128 ethMarketId;
+    uint256 ETH_PRICE;
+
+    MockV3Aggregator collateralAggregator;
+    CollateralConfiguration.Data collateralConfig;
     uint128 constant collateralId = 0; // snxUSD
     uint128 superMarketId; // the perps market as the core sees it
 
-    uint256 constant COLLATERAL_PRICE = 1e18;
-    uint256 constant ETH_PRICE = 2400e18;
-    uint256 constant BTC_PRICE = 60_000e18;
-
-    /// @dev At price 1 and issuance ratio 5 a stake supports a fifth of itself in snxUSD.
-    uint256 constant WHALE_STAKE = 50_000_000e18;
-    uint256 constant TRADER_STAKE = 50_000_000e18; // 10M snxUSD per trader
-
     function setUp() public virtual {
+        _readStand();
+
         deployer = new CannonDeploy();
         deployer.run();
 
@@ -107,20 +114,40 @@ contract BootstrapTest is Test, IERC721Receiver {
         MarketConfiguration.Data[] memory pool = new MarketConfiguration.Data[](1);
         pool[0] = MarketConfiguration.Data({
             marketId: superMarketId,
-            weightD18: 1,
-            maxDebtShareValueD18: type(int128).max
+            weightD18: 1e18,
+            maxDebtShareValueD18: 1e18
         });
         vm.prank(core.owner());
         IPoolModule(address(core)).setPoolConfiguration(poolId, pool);
 
         _configurePerps();
 
-        ethAggregator = createPerpsMarket(ethMarketId, "Ether", "ETHPERP", ETH_PRICE);
-        btcAggregator = createPerpsMarket(btcMarketId, "Bitcoin", "BTCPERP", BTC_PRICE);
+        for (uint256 i = 0; i < marketIds.length; i++) {
+            string memory m = string.concat(".markets[", vm.toString(i), "]");
+            aggregators.push(
+                createPerpsMarket(
+                    marketIds[i],
+                    stand.readString(string.concat(m, ".name")),
+                    stand.readString(string.concat(m, ".symbol")),
+                    marketPrices[i],
+                    stand.readUint(string.concat(m, ".skewScale")) * 1e18,
+                    stand.readUint(string.concat(m, ".maxFundingVelocity")) * 1e18,
+                    stand.readUint(string.concat(m, ".makerFeeBps")) * 1e14,
+                    stand.readUint(string.concat(m, ".takerFeeBps")) * 1e14
+                )
+            );
+        }
+        ethMarketId = marketIds[0];
+        ETH_PRICE = marketPrices[0];
 
-        stake(whale, WHALE_STAKE);
-        fundStaker(trader1, TRADER_STAKE);
-        fundStaker(trader2, TRADER_STAKE);
+        stake(lp, poolId, lpStake);
+        fundStaker(trader1, traderStake);
+        fundStaker(trader2, traderStake);
+
+        // As the Hardhat adapter does: account i belongs to trader i + 1, and stays on the book.
+        for (uint256 i = 0; i < bookAccounts.length; i++) {
+            openBookAccount(i % 2 == 0 ? trader1 : trader2, bookAccounts[i]);
+        }
     }
 
     function onERC721Received(
@@ -132,24 +159,52 @@ contract BootstrapTest is Test, IERC721Receiver {
         return IERC721Receiver.onERC721Received.selector;
     }
 
+    // ------------------------------------------------------------------------ the description
+
+    function _readStand() internal {
+        stand = vm.readFile(string.concat(vm.projectRoot(), "/test/stand.json"));
+        collateralPrice = stand.readUint(".collateral.price") * 1e18;
+        poolId = uint128(stand.readUint(".pool.id"));
+        lpStake = stand.readUint(".pool.lpStake") * 1e18;
+        maxMarketSize = stand.readUint(".marketDefaults.maxMarketSize") * 1e18;
+        strictPriceTolerance = stand.readUint(".marketDefaults.strictPriceTolerance");
+        for (
+            uint256 i = 0;
+            vm.keyExistsJson(stand, string.concat(".markets[", vm.toString(i), "].id"));
+            i++
+        ) {
+            string memory m = string.concat(".markets[", vm.toString(i), "]");
+            marketIds.push(uint128(stand.readUint(string.concat(m, ".id"))));
+            marketPrices.push(stand.readUint(string.concat(m, ".price")) * 1e18);
+        }
+        traderStake = stand.readUint(".trader.stake") * 1e18;
+        traderPool = uint128(stand.readUint(".trader.pool"));
+        uint256[] memory accounts = stand.readUintArray(".bookAccounts");
+        for (uint256 i = 0; i < accounts.length; i++) {
+            bookAccounts.push(uint128(accounts[i]));
+        }
+    }
+
     // ------------------------------------------------------------------ the deployed protocol
 
-    /// @dev A pool, and the mock token as its only collateral, priced by a Chainlink node.
+    /// @dev The perps pool and the traders' pool, and the mock token as the only collateral,
+    ///      configured as the description says and priced by a Chainlink node.
     function _configureCore() internal {
         collateralAggregator = new MockV3Aggregator();
-        collateralAggregator.mockSetCurrentPrice(COLLATERAL_PRICE, 18);
+        collateralAggregator.mockSetCurrentPrice(collateralPrice, 18);
 
         vm.startPrank(core.owner());
         IPoolModule(address(core)).createPool(poolId, core.owner());
+        IPoolModule(address(core)).createPool(traderPool, core.owner());
         core.configureCollateral(
             CollateralConfiguration.Data({
                 depositingEnabled: true,
-                issuanceRatioD18: 5e18,
-                liquidationRatioD18: 1.01e18,
-                liquidationRewardD18: 0,
+                issuanceRatioD18: stand.readUint(".collateral.issuanceRatioBps") * 1e14,
+                liquidationRatioD18: stand.readUint(".collateral.liquidationRatioBps") * 1e14,
+                liquidationRewardD18: stand.readUint(".collateral.liquidationReward") * 1e18,
                 oracleNodeId: chainlinkNode(collateralAggregator),
                 tokenAddress: address(collateralToken),
-                minDelegationD18: 0
+                minDelegationD18: stand.readUint(".collateral.minDelegation") * 1e18
             })
         );
         vm.stopPrank();
@@ -173,22 +228,27 @@ contract BootstrapTest is Test, IERC721Receiver {
         vm.stopPrank();
     }
 
-    /// @dev A perps market on a fresh Chainlink aggregator at `price`, with the caps and funding
-    ///      parameters the Hardhat adapter uses by default.
+    /// @dev A perps market on a fresh Chainlink aggregator, with the parameters the description
+    ///      gives it and the defaults it gives every market.
     function createPerpsMarket(
         uint128 marketId,
         string memory name,
         string memory symbol,
-        uint256 price
+        uint256 price,
+        uint256 skewScale,
+        uint256 maxFundingVelocity,
+        uint256 makerFee,
+        uint256 takerFee
     ) internal returns (MockV3Aggregator aggregator) {
         aggregator = new MockV3Aggregator();
         aggregator.mockSetCurrentPrice(price, 18);
 
         vm.startPrank(perps.owner());
         perps.createMarket(marketId, name, symbol);
-        perps.updatePriceData(marketId, chainlinkNode(aggregator), 0);
-        perps.setFundingParameters(marketId, 1_000_000e18, 0);
-        perps.setMaxMarketSize(marketId, 10_000_000e18);
+        perps.updatePriceData(marketId, chainlinkNode(aggregator), strictPriceTolerance);
+        perps.setFundingParameters(marketId, skewScale, maxFundingVelocity);
+        perps.setOrderFees(marketId, makerFee, takerFee);
+        perps.setMaxMarketSize(marketId, maxMarketSize);
         perps.setMaxMarketValue(marketId, 0); // zero is no bound
         vm.stopPrank();
     }
@@ -205,54 +265,65 @@ contract BootstrapTest is Test, IERC721Receiver {
 
     // ------------------------------------------------------------------------------ funding
 
-    /// @dev Stakes `collateral` of the mock token for `owner`: a fresh core account, deposited
-    ///      and delegated to the pool. Returns the core account id.
-    function stake(address owner, uint256 collateral) internal returns (uint128 accountId) {
+    /// @dev Stakes `collateral` of the mock token for `owner` in `pool`: a fresh core account,
+    ///      deposited and delegated. Returns the core account id.
+    function stake(
+        address owner,
+        uint128 pool,
+        uint256 collateral
+    ) internal returns (uint128 accountId) {
         vm.startPrank(owner);
         accountId = core.createAccount();
         collateralToken.mint(owner, collateral);
         collateralToken.approve(address(core), collateral);
         core.deposit(accountId, address(collateralToken), collateral);
-        core.delegateCollateral(accountId, poolId, address(collateralToken), collateral, 1e18);
+        core.delegateCollateral(accountId, pool, address(collateralToken), collateral, 1e18);
         vm.stopPrank();
     }
 
-    /// @dev A trader is a staker: stakes `collateral` and mints the snxUSD that stake supports,
-    ///      `collateral * price / issuanceRatio`, into the owner's wallet. The one funding
-    ///      formula of the stand.
+    /// @dev A trader is a staker: stakes `collateral` in the traders' pool and mints the snxUSD
+    ///      that stake supports, `collateral * price / issuanceRatio`, into the owner's wallet.
+    ///      The one funding formula of the stand (`snxUsdFor` in the Hardhat adapter).
     function fundStaker(
         address owner,
         uint256 collateral
     ) internal returns (uint128 accountId, uint256 snxUsd) {
-        accountId = stake(owner, collateral);
-        NodeOutput.Data memory collateralPrice = oracleManager.process(
-            collateralConfig.oracleNodeId
-        );
-        snxUsd = (collateral * uint256(collateralPrice.price)) / collateralConfig.issuanceRatioD18;
+        accountId = stake(owner, traderPool, collateral);
+        NodeOutput.Data memory price = oracleManager.process(collateralConfig.oracleNodeId);
+        snxUsd = (collateral * uint256(price.price)) / collateralConfig.issuanceRatioD18;
 
         vm.startPrank(owner);
-        core.mintUsd(accountId, poolId, address(collateralToken), snxUsd);
+        core.mintUsd(accountId, traderPool, address(collateralToken), snxUsd);
         core.withdraw(accountId, address(usdToken), snxUsd);
         vm.stopPrank();
     }
 
-    /// @dev A perps account with the requested id, funded with `snxUsd` from the owner's wallet.
-    ///      BOOK is the protocol default, so the account is on the book without a setBookMode.
-    function bookTrader(address owner, uint128 accountId, uint256 snxUsd) internal {
-        vm.startPrank(owner);
+    /// @dev A perps account with the requested id. BOOK is the protocol default, so the account
+    ///      is on the book without a setBookMode.
+    function openBookAccount(address owner, uint128 accountId) internal {
+        vm.prank(owner);
         perps.createAccount(accountId);
+    }
+
+    /// @dev snxUSD from the owner's wallet into the account's margin.
+    function depositMargin(address owner, uint128 accountId, uint256 snxUsd) internal {
+        vm.startPrank(owner);
         usdToken.approve(address(perps), snxUsd);
         perps.modifyCollateral(accountId, collateralId, int256(snxUsd));
         vm.stopPrank();
     }
 
+    /// @dev A funded book account with the requested id.
+    function bookTrader(address owner, uint128 accountId, uint256 snxUsd) internal {
+        openBookAccount(owner, accountId);
+        depositMargin(owner, accountId, snxUsd);
+    }
+
     /// @dev The same, with an id the protocol picks.
     function bookTrader(address owner, uint256 snxUsd) internal returns (uint128 accountId) {
-        vm.startPrank(owner);
+        vm.prank(owner);
         accountId = perps.createAccount();
-        usdToken.approve(address(perps), snxUsd);
-        perps.modifyCollateral(accountId, collateralId, int256(snxUsd));
-        vm.stopPrank();
+        depositMargin(owner, accountId, snxUsd);
     }
 
     // -------------------------------------------------------------------------------- the book
@@ -310,11 +381,12 @@ contract BootstrapTest is Test, IERC721Receiver {
     }
 
     /// @dev Advances time with every oracle price pinned, so no price pnl is generated and no
-    ///      Chainlink node goes stale.
+    ///      Chainlink node goes stale past the strict tolerance.
     function warp(uint256 secs) internal {
         vm.warp(block.timestamp + secs);
-        collateralAggregator.mockSetCurrentPrice(COLLATERAL_PRICE, 18);
-        ethAggregator.mockSetCurrentPrice(ETH_PRICE, 18);
-        btcAggregator.mockSetCurrentPrice(BTC_PRICE, 18);
+        collateralAggregator.mockSetCurrentPrice(collateralPrice, 18);
+        for (uint256 i = 0; i < aggregators.length; i++) {
+            aggregators[i].mockSetCurrentPrice(marketPrices[i], 18);
+        }
     }
 }
