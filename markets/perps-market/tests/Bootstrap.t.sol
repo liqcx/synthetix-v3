@@ -7,14 +7,20 @@ import {Test} from "forge-std/Test.sol";
 
 import {CannonDeploy} from "../script/Deploy.sol";
 import {IPerpsMarketProxy} from "./interfaces/IPerpsMarketProxy.sol";
-import {IV3CoreProxy, MarketConfiguration, CollateralConfiguration} from "./interfaces/IV3CoreProxy.sol";
+import {ICoreProxy} from "./interfaces/ICoreProxy.sol";
+import {IPoolModule} from "@synthetixio/main/contracts/interfaces/IPoolModule.sol";
+import {MarketConfiguration} from "@synthetixio/main/contracts/storage/MarketConfiguration.sol";
+import {CollateralConfiguration} from "@synthetixio/main/contracts/storage/CollateralConfiguration.sol";
+import {NodeDefinition} from "@synthetixio/oracle-manager/contracts/storage/NodeDefinition.sol";
+import {NodeOutput} from "@synthetixio/oracle-manager/contracts/storage/NodeOutput.sol";
+import {ISynthetixSystem} from "../contracts/interfaces/external/ISynthetixSystem.sol";
+import {ISpotMarketSystem} from "../contracts/interfaces/external/ISpotMarketSystem.sol";
 import {MockV3Aggregator} from "@synthetixio/oracle-manager/contracts/mocks/MockV3Aggregator.sol";
 import {CollateralMock} from "@synthetixio/main/contracts/mocks/CollateralMock.sol";
 import {IERC20} from "@synthetixio/core-contracts/contracts/interfaces/IERC20.sol";
 import {IERC721} from "@synthetixio/core-contracts/contracts/interfaces/IERC721.sol";
 import {IOracleManagerProxy} from "./interfaces/IOracleManagerProxy.sol";
 import {IERC721Receiver} from "@synthetixio/core-contracts/contracts/interfaces/IERC721Receiver.sol";
-import "@synthetixio/oracle-manager/contracts/modules/NodeModule.sol";
 import {console} from "forge-std/console.sol";
 import {ICollateralConfigurationModule} from "../contracts/interfaces/ICollateralConfigurationModule.sol";
 import {IGlobalPerpsMarketModule} from "../contracts/interfaces/IGlobalPerpsMarketModule.sol";
@@ -26,7 +32,7 @@ contract BootstrapTest is Test, IERC721Receiver {
 
     CannonDeploy deployer;
     IPerpsMarketProxy perps;
-    IV3CoreProxy core;
+    ICoreProxy core;
     IOracleManagerProxy oracleManager;
 
     IERC20 usdToken;
@@ -55,20 +61,27 @@ contract BootstrapTest is Test, IERC721Receiver {
         deployer.run();
 
         perps = IPerpsMarketProxy(deployer.getAddress("PerpsMarketProxy"));
-        core = IV3CoreProxy(deployer.getAddress("v3.CoreProxy"));
-        accountNft = IERC721(deployer.getAddress("v3.AccountProxy"));
-        oracleManager = IOracleManagerProxy(deployer.getAddress("v3.oracle_manager.Proxy"));
-        usdToken = IERC20(deployer.getAddress("v3.USDProxy"));
-        collateralToken = CollateralMock(deployer.getAddress("v3.CollateralMock"));
+        core = ICoreProxy(deployer.getAddress("synthetix.CoreProxy"));
+        accountNft = IERC721(deployer.getAddress("synthetix.AccountProxy"));
+        oracleManager = IOracleManagerProxy(deployer.getAddress("synthetix.oracle_manager.Proxy"));
+        usdToken = IERC20(deployer.getAddress("synthetix.USDProxy"));
+        collateralToken = CollateralMock(deployer.getAddress("synthetix.CollateralMock"));
+
+        // The cannonfile no longer does this; the Hardhat adapter calls it too.
+        vm.prank(perps.owner());
+        perps.initializeFactory(
+            ISynthetixSystem(address(core)),
+            ISpotMarketSystem(address(0xDEAD))
+        );
         vm.label(address(perps), "PerpsMarketProxy");
-        vm.label(address(core), "v3.CoreProxy");
-        vm.label(address(accountNft), "v3.AccountProxy");
-        vm.label(address(oracleManager), "v3.oracle_manager.Proxy");
-        vm.label(address(usdToken), "v3.USDProxy");
-        vm.label(address(collateralToken), "v3.CollateralMock");
+        vm.label(address(core), "synthetix.CoreProxy");
+        vm.label(address(accountNft), "synthetix.AccountProxy");
+        vm.label(address(oracleManager), "synthetix.oracle_manager.Proxy");
+        vm.label(address(usdToken), "synthetix.USDProxy");
+        vm.label(address(collateralToken), "synthetix.CollateralMock");
 
         vm.prank(core.owner());
-        core.createPool(poolId, core.owner());
+        IPoolModule(address(core)).createPool(poolId, core.owner());
 
         vm.startPrank(perps.owner());
         perps.createMarket({
@@ -96,21 +109,21 @@ contract BootstrapTest is Test, IERC721Receiver {
         secondSuperAggregator.mockSetCurrentPrice(1e18, 18);
 
         // Register nodes using the correct oracleManager reference
-        bytes32 ethOracleNodeId = NodeModule(address(oracleManager)).registerNode(
+        bytes32 ethOracleNodeId = oracleManager.registerNode(
             NodeDefinition.NodeType.CHAINLINK,
             abi.encode(address(ethMockAggregator), uint256(0), uint8(18)),
             parents
         );
         perps.updatePriceData(ethMarketId, ethOracleNodeId, 0);
 
-        bytes32 superOracleNodeId = NodeModule(address(oracleManager)).registerNode(
+        bytes32 superOracleNodeId = oracleManager.registerNode(
             NodeDefinition.NodeType.CHAINLINK,
             abi.encode(address(superMockAggregator), uint256(0), uint8(18)),
             parents
         );
         perps.updatePriceData(superMarketId, superOracleNodeId, 0);
 
-        bytes32 btcOracleNodeId = NodeModule(address(oracleManager)).registerNode(
+        bytes32 btcOracleNodeId = oracleManager.registerNode(
             NodeDefinition.NodeType.CHAINLINK,
             abi.encode(address(secondSuperAggregator), uint256(0), uint8(18)),
             parents
@@ -139,7 +152,7 @@ contract BootstrapTest is Test, IERC721Receiver {
 
         // Configure the zero node separately
         // vm.startPrank(oracleManager.owner());
-        bytes32 zeroNodeId = NodeModule(address(oracleManager)).registerNode(
+        bytes32 zeroNodeId = oracleManager.registerNode(
             NodeDefinition.NodeType.CONSTANT,
             abi.encode(0),
             parents
@@ -155,7 +168,7 @@ contract BootstrapTest is Test, IERC721Receiver {
         marketConfigs[0] = superMarketConfig;
 
         vm.startPrank(core.owner());
-        core.setPoolConfiguration(poolId, marketConfigs);
+        IPoolModule(address(core)).setPoolConfiguration(poolId, marketConfigs);
 
         // Set keeper cost node id to the previously registered zero constant node
         IGlobalPerpsMarketModule(address(perps)).updateKeeperCostNodeId(zeroNodeId);
@@ -172,7 +185,7 @@ contract BootstrapTest is Test, IERC721Receiver {
                 liquidationRatioD18: 1.01e18,
                 liquidationRewardD18: 0,
                 // const one oracle id (later replace with a better source for the constant)
-                oracleNodeId: NodeModule(address(oracleManager)).registerNode(
+                oracleNodeId: oracleManager.registerNode(
                     NodeDefinition.NodeType.CHAINLINK,
                     abi.encode(address(mockAggregator), uint256(0), uint8(18)),
                     parents

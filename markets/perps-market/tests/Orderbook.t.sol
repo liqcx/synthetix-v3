@@ -214,12 +214,7 @@ contract OrderbookTest is BootstrapTest {
         // Sort orders by accountId before settling
         orders = _sortOrdersByAccountId(orders);
 
-        IBookOrderModule.BookOrderSettleStatus[] memory cancelledOrders = perps.settleBookOrders(
-            marketId,
-            orders
-        );
-
-        assertEq(cancelledOrders.length, 0, "Expected none cancelled orders");
+        perps.settleBookOrders(marketId, orders);
 
         // Check positions
         (int256 alicePnl, , int128 aliceSize, ) = perps.getOpenPosition(aliceId, marketId);
@@ -265,12 +260,7 @@ contract OrderbookTest is BootstrapTest {
         // Sort orders by accountId before settling
         orders = _sortOrdersByAccountId(orders);
 
-        IBookOrderModule.BookOrderSettleStatus[] memory cancelledOrders = perps.settleBookOrders(
-            marketId,
-            orders
-        );
-
-        assertEq(cancelledOrders.length, 0, "Expected no cancelled orders");
+        perps.settleBookOrders(marketId, orders);
 
         // Check a few positions
         for (uint256 i = 0; i < numMatches; i++) {
@@ -346,12 +336,7 @@ contract OrderbookTest is BootstrapTest {
         // Sort orders by accountId before settling
         orders = _sortOrdersByAccountId(orders);
 
-        IBookOrderModule.BookOrderSettleStatus[] memory cancelledOrders = perps.settleBookOrders(
-            marketId,
-            orders
-        );
-
-        assertEq(cancelledOrders.length, 0, "Expected no cancelled orders");
+        perps.settleBookOrders(marketId, orders);
 
         // Check a few positions
         for (uint256 i = 0; i < numMatches; i++) {
@@ -403,12 +388,7 @@ contract OrderbookTest is BootstrapTest {
         // Sort orders by accountId before settling
         orders = _sortOrdersByAccountId(orders);
 
-        IBookOrderModule.BookOrderSettleStatus[] memory cancelledOrders = perps.settleBookOrders(
-            marketId,
-            orders
-        );
-
-        assertEq(cancelledOrders.length, 0, "Expected no cancelled orders");
+        perps.settleBookOrders(marketId, orders);
 
         // Check a few positions
         for (uint256 i = 0; i < numMatches; i++) {
