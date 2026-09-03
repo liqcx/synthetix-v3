@@ -29,12 +29,12 @@
 **Interfaces:**
 - Produces: a `forge build` that resolves every `@synthetixio/*` import; `optimizer_runs = 200`, the value of `utils/common-config/hardhat.config.ts:22`, so anything forge itself compiles matches what ships.
 
-- [ ] **Step 1: See the failure**
+- [x] **Step 1: See the failure**
 
 Run: `forge build 2>&1 | grep -c "not found"`
 Expected: a positive count; the messages name `../../node_modules/@synthetixio/...`.
 
-- [ ] **Step 2: Rewrite `[profile.default]`**
+- [x] **Step 2: Rewrite `[profile.default]`**
 
 Replace the whole `[profile.default]` block (lines 3–31) with:
 
@@ -72,12 +72,12 @@ libs = ["../../node_modules", "node_modules", "lib", "../../"]
 
 Removed on purpose: `tests = ["tests"]` (unknown key, forge warns), `optimizer_runs = 10_000`, the `@openzeppelin/contracts` remapping (nothing imports it and the path does not exist).
 
-- [ ] **Step 3: Verify the imports resolve**
+- [x] **Step 3: Verify the imports resolve**
 
 Run: `forge build 2>&1 | grep -E "not found|Warning: Found unknown" | wc -l`
 Expected: `0`. The build still fails, once, on `tests/Orderbook.t.sol:217` (`Identifier not found or not unique` for `IBookOrderModule.BookOrderSettleStatus`) — that is the drift Task 3 removes.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 pnpm exec prettier --write foundry.toml
@@ -104,7 +104,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: `pnpm build-testable` writes `cannonfile.test.foundry.toml` and `script/Deploy.sol`; the script's `getAddress` keys are `PerpsMarketProxy`, `synthetix.CoreProxy`, `synthetix.USDProxy`, `synthetix.AccountProxy`, `synthetix.oracle_manager.Proxy`, `synthetix.CollateralMock` (Task 3 uses them). `pnpm forge-test` runs forge.
 
-- [ ] **Step 1: Write the generator**
+- [x] **Step 1: Write the generator**
 
 `scripts/foundry-cannonfile.ts`:
 
@@ -143,12 +143,12 @@ writeFileSync(TARGET, header + toml);
 console.log(`wrote ${TARGET}`);
 ```
 
-- [ ] **Step 2: Run it against the committed cannonfile**
+- [x] **Step 2: Run it against the committed cannonfile**
 
 Run: `bun scripts/foundry-cannonfile.ts && diff cannonfile.test.toml cannonfile.test.foundry.toml`
 Expected: `wrote cannonfile.test.foundry.toml`; the diff shows the added header, `name = "snx-perps-foundry"` and `[clone.synthetix]`, nothing else. (The committed Foundry cannonfile had a different name, core `3.12.2` and an extra `invoke.initializeFactory`; all three differences are gone — Task 3 makes the Bootstrap call `initializeFactory` itself, as the Hardhat adapter does.)
 
-- [ ] **Step 3: Wire the scripts**
+- [x] **Step 3: Wire the scripts**
 
 In `package.json` `scripts`, replace the `build-testable` line and add two more:
 
@@ -160,7 +160,7 @@ In `package.json` `scripts`, replace the `build-testable` line and add two more:
 
 `--wipe` makes Cannon replay every step instead of reusing a cached build; without it the written script is partial.
 
-- [ ] **Step 4: Ignore the generated files and drop the frozen ones from git**
+- [x] **Step 4: Ignore the generated files and drop the frozen ones from git**
 
 Append to `.gitignore`:
 
@@ -173,12 +173,12 @@ script/Deploy.sol
 Run: `git rm --cached cannonfile.test.foundry.toml script/Deploy.sol && git status --short`
 Expected: both files listed as `D`; they remain on disk.
 
-- [ ] **Step 5: Generate the script**
+- [x] **Step 5: Generate the script**
 
 Run: `pnpm run build-testable:foundry 2>&1 | tail -3 && grep -c "CONTRACT DEPLOYED" script/Deploy.sol && grep -c '"synthetix.CoreProxy"' script/Deploy.sol && grep -c 'synthetix:3.13.1-testable' script/Deploy.sol`
 Expected: the Cannon summary, then `72`, then a positive count, then a positive count. (Takes about a minute.)
 
-- [ ] **Step 6: Lint and commit**
+- [x] **Step 6: Lint and commit**
 
 ```bash
 pnpm exec prettier --write scripts/foundry-cannonfile.ts package.json
@@ -209,7 +209,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 - Consumes: the `synthetix.*` keys of Task 2.
 - Produces: `ICoreProxy` (every core module interface except `IPoolModule`, plus `IOwnable`), `IOracleManagerProxy` (`INodeModule`, `IOwnable`, `IUUPSImplementation`). `forge build` green; PhantomEscrow green.
 
-- [ ] **Step 1: `ICoreProxy.sol`**
+- [x] **Step 1: `ICoreProxy.sol`**
 
 ```solidity
 // SPDX-License-Identifier: MIT
@@ -261,7 +261,7 @@ interface ICoreProxy is
 {}
 ```
 
-- [ ] **Step 2: `IOracleManagerProxy.sol`** (replaces the 122-line hand copy)
+- [x] **Step 2: `IOracleManagerProxy.sol`** (replaces the 122-line hand copy)
 
 ```solidity
 // SPDX-License-Identifier: MIT
@@ -280,11 +280,11 @@ import {IUUPSImplementation} from "@synthetixio/core-contracts/contracts/interfa
 interface IOracleManagerProxy is INodeModule, IOwnable, IUUPSImplementation {}
 ```
 
-- [ ] **Step 3: Delete the copies**
+- [x] **Step 3: Delete the copies**
 
 Run: `git rm tests/interfaces/IV3CoreProxy.sol tests/interfaces/CoreProxy.sol`
 
-- [ ] **Step 4: Point `Bootstrap.t.sol` at the composed interfaces and the new keys**
+- [x] **Step 4: Point `Bootstrap.t.sol` at the composed interfaces and the new keys**
 
 Edits, keeping the rest of the file as it is for now (Task 4 rewrites it):
 
@@ -323,7 +323,7 @@ IPoolModule(address(core)).setPoolConfiguration(poolId, marketConfigs);
 // every `NodeModule(address(oracleManager)).registerNode(` -> `oracleManager.registerNode(`
 ```
 
-- [ ] **Step 5: Let `Orderbook.t.sol` compile against the current signature**
+- [x] **Step 5: Let `Orderbook.t.sol` compile against the current signature**
 
 At the four sites (`testSettleBookOrders_1_Match`, `_10_Matches`, `_25_UniqueMatches`, `_25_MatchesV2`) replace
 
@@ -344,12 +344,12 @@ with
 
 (the first site says "Expected none cancelled orders"). Nothing else changes here; Task 5 rewrites the file.
 
-- [ ] **Step 6: Build and run PhantomEscrow**
+- [x] **Step 6: Build and run PhantomEscrow**
 
 Run: `forge build 2>&1 | grep -E "^Error|Compiler run" ; forge test --match-path tests/PhantomEscrow.t.sol 2>&1 | grep -E "\[PASS|\[FAIL|Suite result"`
 Expected: `Compiler run successful` (warnings from forge-std are fine); three `[PASS]`. `Orderbook.t.sol` may fail at runtime (`MaxOpenInterestReached`: the old Bootstrap sets no market caps and the gate of PR #19 checks them) — that is Task 4's and Task 5's job, not a regression of this task.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 pnpm exec prettier --write tests/interfaces/ICoreProxy.sol tests/interfaces/IOracleManagerProxy.sol tests/Bootstrap.t.sol tests/Orderbook.t.sol
@@ -386,7 +386,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
   - `warp(uint256 secs)`
   - state: `trader1`, `trader2`, `whale`, `perps`, `core`, `oracleManager`, `usdToken`, `accountNft`, `collateralToken`, `ethAggregator`, `btcAggregator`, `collateralAggregator`, `collateralConfig`, `poolId`, `superMarketId`, `ethMarketId`, `btcMarketId`, `collateralId`, `ETH_PRICE`, `BTC_PRICE`, `COLLATERAL_PRICE`, `WHALE_STAKE`, `TRADER_STAKE`.
 
-- [ ] **Step 1: Rewrite `Bootstrap.t.sol`**
+- [x] **Step 1: Rewrite `Bootstrap.t.sol`**
 
 ```solidity
 // SPDX-License-Identifier: MIT
@@ -711,7 +711,7 @@ contract BootstrapTest is Test, IERC721Receiver {
 }
 ```
 
-- [ ] **Step 2: `PhantomEscrow.t.sol` on the shared helpers**
+- [x] **Step 2: `PhantomEscrow.t.sol` on the shared helpers**
 
 Imports: remove `BookOrderModule`, `PerpsAccountModule`, `PerpsMarketFactoryModule`, `PerpsMarketModule`, `GlobalPerpsMarketModule` and `console`; keep `BootstrapTest` and `IBookOrderModule` (still used by the doc comment? no — remove it too if nothing references it after the edits below).
 
@@ -731,12 +731,12 @@ Helpers: delete `_refreshPerpsModulesFromSource` together with its doc comment (
 
 In the contract doc comment, drop the sentence about `script/Deploy.sol` replaying frozen bytecode if one is there; the "Measured counterfactual" paragraph stays (it is history the test still explains).
 
-- [ ] **Step 3: Build and run PhantomEscrow**
+- [x] **Step 3: Build and run PhantomEscrow**
 
 Run: `forge build 2>&1 | grep -E "^Error|Compiler run"; forge test --match-path tests/PhantomEscrow.t.sol 2>&1 | grep -E "\[PASS|\[FAIL|Suite result"`
 Expected: `Compiler run successful`, three `[PASS]`. If a `MaxOpenInterestReached` or `InsufficientMargin` appears, the stand's caps or funding are wrong — fix the stand, not the test.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 pnpm exec prettier --write tests/Bootstrap.t.sol tests/PhantomEscrow.t.sol
@@ -761,7 +761,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 **Interfaces:**
 - Consumes: `bookTrader(address, uint128, uint256)`, `bookOrder`, `settleBook`, `trader1`, `trader2`, `ethMarketId`, `perps`.
 
-- [ ] **Step 1: Rewrite the file**
+- [x] **Step 1: Rewrite the file**
 
 ```solidity
 // SPDX-License-Identifier: MIT
@@ -901,12 +901,12 @@ contract OrderbookTest is BootstrapTest {
 }
 ```
 
-- [ ] **Step 2: Run the whole Foundry suite**
+- [x] **Step 2: Run the whole Foundry suite**
 
 Run: `forge test 2>&1 | grep -E "\[PASS|\[FAIL|Suite result|Ran .* test suites"`
 Expected: every test `[PASS]`; the summary reads `0 failed`. If the 100-match batch reverts with `InsufficientMargin`, raise `MARGIN`; if with `MaxOpenInterestReached`, the cap in `createPerpsMarket` is the place to look.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 pnpm exec prettier --write tests/Orderbook.t.sol
@@ -929,7 +929,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 - Modify: `docs/TESTING.md` (a Foundry section after «Шаг 6», plus the stale bootstrap path)
 - Modify: `docs/superpowers/plans/2026-09-03-foundry-stand-regenerated.md` (tick the boxes)
 
-- [ ] **Step 1: Document the Foundry run**
+- [x] **Step 1: Document the Foundry run**
 
 Insert after the section «Тесты по каталогам (рекомендуется для perps-market)» and before «Что происходит при `yarn test`»:
 
@@ -952,12 +952,12 @@ pnpm forge-test                # forge test
 
 And in «4. Bootstrap тестов perps-market» replace `markets/perps-market/test/integration/bootstrap/bootstrap.ts` with `markets/perps-market/test/bootstrap/bootstrap.ts`, and in «Структура тестов perps-market» move `bootstrap/` out from under `integration/` to sit next to it (the move happened in `0ad9e767`).
 
-- [ ] **Step 2: Full verification from a clean state**
+- [x] **Step 2: Full verification from a clean state**
 
 Run, in `markets/perps-market`: `rm -f script/Deploy.sol cannonfile.test.foundry.toml && pnpm build-testable 2>&1 | tail -2 && forge test 2>&1 | grep -E "Suite result|Ran .* test suites" && git status --short`
 Expected: the Cannon summary, every suite `ok`, and `git status` shows only the intended modifications (no generated file).
 
-- [ ] **Step 3: Commit and open the draft PR**
+- [x] **Step 3: Commit and open the draft PR**
 
 ```bash
 cd /Users/alex/Work/perps/synthetix-v3

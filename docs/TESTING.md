@@ -187,6 +187,21 @@ CANNON_REGISTRY_PRIORITY=local bun x hardhat test \
 > Anvil деградирует по памяти после ~30 файлов (известный баг Foundry).
 > Рекомендуется запускать тесты по каталогам.
 
+### Foundry-тесты perps-market
+
+Стенд Foundry (`markets/perps-market/tests/*.t.sol`) воспроизводит тот же testable-протокол, что и
+Hardhat-стенд: `build-testable` генерирует из `cannonfile.test.toml` его clone-вариант
+`cannonfile.test.foundry.toml` (скрипт `scripts/foundry-cannonfile.ts`) и пишет `script/Deploy.sol`
+через `cannon:build --write-script`. Оба файла — результат сборки, в git их нет.
+
+```bash
+cd markets/perps-market
+pnpm build-testable            # Hardhat-пакет + ~1 мин на генерацию script/Deploy.sol
+pnpm forge-test                # forge test
+```
+
+Пока CI не переехал с CircleCI (P3d), `forge test` запускается только локально.
+
 ---
 
 ## Что происходит при `yarn test`
@@ -247,7 +262,7 @@ Cannon build → чистый стейт
 
 ### 4. Bootstrap тестов perps-market
 
-Файл: `markets/perps-market/test/integration/bootstrap/bootstrap.ts`
+Файл: `markets/perps-market/test/bootstrap/bootstrap.ts`
 
 ```typescript
 const { getProvider, getSigners, getContract, createSnapshot } = coreBootstrap<Proxies>(params);
@@ -281,16 +296,17 @@ markets/perps-market/
 ├── cannonfile.test.toml          # Cannon-конфиг для тестов (с моками)
 ├── hardhat.config.ts             # Hardhat-конфиг (mocha timeout: 30s)
 ├── test/
+│   ├── bootstrap/
+│   │   ├── bootstrap.ts          # Главный bootstrap
+│   │   ├── bootstrapPerpsMarkets.ts
+│   │   └── bootstrapTraders.ts
 │   └── integration/
-│       ├── bootstrap/
-│       │   ├── bootstrap.ts      # Главный bootstrap
-│       │   ├── bootstrapPerpsMarkets.ts
-│       │   └── bootstrapTraders.ts
 │       ├── Account/              # Тесты аккаунтов
 │       ├── Orders/               # Тесты ордеров
 │       ├── Market/               # Тесты рынков
 │       ├── Liquidation/          # Тесты ликвидаций
 │       └── ...
+├── tests/                        # Foundry-стенд: Bootstrap.t.sol + *.t.sol
 └── generated/                    # Авто-генерация (typechain, deployments)
 ```
 
