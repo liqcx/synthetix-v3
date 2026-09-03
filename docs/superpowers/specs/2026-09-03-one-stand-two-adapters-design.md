@@ -87,7 +87,7 @@ perps account. Both adapters expose the same names: `bookTrader`, `bookOrder`, `
   route.
 - **B1. Generate the Foundry cannonfile from the Hardhat one** (chosen). A textual transform with
   asserts: `[import.synthetix]` becomes `[clone.synthetix]`, the package name becomes
-  `synthetix-perps-market-foundry` so the Hardhat testable package in the local registry is not
+  `snx-perps-foundry` so the Hardhat testable package in the local registry is not
   overwritten. `clone` is required: a script written from an `import` contains only this
   package's 19 contracts and no core. Contract keys come out as `synthetix.CoreProxy`, the same
   keys the Hardhat `Proxies` type uses.

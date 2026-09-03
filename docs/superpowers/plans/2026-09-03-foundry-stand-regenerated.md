@@ -132,7 +132,7 @@ function replaceOnce(text: string, from: string, to: string): string {
 let toml = readFileSync(SOURCE, 'utf8');
 // A different package name, so the clone build does not overwrite the Hardhat testable
 // package in the local registry.
-toml = replaceOnce(toml, 'name = "synthetix-perps-market"\n', 'name = "synthetix-perps-market-foundry"\n');
+toml = replaceOnce(toml, 'name = "synthetix-perps-market"\n', 'name = "snx-perps-foundry"\n');
 toml = replaceOnce(toml, '[import.synthetix]\n', '[clone.synthetix]\n');
 
 const header =
@@ -146,7 +146,7 @@ console.log(`wrote ${TARGET}`);
 - [ ] **Step 2: Run it against the committed cannonfile**
 
 Run: `bun scripts/foundry-cannonfile.ts && diff cannonfile.test.toml cannonfile.test.foundry.toml`
-Expected: `wrote cannonfile.test.foundry.toml`; the diff shows the added header, `name = "synthetix-perps-market-foundry"` and `[clone.synthetix]`, nothing else. (The committed Foundry cannonfile had a different name, core `3.12.2` and an extra `invoke.initializeFactory`; all three differences are gone — Task 3 makes the Bootstrap call `initializeFactory` itself, as the Hardhat adapter does.)
+Expected: `wrote cannonfile.test.foundry.toml`; the diff shows the added header, `name = "snx-perps-foundry"` and `[clone.synthetix]`, nothing else. (The committed Foundry cannonfile had a different name, core `3.12.2` and an extra `invoke.initializeFactory`; all three differences are gone — Task 3 makes the Bootstrap call `initializeFactory` itself, as the Hardhat adapter does.)
 
 - [ ] **Step 3: Wire the scripts**
 
