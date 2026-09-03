@@ -29,6 +29,8 @@ remappings = [
     '@synthetixio/spot-market/=node_modules/@synthetixio/spot-market/',
 ]
 libs = ["../../node_modules", "node_modules", "lib", "../../"]
+# The stand reads its one scenario description; nothing else on disk.
+fs_permissions = [{ access = "read", path = "./test/stand.json" }]
 
 [profile.ci]
 fuzz = { runs = 10_000 }

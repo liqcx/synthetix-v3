@@ -1,7 +1,14 @@
 import assert from 'assert/strict';
 import { ethers } from 'ethers';
 import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
-import { openPosition, settleOrder } from '../../helpers';
+import {
+  bookOrder,
+  openBookAccount,
+  openPosition,
+  settleBook,
+  settleOrder,
+  BookOrder,
+} from '../../helpers';
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
 import assertRevert from '@synthetixio/core-utils/utils/assertions/assert-revert';
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
@@ -103,6 +110,7 @@ describe('Position change gate', () => {
     [op, arb, cap] = perpsMarkets();
   });
 
+  // A BOOK subject is an account as the protocol creates it; an ONCHAIN subject has opted out.
   before('create subjects', async () => {
     const perps = systems().PerpsMarket;
     for (const [bookId, asyncId, collateral] of [
@@ -113,44 +121,32 @@ describe('Position change gate', () => {
       WHALE,
       LOCKER,
     ]) {
-      await perps.connect(trader2())['createAccount(uint128)'](bookId);
-      await perps.connect(trader2()).modifyCollateral(bookId, 0, collateral);
-      await perps.connect(trader2()).setBookMode(bookId, true);
+      await openBookAccount({ systems, trader: trader2(), accountId: bookId, snxUsd: collateral });
       await perps.connect(trader3())['createAccount(uint128)'](asyncId);
       await perps.connect(trader3()).modifyCollateral(asyncId, 0, collateral);
       await perps.connect(trader3()).setBookMode(asyncId, false);
     }
-    await perps.connect(trader2())['createAccount(uint128)'](SOUND);
-    await perps.connect(trader2()).modifyCollateral(SOUND, 0, bn(1_000));
-    await perps.connect(trader2()).setBookMode(SOUND, true);
-    await perps.connect(trader2())['createAccount(uint128)'](EMPTY);
-    await perps.connect(trader2()).setBookMode(EMPTY, true);
+    await openBookAccount({ systems, trader: trader2(), accountId: SOUND, snxUsd: bn(1_000) });
+    await openBookAccount({ systems, trader: trader2(), accountId: EMPTY });
     await perps.connect(trader3())['createAccount(uint128)'](LATE);
     await perps.connect(trader3()).modifyCollateral(LATE, 0, bn(600));
     await perps.connect(trader3()).setBookMode(LATE, false);
     for (const bookId of [SLIPPED, FUNDED]) {
-      await perps.connect(trader2())['createAccount(uint128)'](bookId);
-      await perps.connect(trader2()).modifyCollateral(bookId, 0, bn(1_000));
-      await perps.connect(trader2()).setBookMode(bookId, true);
+      await openBookAccount({ systems, trader: trader2(), accountId: bookId, snxUsd: bn(1_000) });
     }
   });
 
   const restore = snapshotCheckpoint(provider);
 
-  const bookOrder = (
+  // Bindings, not copies: a book order fills at the oracle price and settles on OP unless told
+  // otherwise.
+  const order = (
     accountId: number,
     sizeDelta: ethers.BigNumber,
     orderPrice: ethers.BigNumber = _PRICE
-  ) => ({
-    accountId,
-    sizeDelta,
-    orderPrice,
-    signedPriceData: '0x',
-    trackingCode: ethers.constants.HashZero,
-  });
-
-  const settleBook = (orders: ReturnType<typeof bookOrder>[], market: PerpsMarket = op) =>
-    systems().PerpsMarket.connect(keeper()).settleBookOrders(market.marketId(), orders);
+  ) => bookOrder(accountId, sizeDelta, orderPrice);
+  const settle = (orders: BookOrder[], market: PerpsMarket = op) =>
+    settleBook({ systems, keeper: keeper(), marketId: market.marketId(), orders });
 
   const commitAsync = (accountId: number, sizeDelta: ethers.BigNumber, market: PerpsMarket = op) =>
     systems()
@@ -207,7 +203,7 @@ describe('Position change gate', () => {
 
     it('is rejected by the book path', async () => {
       await assertRevert(
-        settleBook([bookOrder(NO_SUCH_ACCOUNT, bn(1))]),
+        settle([order(NO_SUCH_ACCOUNT, bn(1))]),
         `AccountNotFound("${NO_SUCH_ACCOUNT}")`
       );
     });
@@ -224,7 +220,7 @@ describe('Position change gate', () => {
     const [BOOK, ASYNC] = FLAGGED;
     before(restore);
     before('both hold 80 OP on 500 of collateral; the price halves; both are flagged', async () => {
-      await settleBook([bookOrder(BOOK, bn(80))]);
+      await settle([order(BOOK, bn(80))]);
       await openAsync(ASYNC, bn(80));
       await op.aggregator().mockSetCurrentPrice(bn(5));
       // The window caps each liquidation at 50 OP, so both keep 30 OP and stay flagged.
@@ -254,7 +250,7 @@ describe('Position change gate', () => {
     });
 
     it('is rejected by the book path', async () => {
-      await assertRevert(settleBook([bookOrder(BOOK, bn(1))]), `AccountLiquidatable("${BOOK}")`);
+      await assertRevert(settle([order(BOOK, bn(1))]), `AccountLiquidatable("${BOOK}")`);
     });
 
     it('is rejected by the async path', async () => {
@@ -266,7 +262,7 @@ describe('Position change gate', () => {
     const [BOOK, ASYNC] = UNDERWATER;
     before(restore);
     before('both hold 80 OP on 500 of collateral; the price halves; nobody flags', async () => {
-      await settleBook([bookOrder(BOOK, bn(80))]);
+      await settle([order(BOOK, bn(80))]);
       await openAsync(ASYNC, bn(80));
       await op.aggregator().mockSetCurrentPrice(bn(5));
     });
@@ -278,7 +274,7 @@ describe('Position change gate', () => {
     });
 
     it('is rejected by the book path, even when reducing', async () => {
-      await assertRevert(settleBook([bookOrder(BOOK, bn(-1))]), `AccountLiquidatable("${BOOK}")`);
+      await assertRevert(settle([order(BOOK, bn(-1))]), `AccountLiquidatable("${BOOK}")`);
     });
 
     it('is rejected by the async path, even when reducing', async () => {
@@ -291,15 +287,12 @@ describe('Position change gate', () => {
     before(restore);
     before('one market per account; both already hold OP', async () => {
       await systems().PerpsMarket.connect(owner()).setPerAccountCaps(1, 100_000);
-      await settleBook([bookOrder(BOOK, bn(1))]);
+      await settle([order(BOOK, bn(1))]);
       await openAsync(ASYNC, bn(1));
     });
 
     it('is rejected by the book path', async () => {
-      await assertRevert(
-        settleBook([bookOrder(BOOK, bn(1))], arb),
-        'MaxPositionsPerAccountReached("1")'
-      );
+      await assertRevert(settle([order(BOOK, bn(1))], arb), 'MaxPositionsPerAccountReached("1")');
     });
 
     it('is rejected by the async path', async () => {
@@ -307,8 +300,7 @@ describe('Position change gate', () => {
     });
 
     it('a change on the market already held is not an opening', async () => {
-      const tx = await settleBook([bookOrder(BOOK, bn(1))]);
-      await tx.wait();
+      await settle([order(BOOK, bn(1))]);
       assertBn.equal(await positionSize(BOOK), bn(2));
     });
   });
@@ -318,7 +310,7 @@ describe('Position change gate', () => {
     before(restore);
 
     it('is rejected by the book path: 400 OP on 1,000 needs 2,000 of initial margin', async () => {
-      await assertRevert(settleBook([bookOrder(BOOK, bn(400))]), 'InsufficientMargin');
+      await assertRevert(settle([order(BOOK, bn(400))]), 'InsufficientMargin');
     });
 
     it('is rejected by the async path', async () => {
@@ -331,17 +323,16 @@ describe('Position change gate', () => {
 
     // 150 OP needs 760: 995 remains after fees at the oracle price, 695 at a fill 20% worse.
     it('is rejected by the book path', async () => {
-      await assertRevert(settleBook([bookOrder(SLIPPED, bn(150), bn(12))]), 'InsufficientMargin');
+      await assertRevert(settle([order(SLIPPED, bn(150), bn(12))]), 'InsufficientMargin');
     });
 
     // 200 OP needs 1,015 and 995 remains; the 400 a fill 20% better would gain is not counted.
     it('a fill better than the oracle price buys no margin', async () => {
-      await assertRevert(settleBook([bookOrder(SLIPPED, bn(200), bn(8))]), 'InsufficientMargin');
+      await assertRevert(settle([order(SLIPPED, bn(200), bn(8))]), 'InsufficientMargin');
     });
 
     it('fixture: the same 150 OP at the oracle price settles', async () => {
-      const tx = await settleBook([bookOrder(SLIPPED, bn(150))]);
-      await tx.wait();
+      await settle([order(SLIPPED, bn(150))]);
       assertBn.equal(await positionSize(SLIPPED), bn(150));
     });
   });
@@ -352,7 +343,7 @@ describe('Position change gate', () => {
 
     it('is rejected by the book path', async () => {
       await assertRevert(
-        settleBook([bookOrder(BOOK, bn(1_100))]),
+        settle([order(BOOK, bn(1_100))]),
         `MaxOpenInterestReached(${op.marketId()}, ${bn(1_000).toString()}, ${bn(1_100).toString()})`
       );
     });
@@ -381,7 +372,7 @@ describe('Position change gate', () => {
 
     it('is rejected by the book path, at a fill under which 600 OP would be worth 3,000', async () => {
       await assertRevert(
-        settleBook([bookOrder(BOOK, bn(600), bn(5))]),
+        settle([order(BOOK, bn(600), bn(5))]),
         `MaxUSDOpenInterestReached(${op.marketId()}, ${bn(5_000)}, ${bn(600)}, ${_PRICE})`
       );
     });
@@ -392,10 +383,7 @@ describe('Position change gate', () => {
     before(restore);
 
     it('is rejected by the book path', async () => {
-      await assertRevert(
-        settleBook([bookOrder(BOOK, bn(300))], cap),
-        'ExceedsMarketCreditCapacity'
-      );
+      await assertRevert(settle([order(BOOK, bn(300))], cap), 'ExceedsMarketCreditCapacity');
     });
 
     it('is rejected by the async path', async () => {
@@ -407,18 +395,17 @@ describe('Position change gate', () => {
     const [BOOK, ASYNC] = WHALE;
     before(restore);
     before('both hold 400 OP; the size cap is then lowered below the open interest', async () => {
-      await settleBook([bookOrder(BOOK, bn(400))]);
+      await settle([order(BOOK, bn(400))]);
       await openAsync(ASYNC, bn(400));
       await systems().PerpsMarket.connect(owner()).setMaxMarketSize(op.marketId(), bn(100));
     });
 
     it('fixture: an increase is rejected', async () => {
-      await assertRevert(settleBook([bookOrder(BOOK, bn(1))]), 'MaxOpenInterestReached');
+      await assertRevert(settle([order(BOOK, bn(1))]), 'MaxOpenInterestReached');
     });
 
     it('the book path reduces', async () => {
-      const tx = await settleBook([bookOrder(BOOK, bn(-50))]);
-      await tx.wait();
+      await settle([order(BOOK, bn(-50))]);
       assertBn.equal(await positionSize(BOOK), bn(350));
     });
 
@@ -432,10 +419,7 @@ describe('Position change gate', () => {
     before(restore);
 
     it('one account without margin reverts the whole batch', async () => {
-      await assertRevert(
-        settleBook([bookOrder(SOUND, bn(1)), bookOrder(EMPTY, bn(1))]),
-        'InsufficientMargin'
-      );
+      await assertRevert(settle([order(SOUND, bn(1)), order(EMPTY, bn(1))]), 'InsufficientMargin');
     });
 
     it('the sound account is left untouched', async () => {
@@ -444,8 +428,7 @@ describe('Position change gate', () => {
     });
 
     it('fixture: the sound account alone settles', async () => {
-      const tx = await settleBook([bookOrder(SOUND, bn(1))]);
-      await tx.wait();
+      await settle([order(SOUND, bn(1))]);
       assertBn.equal(await positionSize(SOUND), bn(1));
     });
   });
@@ -453,7 +436,7 @@ describe('Position change gate', () => {
   describe('a book settlement recomputes funding at the oracle price, whatever price it names', () => {
     before(restore);
     before('hold 100 OP for a day: the skew accrues funding', async () => {
-      await settleBook([bookOrder(FUNDED, bn(100))]);
+      await settle([order(FUNDED, bn(100))]);
       await fastForwardTo((await getTime(provider())) + 24 * 60 * 60, provider());
     });
     // Both batches below settle one block after this checkpoint, so they realise the same
@@ -465,7 +448,7 @@ describe('Position change gate', () => {
     describe('a batch at the oracle price', () => {
       before(restoreAfterDay);
       before('settle one more OP', async () => {
-        const tx = await settleBook([bookOrder(FUNDED, bn(1))]);
+        const tx = await settle([order(FUNDED, bn(1))]);
         fundingAtOracle = (await eventArgs(tx, 'OrderSettled')).accruedFunding;
       });
 
@@ -479,7 +462,7 @@ describe('Position change gate', () => {
       let marketUpdate: ethers.utils.Result;
       before(restoreAfterDay);
       before('settle one more OP at 20', async () => {
-        const tx = await settleBook([bookOrder(FUNDED, bn(1), _PRICE.mul(2))]);
+        const tx = await settle([order(FUNDED, bn(1), _PRICE.mul(2))]);
         settled = await eventArgs(tx, 'OrderSettled');
         marketUpdate = await eventArgs(tx, 'MarketUpdated');
       });

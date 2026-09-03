@@ -1,19 +1,15 @@
 import { ethers } from 'ethers';
 import assert from 'assert/strict';
 import { bn, bootstrapMarkets } from '../../bootstrap';
+import { stand, standMarket } from '../../bootstrap/stand';
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
-import { depositCollateral } from '../../helpers';
+import { bookOrder, openBookAccount, settleBook, BookOrder } from '../../helpers';
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
 import assertEvent from '@synthetixio/core-utils/utils/assertions/assert-event';
 import assertRevert from '@synthetixio/core-utils/utils/assertions/assert-revert';
 import { fastForwardTo, getTime } from '@synthetixio/core-utils/utils/hardhat/rpc';
-import { wei } from '@synthetixio/wei';
 
 describe('Settle Orderbook order', () => {
-  const orderFees = {
-    makerFee: wei(0.0003), // 3bps
-    takerFee: wei(0.0008), // 8bps
-  };
   const { systems, owner, perpsMarkets, provider, trader1, trader2, keeper } = bootstrapMarkets({
     synthMarkets: [
       {
@@ -23,22 +19,15 @@ describe('Settle Orderbook order', () => {
         sellPrice: bn(10_000),
       },
     ],
-    perpsMarkets: [
-      {
-        requestedMarketId: 25,
-        name: 'Ether',
-        token: 'snxETH',
-        price: bn(1000),
-        fundingParams: { skewScale: bn(100_000), maxFundingVelocity: bn(10) },
-        orderFees: {
-          makerFee: orderFees.makerFee.toBN(),
-          takerFee: orderFees.takerFee.toBN(),
-        },
-      },
-    ],
-    traderAccountIds: [2, 3],
+    perpsMarkets: [standMarket()],
+    traderAccountIds: stand.bookAccounts,
+    bookAccountIds: stand.bookAccounts,
   });
   let ethMarketId: ethers.BigNumber;
+
+  // A binding, not a copy: the file trades one market with one keeper.
+  const settle = (orders: BookOrder[]) =>
+    settleBook({ systems, keeper: keeper(), marketId: ethMarketId, orders });
 
   before('identify actors', async () => {
     ethMarketId = perpsMarkets()[0].marketId();
@@ -51,52 +40,20 @@ describe('Settle Orderbook order', () => {
     await systems().MockPythERC7412Wrapper.setBenchmarkPrice(offChainPrice);
   });
 
-  before('deposit collateral', async () => {
+  before('fund the book accounts', async () => {
+    const perps = systems().PerpsMarket;
+    // 38 more accounts on the book, funded alike, owned alternately by the two traders.
     for (let i = 0; i < 38; i++) {
-      const signer = i % 2 === 0 ? trader1() : trader2();
-      const perps = systems().PerpsMarket.connect(signer);
-      await perps['createAccount(uint128)'](4 + i);
-      await depositCollateral({
+      await openBookAccount({
         systems,
-        trader: i % 2 === 0 ? trader1 : trader2,
-        accountId: () => 4 + i,
-        collaterals: [
-          {
-            snxUSDAmount: () => bn(10_000),
-          },
-        ],
+        trader: i % 2 === 0 ? trader1() : trader2(),
+        accountId: 4 + i,
+        snxUsd: bn(10_000),
       });
-      if (4 + i !== 5) {
-        await systems()
-          .PerpsMarket.connect(i % 2 === 0 ? trader1() : trader2())
-          .setBookMode(4 + i, true);
-      }
     }
-    await depositCollateral({
-      systems,
-      trader: trader1,
-      accountId: () => 2,
-      collaterals: [
-        {
-          snxUSDAmount: () => bn(10_000),
-        },
-      ],
-    });
-
-    await depositCollateral({
-      systems,
-      trader: trader2,
-      accountId: () => 3,
-      collaterals: [
-        {
-          snxUSDAmount: () => bn(10_000),
-        },
-      ],
-    });
-
-    await systems().PerpsMarket.connect(trader1()).setBookMode(2, true);
-    await systems().PerpsMarket.connect(trader2()).setBookMode(3, true);
-    await systems().PerpsMarket.connect(trader1()).setBookMode(4, true);
+    const [buyer, seller] = stand.bookAccounts;
+    await perps.connect(trader1()).modifyCollateral(buyer, 0, bn(10_000));
+    await perps.connect(trader2()).modifyCollateral(seller, 0, bn(10_000));
   });
 
   before('set fee collector and referral', async () => {
@@ -113,31 +70,24 @@ describe('Settle Orderbook order', () => {
     // but it cna be a different address from the actual keeper
   });
 
-  it('has correct order mode', async () => {
-    console.log(await systems().PerpsMarket.getOrderMode(3));
-    assert(
+  it('accounts are on the book by default; a switched account waits out the grace', async () => {
+    const mode = async (accountId: number) =>
       ethers.utils.parseBytes32String(
-        (await systems().PerpsMarket.getOrderMode(3)) + '00000000000000000000000000000000'
-      ) === 'RECENTLY_CHANGED'
-    );
-    assert(
-      ethers.utils.parseBytes32String(
-        (await systems().PerpsMarket.getOrderMode(5)) + '00000000000000000000000000000000'
-      ) === 'BOOK'
-    );
+        (await systems().PerpsMarket.getOrderMode(accountId)) + '00000000000000000000000000000000'
+      );
+    // Neither the bootstrap accounts nor the 38 funded ones ever called setBookMode.
+    assert.equal(await mode(2), 'BOOK');
+    assert.equal(await mode(3), 'BOOK');
+    assert.equal(await mode(5), 'BOOK');
 
+    // The first set from the default is initialisation and takes effect at once; a switch
+    // after that is guarded by the grace window.
+    await systems().PerpsMarket.connect(trader1()).setBookMode(4, false);
+    assert.equal(await mode(4), 'ONCHAIN');
+    await systems().PerpsMarket.connect(trader1()).setBookMode(4, true);
+    assert.equal(await mode(4), 'RECENTLY_CHANGED');
     await fastForwardTo((await getTime(provider())) + 1000, provider());
-
-    assert(
-      ethers.utils.parseBytes32String(
-        (await systems().PerpsMarket.getOrderMode(3)) + '00000000000000000000000000000000'
-      ) === 'BOOK'
-    );
-    assert(
-      ethers.utils.parseBytes32String(
-        (await systems().PerpsMarket.getOrderMode(5)) + '00000000000000000000000000000000'
-      ) === 'BOOK'
-    );
+    assert.equal(await mode(4), 'BOOK');
   });
 
   describe('default-mode account (BOOK by default)', () => {
@@ -146,17 +96,7 @@ describe('Settle Orderbook order', () => {
     it('settles a book order for account 5 even though setBookMode was never called', async () => {
       // account 5 is funded (10_000 snxUSD) but never had setBookMode called on it.
       // With BOOK as the default order mode, settleBookOrders must accept it.
-      await systems()
-        .PerpsMarket.connect(keeper())
-        .settleBookOrders(ethMarketId, [
-          {
-            accountId: 5,
-            sizeDelta: bn(1),
-            orderPrice: bn(1050),
-            signedPriceData: '0x',
-            trackingCode: ethers.utils.formatBytes32String(''),
-          },
-        ]);
+      await settle([bookOrder(5, bn(1), bn(1050))]);
 
       const [, , size] = await systems().PerpsMarket.getOpenPosition(5, ethMarketId);
       assertBn.equal(size, bn(1));
@@ -165,31 +105,11 @@ describe('Settle Orderbook order', () => {
 
   it('fails when the orders are not increasing account id order', async () => {
     await assertRevert(
-      systems()
-        .PerpsMarket.connect(keeper())
-        .settleBookOrders(ethMarketId, [
-          {
-            accountId: 2,
-            sizeDelta: bn(1),
-            orderPrice: bn(1050),
-            signedPriceData: '0x',
-            trackingCode: ethers.utils.formatBytes32String(''),
-          },
-          {
-            accountId: 3,
-            sizeDelta: bn(3),
-            orderPrice: bn(1100),
-            signedPriceData: '0x',
-            trackingCode: ethers.utils.formatBytes32String(''),
-          },
-          {
-            accountId: 2,
-            sizeDelta: bn(-5),
-            orderPrice: bn(1300),
-            signedPriceData: '0x',
-            trackingCode: ethers.utils.formatBytes32String(''),
-          },
-        ]),
+      settle([
+        bookOrder(2, bn(1), bn(1050)),
+        bookOrder(3, bn(3), bn(1100)),
+        bookOrder(2, bn(-5), bn(1300)),
+      ]),
       'InvalidParameter("orders"',
       systems().PerpsMarket
     );
@@ -199,17 +119,7 @@ describe('Settle Orderbook order', () => {
   describe('1 order 1 account', async () => {
     before(restore);
     before('run orderbook order', async () => {
-      tx = await systems()
-        .PerpsMarket.connect(keeper())
-        .settleBookOrders(ethMarketId, [
-          {
-            accountId: 2,
-            sizeDelta: bn(1),
-            orderPrice: bn(1050),
-            signedPriceData: '0x',
-            trackingCode: ethers.utils.formatBytes32String(''),
-          },
-        ]);
+      tx = await settle([bookOrder(2, bn(1), bn(1050))]);
     });
 
     it('updates the account size', async () => {
@@ -235,19 +145,14 @@ describe('Settle Orderbook order', () => {
 
     describe('run another order', () => {
       before('run another orderbook order', async () => {
-        const orders = [];
-        for (let i = 0; i < 40; i++) {
-          orders.push({
-            accountId: i < 20 ? 2 : 2 + Math.floor(i),
-            sizeDelta: bn(i % 2 === 0 ? (i % 5) + 2 : -((i % 5) + 2)),
-            orderPrice: bn((i % 10) + 1100),
-            signedPriceData: '0x',
-            trackingCode: ethers.utils.formatBytes32String(''),
-          });
-        }
-        tx = await systems().PerpsMarket.connect(keeper()).settleBookOrders(ethMarketId, orders);
-        const waited = await tx.wait();
-        console.log('tx gas', waited.gasUsed);
+        const orders = Array.from({ length: 40 }, (_, i) =>
+          bookOrder(
+            i < 20 ? 2 : 2 + i,
+            bn(i % 2 === 0 ? (i % 5) + 2 : -((i % 5) + 2)),
+            bn((i % 10) + 1100)
+          )
+        );
+        tx = await settle(orders);
       });
 
       it('changes the account size again', async () => {
@@ -262,10 +167,10 @@ describe('Settle Orderbook order', () => {
         // the fees, each read at the skew the previous orders left, come to 48.609. Folded
         // into one change at the first order's price, the same batch charged fees only
         // (15.195) and the +99 stayed with the pool: 9999.16 + 99 - 48.609 = 10049.551.
-        // bootstrapTraders opts every trader account into ONCHAIN (the suite's legacy
-        // default, now that BOOK is the protocol default). Those two extra setBookMode txs
-        // open account 2's position a couple of blocks later, shifting accrued funding by a
-        // deterministic ~7e6 wei. Allow a tight 1e10-wei tolerance instead of exact.
+        // The accounts of this file are on the book from creation; the opening block of
+        // account 2's position still differs from the fixture that measured 10049.551 by a
+        // couple of blocks, which shifts accrued funding by a deterministic ~7e6 wei. Allow
+        // a tight 1e10-wei tolerance instead of exact.
         assertBn.near(amount, bn(10049.551), ethers.BigNumber.from('10000000000'));
       });
     });
@@ -274,31 +179,11 @@ describe('Settle Orderbook order', () => {
   describe('3 orders 1 account', async () => {
     before(restore);
     before('run orderbook order', async () => {
-      tx = await systems()
-        .PerpsMarket.connect(keeper())
-        .settleBookOrders(ethMarketId, [
-          {
-            accountId: 2,
-            sizeDelta: bn(1),
-            orderPrice: bn(1050),
-            signedPriceData: '0x',
-            trackingCode: ethers.utils.formatBytes32String(''),
-          },
-          {
-            accountId: 2,
-            sizeDelta: bn(3),
-            orderPrice: bn(1100),
-            signedPriceData: '0x',
-            trackingCode: ethers.utils.formatBytes32String(''),
-          },
-          {
-            accountId: 2,
-            sizeDelta: bn(-5),
-            orderPrice: bn(1300),
-            signedPriceData: '0x',
-            trackingCode: ethers.utils.formatBytes32String(''),
-          },
-        ]);
+      tx = await settle([
+        bookOrder(2, bn(1), bn(1050)),
+        bookOrder(2, bn(3), bn(1100)),
+        bookOrder(2, bn(-5), bn(1300)),
+      ]);
     });
 
     it('updates the account size', async () => {
@@ -321,31 +206,11 @@ describe('Settle Orderbook order', () => {
   describe('3 orders 2 accounts', async () => {
     before(restore);
     before('run orderbook order', async () => {
-      tx = await systems()
-        .PerpsMarket.connect(keeper())
-        .settleBookOrders(ethMarketId, [
-          {
-            accountId: 2,
-            sizeDelta: bn(1),
-            orderPrice: bn(1050),
-            signedPriceData: '0x',
-            trackingCode: ethers.utils.formatBytes32String(''),
-          },
-          {
-            accountId: 2,
-            sizeDelta: bn(3),
-            orderPrice: bn(1100),
-            signedPriceData: '0x',
-            trackingCode: ethers.utils.formatBytes32String(''),
-          },
-          {
-            accountId: 3,
-            sizeDelta: bn(-5),
-            orderPrice: bn(1300),
-            signedPriceData: '0x',
-            trackingCode: ethers.utils.formatBytes32String(''),
-          },
-        ]);
+      tx = await settle([
+        bookOrder(2, bn(1), bn(1050)),
+        bookOrder(2, bn(3), bn(1100)),
+        bookOrder(3, bn(-5), bn(1300)),
+      ]);
     });
 
     it('updates the account size', async () => {
@@ -371,17 +236,7 @@ describe('Settle Orderbook order', () => {
   describe('regression: Position.marketId after first book settlement', async () => {
     before(restore);
     before('run orderbook order for a brand-new account/market pair', async () => {
-      tx = await systems()
-        .PerpsMarket.connect(keeper())
-        .settleBookOrders(ethMarketId, [
-          {
-            accountId: 2,
-            sizeDelta: bn(1),
-            orderPrice: bn(1050),
-            signedPriceData: '0x',
-            trackingCode: ethers.utils.formatBytes32String(''),
-          },
-        ]);
+      tx = await settle([bookOrder(2, bn(1), bn(1050))]);
     });
 
     it('persists Position.marketId equal to the settled marketId', async () => {

@@ -194,6 +194,14 @@ Hardhat-стенд: `build-testable` генерирует из `cannonfile.test.
 `cannonfile.test.foundry.toml` (скрипт `scripts/foundry-cannonfile.ts`) и пишет `script/Deploy.sol`
 через `cannon:build --write-script`. Оба файла — результат сборки, в git их нет.
 
+Сценарий поверх протокола — пул, обеспечение, рынки, фондирование трейдеров, аккаунты в книге —
+описан один раз в `markets/perps-market/test/stand.json` (целые числа в человеческих единицах,
+доли и комиссии в bps). Hardhat-адаптер (`test/bootstrap/`) импортирует его как модуль, Foundry
+(`tests/Bootstrap.t.sol`) читает через `stdJson`; пять BOOK-тестов и оба Foundry-теста торгуют
+рынок и аккаунты, которые он называет. Словарь книги — `bookOrder`, `settleBook`,
+`openBookAccount`, `openBookPosition` — есть в обоих адаптерах под одними именами
+(`test/helpers/book.ts` и `tests/Bootstrap.t.sol`).
+
 ```bash
 cd markets/perps-market
 pnpm build-testable            # Hardhat-пакет + ~1 мин на генерацию script/Deploy.sol

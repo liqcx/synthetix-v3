@@ -1,0 +1,25 @@
+{
+  "collateral": {
+    "price": 2000,
+    "issuanceRatioBps": 50000,
+    "liquidationRatioBps": 15000,
+    "liquidationReward": 20,
+    "minDelegation": 20
+  },
+  "pool": { "id": 1, "lpStake": 1000 },
+  "marketDefaults": { "maxMarketSize": 10000000, "strictPriceTolerance": 60 },
+  "markets": [
+    {
+      "id": 25,
+      "name": "Ether",
+      "symbol": "snxETH",
+      "price": 1000,
+      "skewScale": 100000,
+      "maxFundingVelocity": 10,
+      "makerFeeBps": 3,
+      "takerFeeBps": 8
+    }
+  ],
+  "trader": { "stake": 100000, "pool": 2 },
+  "bookAccounts": [2, 3]
+}

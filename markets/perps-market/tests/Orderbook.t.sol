@@ -21,11 +21,12 @@ contract OrderbookTest is BootstrapTest {
     uint128 constant ACCOUNT_ID_25_MATCHES = 17014118346046923173168730371508210;
 
     uint256 constant MARGIN = 20_000e18;
-    uint256 PRICE = ETH_PRICE;
+    uint256 PRICE;
 
     function setUp() public override {
         super.setUp();
         marketId = ethMarketId;
+        PRICE = ETH_PRICE;
 
         for (uint128 i = 0; i < 10; i++) {
             bookTrader(trader1, ACCOUNT_ID_10_MATCHES + i, MARGIN);
@@ -64,16 +65,18 @@ contract OrderbookTest is BootstrapTest {
     }
 
     function testSettleBookOrders_1_Match() public {
-        uint128 alice = bookTrader(trader1, MARGIN);
-        uint128 bob = bookTrader(trader2, MARGIN);
+        // The description's two book accounts trade with each other.
+        (uint128 buyer, uint128 seller) = (bookAccounts[0], bookAccounts[1]);
+        depositMargin(trader1, buyer, MARGIN);
+        depositMargin(trader2, seller, MARGIN);
 
         IBookOrderModule.BookOrder[] memory orders = new IBookOrderModule.BookOrder[](2);
-        orders[0] = bookOrder(alice, 1e18, PRICE);
-        orders[1] = bookOrder(bob, -1e18, PRICE);
+        orders[0] = bookOrder(buyer, 1e18, PRICE);
+        orders[1] = bookOrder(seller, -1e18, PRICE);
         settleBook(marketId, orders);
 
-        assertEq(positionSize(alice), 1e18, "Alice's position size incorrect");
-        assertEq(positionSize(bob), -1e18, "Bob's position size incorrect");
+        assertEq(positionSize(buyer), 1e18, "buyer's position size incorrect");
+        assertEq(positionSize(seller), -1e18, "seller's position size incorrect");
     }
 
     function testSettleBookOrders_10_Matches() public {

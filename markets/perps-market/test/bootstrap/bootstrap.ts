@@ -101,6 +101,8 @@ type BootstrapArgs = {
   })[];
   perpsMarkets: PerpsMarketData;
   traderAccountIds: Array<number>;
+  /** Trader accounts that stay on the book (the protocol default) instead of opting into ONCHAIN. */
+  bookAccountIds?: Array<number>;
   liquidationGuards?: {
     minLiquidationReward: ethers.BigNumber;
     minKeeperProfitRatioD18: ethers.BigNumber;
@@ -144,6 +146,7 @@ export function bootstrapMarkets(data: BootstrapArgs) {
     provider,
     owner,
     accountIds: data.traderAccountIds,
+    bookAccountIds: data.bookAccountIds,
   });
 
   let keeperCostOracleNode: MockGasPriceNode;
