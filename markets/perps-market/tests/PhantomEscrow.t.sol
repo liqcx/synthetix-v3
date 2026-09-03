@@ -4,13 +4,6 @@ pragma solidity >=0.8.11 <0.9.0;
 /* solhint-disable */
 
 import {BootstrapTest} from "./Bootstrap.t.sol";
-import {IBookOrderModule} from "../contracts/interfaces/IBookOrderModule.sol";
-import {BookOrderModule} from "../contracts/modules/BookOrderModule.sol";
-import {PerpsAccountModule} from "../contracts/modules/PerpsAccountModule.sol";
-import {PerpsMarketFactoryModule} from "../contracts/modules/PerpsMarketFactoryModule.sol";
-import {PerpsMarketModule} from "../contracts/modules/PerpsMarketModule.sol";
-import {GlobalPerpsMarketModule} from "../contracts/modules/GlobalPerpsMarketModule.sol";
-import {console} from "forge-std/console.sol";
 
 /**
  * @title Phantom snxUSD escrow repro
@@ -61,7 +54,6 @@ contract PhantomEscrowTest is BootstrapTest {
     uint128 churner; // opens/closes a tiny position repeatedly
 
     uint256 constant DEPOSIT_PER_ACCOUNT = 100_000e18;
-    uint256 constant ETH_PRICE = 2400e18;
 
     uint256 constant CHURN_ROUND_TRIPS = 5;
     uint256 constant CHURN_HOLD_SECONDS = 12;
@@ -74,8 +66,6 @@ contract PhantomEscrowTest is BootstrapTest {
         super.setUp();
         marketIdUnderTest = ethMarketId;
 
-        _refreshPerpsModulesFromSource();
-
         vm.startPrank(perps.owner());
         // Funding on, fees off — so every dollar that shows up in escrow is unambiguously funding.
         perps.setFundingParameters(marketIdUnderTest, 1_000e18, 3e18);
@@ -87,73 +77,11 @@ contract PhantomEscrowTest is BootstrapTest {
         perps.setLockedOiRatio(marketIdUnderTest, 0);
         vm.stopPrank();
 
-        skewMaker = _newFundedBookAccount(trader1, DEPOSIT_PER_ACCOUNT);
-        churner = _newFundedBookAccount(trader2, DEPOSIT_PER_ACCOUNT);
+        skewMaker = bookTrader(trader1, DEPOSIT_PER_ACCOUNT);
+        churner = bookTrader(trader2, DEPOSIT_PER_ACCOUNT);
     }
 
     // ---------------------------------------------------------------- helpers
-
-    /**
-     * @dev `script/Deploy.sol` is a Cannon-generated script that replays **frozen runtime
-     *      bytecode** captured at some earlier build. It therefore does NOT contain the current
-     *      `contracts/` sources — in particular it predates f06b2c3b ("persist Position.marketId
-     *      in settleBookOrders"), so positions written by the deployed BookOrderModule keep
-     *      `marketId == 0` and `Position.getPnl` silently resolves funding against the
-     *      uninitialised market 0 (skewScale 0 -> funding always 0). That masks the bug entirely.
-     *
-     *      Synthetix router modules are stateless (all state lives in namespaced storage slots on
-     *      the proxy) and have no constructors, so swapping the runtime code of the module
-     *      addresses in place is a faithful way to run the *current* sources against the deployed
-     *      system. Only perps-market modules are swapped; core/oracle-manager stay as deployed.
-     */
-    function _refreshPerpsModulesFromSource() internal {
-        vm.etch(deployer.getAddress("BookOrderModule"), address(new BookOrderModule()).code);
-        vm.etch(deployer.getAddress("PerpsAccountModule"), address(new PerpsAccountModule()).code);
-        vm.etch(
-            deployer.getAddress("PerpsMarketFactoryModule"),
-            address(new PerpsMarketFactoryModule()).code
-        );
-        vm.etch(deployer.getAddress("PerpsMarketModule"), address(new PerpsMarketModule()).code);
-        vm.etch(
-            deployer.getAddress("GlobalPerpsMarketModule"),
-            address(new GlobalPerpsMarketModule()).code
-        );
-    }
-
-    function _newFundedBookAccount(
-        address owner,
-        uint256 amount
-    ) internal returns (uint128 accountId) {
-        vm.startPrank(owner);
-        accountId = perps.createAccount();
-        perps.setBookMode(accountId, true);
-        usdToken.approve(address(perps), amount);
-        perps.modifyCollateral(accountId, collateralId, int256(amount));
-        vm.stopPrank();
-    }
-
-    /// @dev Settles a single-account book order. BookOrderModule performs no margin / capacity
-    ///      checks, so one leg is enough — the pool is the counterparty.
-    function _settleOne(uint128 accountId, int128 sizeDelta) internal {
-        IBookOrderModule.BookOrder[] memory orders = new IBookOrderModule.BookOrder[](1);
-        orders[0] = IBookOrderModule.BookOrder({
-            accountId: accountId,
-            sizeDelta: sizeDelta,
-            orderPrice: ETH_PRICE,
-            signedPriceData: "",
-            trackingCode: bytes32(0)
-        });
-        perps.settleBookOrders(marketIdUnderTest, orders);
-    }
-
-    /// @dev Advances time while keeping the oracle price pinned, so no price PnL is generated.
-    function _warp(uint256 secs) internal {
-        vm.warp(block.timestamp + secs);
-        ethMockAggregator.mockSetCurrentPrice(ETH_PRICE, 18);
-        superMockAggregator.mockSetCurrentPrice(1e18, 18);
-        secondSuperAggregator.mockSetCurrentPrice(1e18, 18);
-        mockAggregator.mockSetCurrentPrice(1e18, 18);
-    }
 
     /// @dev Reads PerpsMarket.Data storage directly (no getter exists for the funding accumulator).
     ///      Slot layout: 0 name, 1 symbol, 2 id, 3 skew, 4 size, 5 lastFundingRate,
@@ -207,11 +135,11 @@ contract PhantomEscrowTest is BootstrapTest {
      */
     function test_freshPositionReportsPreExistingFunding() public {
         // Let the market accrue funding for 30 days with a one-sided skew.
-        _settleOne(skewMaker, 5e18);
-        _warp(30 days);
+        openBookPosition(skewMaker, marketIdUnderTest, 5e18, ETH_PRICE);
+        warp(30 days);
 
         // Brand-new position for the churner, opened at this instant.
-        _settleOne(churner, -0.01e18);
+        openBookPosition(churner, marketIdUnderTest, -0.01e18, ETH_PRICE);
 
         (, int256 accruedFunding, int128 positionSize, ) = perps.getOpenPosition(
             churner,
@@ -248,8 +176,8 @@ contract PhantomEscrowTest is BootstrapTest {
      */
     function test_escrowGrowsWithoutAnySnxUsdEnteringTheSystem() public {
         // Build up a funding integral: one-sided skew held for 30 days.
-        _settleOne(skewMaker, 5e18);
-        _warp(30 days);
+        openBookPosition(skewMaker, marketIdUnderTest, 5e18, ETH_PRICE);
+        warp(30 days);
 
         uint256 supplyBefore = usdToken.totalSupply();
         uint256 escrowBefore = perps.globalCollateralValue(collateralId);
@@ -265,10 +193,10 @@ contract PhantomEscrowTest is BootstrapTest {
         // Short round trips. Each close realizes the FULL 30-day funding integral again, because
         // the position's funding anchor was never advanced.
         for (uint256 i = 0; i < CHURN_ROUND_TRIPS; i++) {
-            _settleOne(churner, -int128(uint128(CHURN_SIZE))); // open short
-            _warp(CHURN_HOLD_SECONDS);
-            _settleOne(churner, int128(uint128(CHURN_SIZE))); // close
-            _warp(CHURN_HOLD_SECONDS);
+            openBookPosition(churner, marketIdUnderTest, -int128(uint128(CHURN_SIZE)), ETH_PRICE); // open short
+            warp(CHURN_HOLD_SECONDS);
+            openBookPosition(churner, marketIdUnderTest, int128(uint128(CHURN_SIZE)), ETH_PRICE); // close
+            warp(CHURN_HOLD_SECONDS);
         }
 
         uint256 supplyAfter = usdToken.totalSupply();
@@ -351,8 +279,8 @@ contract PhantomEscrowTest is BootstrapTest {
      * withdraw — purely from churn, with no snxUSD ever entering or leaving the system.
      */
     function test_phantomEscrowLocksLpWithdrawals() public {
-        _settleOne(skewMaker, 5e18);
-        _warp(30 days);
+        openBookPosition(skewMaker, marketIdUnderTest, 5e18, ETH_PRICE);
+        warp(30 days);
 
         uint256 supplyBefore = usdToken.totalSupply();
         int256 netDepositedBefore = _netDepositedSnxUsd();
@@ -366,10 +294,10 @@ contract PhantomEscrowTest is BootstrapTest {
         );
 
         for (uint256 i = 0; i < 8; i++) {
-            _settleOne(churner, -500e18);
-            _warp(12);
-            _settleOne(churner, 500e18);
-            _warp(12);
+            openBookPosition(churner, marketIdUnderTest, -500e18, ETH_PRICE);
+            warp(12);
+            openBookPosition(churner, marketIdUnderTest, 500e18, ETH_PRICE);
+            warp(12);
         }
 
         emit log_named_uint("escrow after", perps.globalCollateralValue(collateralId));
