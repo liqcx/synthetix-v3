@@ -8,23 +8,6 @@ Synthetix v3 monorepo — modular smart contract protocol for on-chain derivativ
 
 ## Build & Test Commands
 
-### Root-level (all packages)
-
-```bash
-pnpm build                    # Full build (topological order)
-pnpm test                     # All tests in parallel
-pnpm lint                     # prettier + eslint + solhint
-pnpm lint:fix                 # Auto-fix all linting
-```
-
-### Single package
-
-```bash
-pnpm --filter @synthetixio/perps-market test
-pnpm --filter @synthetixio/main test
-pnpm --filter @synthetixio/spot-market test
-```
-
 ### Inside a package directory
 
 ```bash
@@ -73,22 +56,6 @@ State is defined as `library X { struct Data { ... } }` with `X.load(id)` return
 - **Always use** `CANNON_REGISTRY_PRIORITY=local` when building/testing locally
 - **Always use** `pnpm exec cannon` (not global cannon) to avoid version mismatches
 
-### Package Dependency Graph
-
-```
-protocol/synthetix (@synthetixio/main)     ← core protocol
-protocol/oracle-manager                     ← composable oracle system
-markets/perps-market                        ← perpetual futures (extends core)
-markets/spot-market                         ← spot synths (extends core)
-markets/treasury-market                     ← treasury market
-markets/bfp-market                          ← ETH L1 perp (currently disabled)
-utils/common-config                         ← shared hardhat config for all packages
-utils/core-contracts                        ← base contracts (ERC20, ERC721, proxies)
-utils/core-modules                          ← reusable modules (OwnerModule, UpgradeModule)
-utils/core-utils                            ← JS/TS test utilities
-utils/hardhat-storage                       ← storage collision detection plugin
-```
-
 ## Testing Patterns
 
 ### Hardhat/Mocha Tests (most packages)
@@ -105,16 +72,6 @@ utils/hardhat-storage                       ← storage collision detection plug
 - Use `CannonDeploy` script for test deployment
 - `BootstrapTest` base contract extends forge-std `Test`
 
-## Toolchain
-
-- **pnpm 11** workspaces with Lerna Lite for versioning/publishing
-- **Hardhat** for Solidity compilation and integration testing
-- **Cannon** (`hardhat-cannon`) for deployment packaging and reproducible builds
-- **Foundry** (forge) for Solidity-level tests in select packages
-- **TypeChain** generating ethers-v5 types
-- **Solidity** 0.8.34 uniform, evmVersion: prague, optimizer 200 runs (10_000 for perps-market Foundry)
-- **Node** 24.14.0 (pnpm 11 requires ≥22.13; migrated from 20.17)
-
 ## Fork Maintenance
 
 Permanent hard-fork of `Synthetixio/synthetix-v3` (no upstream sync in ~19 months; protocol-diverged — solc 0.8.34/prague, Bun runtime, custom `BookOrderModule`, now the pnpm migration). The `upstream` remote is kept for **cherry-pick-only** security/protocol fixes — never a full merge. Keep package-manager / CI changes in isolated commits so targeted cherry-picks stay low-conflict.
@@ -128,7 +85,6 @@ Permanent hard-fork of `Synthetixio/synthetix-v3` (no upstream sync in ~19 month
 - Module contracts implement their corresponding interface (`IXxxModule`)
 - Storage libraries use the `load()` pattern returning storage struct references
 - Feature flags control access via `FeatureFlag.ensureAccessToFeature()`
-- Prettier: 100 char width, single quotes, trailing commas (JS/TS); tab width 4 (Solidity)
 - ESLint: no `.only()` in tests (enforced by `no-only-tests` plugin)
 
 ## BookOrderModule (perps-orderbook branch)
