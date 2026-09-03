@@ -1,7 +1,7 @@
 import assert from 'assert/strict';
 import { ethers } from 'ethers';
 import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
-import { openPosition } from '../../helpers';
+import { bookOrder, openBookAccount, openPosition, settleBook, BookOrder } from '../../helpers';
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
 import { fastForwardTo, getTime } from '@synthetixio/core-utils/utils/hardhat/rpc';
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
@@ -54,6 +54,7 @@ describe('Position change', () => {
       },
     ],
     traderAccountIds: [2, 3, 4],
+    bookAccountIds: [3],
   });
 
   const SKEW_MOVER = 2; // ONCHAIN, pushes the funding integral away from zero
@@ -76,7 +77,6 @@ describe('Position change', () => {
     const perps = systems().PerpsMarket;
     await perps.connect(trader1()).modifyCollateral(SKEW_MOVER, 0, bn(100_000));
     await perps.connect(trader2()).modifyCollateral(BOOK_SUBJECT, 0, bn(1_000));
-    await perps.connect(trader2()).setBookMode(BOOK_SUBJECT, true);
     await perps.connect(trader3()).modifyCollateral(ASYNC_SUBJECT, 0, bn(1_000));
 
     const extraBookAccounts: Array<[number, ethers.BigNumber]> = [
@@ -85,10 +85,8 @@ describe('Position change', () => {
       [REANCHOR_SUBJECT, bn(1_000)],
       [FULL_LIQUIDATION_SUBJECT, bn(170)],
     ];
-    for (const [accountId, collateral] of extraBookAccounts) {
-      await perps.connect(trader2())['createAccount(uint128)'](accountId);
-      await perps.connect(trader2()).modifyCollateral(accountId, 0, collateral);
-      await perps.connect(trader2()).setBookMode(accountId, true);
+    for (const [accountId, snxUsd] of extraBookAccounts) {
+      await openBookAccount({ systems, trader: trader2(), accountId, snxUsd });
     }
   });
 
@@ -109,16 +107,11 @@ describe('Position change', () => {
 
   const restore = snapshotCheckpoint(provider);
 
-  const bookOrder = (accountId: number, sizeDelta: ethers.BigNumber) => ({
-    accountId,
-    sizeDelta,
-    orderPrice: _PRICE,
-    signedPriceData: '0x',
-    trackingCode: ethers.constants.HashZero,
-  });
-
-  const settleBook = (orders: ReturnType<typeof bookOrder>[]) =>
-    systems().PerpsMarket.connect(keeper()).settleBookOrders(marketId, orders);
+  // Bindings, not copies: every book order of this file fills at the oracle price.
+  const order = (accountId: number, sizeDelta: ethers.BigNumber) =>
+    bookOrder(accountId, sizeDelta, _PRICE);
+  const settle = (orders: BookOrder[]) =>
+    settleBook({ systems, keeper: keeper(), marketId, orders });
 
   const assertPositionChanged = async (accountId: number, expectedSize: ethers.BigNumber) => {
     const { accruedFunding, positionSize, owedInterest } =
@@ -157,7 +150,7 @@ describe('Position change', () => {
   describe('book settlement on a fresh account/market pair', () => {
     before(restore);
     before('settle one book order', async () => {
-      await settleBook([bookOrder(BOOK_SUBJECT, bn(1))]);
+      await settle([order(BOOK_SUBJECT, bn(1))]);
     });
 
     it('changes the position and re-anchors it', async () => {
@@ -168,7 +161,7 @@ describe('Position change', () => {
   describe('book settlement with a net-zero size change on a fresh pair', () => {
     before(restore);
     before('settle +1 and -1 for the same account', async () => {
-      await settleBook([bookOrder(NET_ZERO_SUBJECT, bn(1)), bookOrder(NET_ZERO_SUBJECT, bn(-1))]);
+      await settle([order(NET_ZERO_SUBJECT, bn(1)), order(NET_ZERO_SUBJECT, bn(-1))]);
     });
 
     it('leaves the account without an open market', async () => {
@@ -179,7 +172,7 @@ describe('Position change', () => {
   describe('book settlement that only re-anchors an existing position', () => {
     before(restore);
     before('open a position and let a day of funding accrue', async () => {
-      await settleBook([bookOrder(REANCHOR_SUBJECT, bn(2))]);
+      await settle([order(REANCHOR_SUBJECT, bn(2))]);
       await fastForwardTo((await getTime(provider())) + _SECONDS_IN_DAY, provider());
       const { accruedFunding } = await systems().PerpsMarket.getOpenPosition(
         REANCHOR_SUBJECT,
@@ -188,7 +181,7 @@ describe('Position change', () => {
       assert(accruedFunding.abs().gt(bn(1)), `accrued funding ${accruedFunding}`);
     });
     before('settle a net-zero batch', async () => {
-      await settleBook([bookOrder(REANCHOR_SUBJECT, bn(1)), bookOrder(REANCHOR_SUBJECT, bn(-1))]);
+      await settle([order(REANCHOR_SUBJECT, bn(1)), order(REANCHOR_SUBJECT, bn(-1))]);
     });
 
     it('keeps the size and re-anchors the position', async () => {
@@ -220,7 +213,7 @@ describe('Position change', () => {
   describe('partial liquidation', () => {
     before(restore);
     before('open 150 OP through the book, then halve the price', async () => {
-      await settleBook([bookOrder(LIQUIDATION_SUBJECT, bn(150))]);
+      await settle([order(LIQUIDATION_SUBJECT, bn(150))]);
       await market.aggregator().mockSetCurrentPrice(bn(5));
     });
     before('liquidate: the window caps the liquidation at 100 OP', async () => {
@@ -235,7 +228,7 @@ describe('Position change', () => {
   describe('full liquidation', () => {
     before(restore);
     before('open 50 OP through the book, then halve the price', async () => {
-      await settleBook([bookOrder(FULL_LIQUIDATION_SUBJECT, bn(50))]);
+      await settle([order(FULL_LIQUIDATION_SUBJECT, bn(50))]);
       await market.aggregator().mockSetCurrentPrice(bn(5));
     });
     before('liquidate: 50 OP fits inside the window', async () => {
