@@ -93,6 +93,13 @@ same price twice, as it already does for `applyPositionChange`.
 > Amended 2026-09-03 (review candidate 9): the book path now reads the oracle once per batch and
 > passes it as `markPrice`; only the fill is the book's own. MED-5 closes there.
 
+> Amended 2026-09-03 (CRIT-1, deviation bound): the book path also bounds every order's price to
+> the market's `maxBookPriceDeviationD18` of that oracle price, before any fold or gate, and
+> reverts the batch with `BookPriceDeviationExceeded(accountId, orderPrice, markPrice, bound)`.
+> The bound stays in the module, not the gate: an async fill is derived from the oracle price and
+> has its own limit, the trader's `acceptablePrice`. Zero is no bound, which every existing
+> fixture relies on. Pinned by `test/integration/Orders/BookOrderPriceDeviation.test.ts`.
+
 The gate checks, in this order, and reverts with the errors the async path has always raised:
 
 | # | Invariant | Error |
