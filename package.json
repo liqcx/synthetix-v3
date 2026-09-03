@@ -75,6 +75,7 @@
     "@typescript-eslint/parser": "^8.4.0",
     "@usecannon/cli": "2.25.1",
     "eslint": "^9.9.1",
+    "eslint-plugin-progress": "workspace:*",
     "eslint-plugin-no-only-tests": "^3.1.0",
     "forge-std": "github:foundry-rs/forge-std#v1.9.7",
     "globals": "^15.9.0",
