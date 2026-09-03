@@ -154,38 +154,6 @@ library GlobalPerpsMarketConfiguration {
         return MathUtil.min(MathUtil.max(minCap, keeperRewards + costOfExecutionInUsd), maxCap);
     }
 
-    function collectFees(
-        Data storage self,
-        uint256 orderFees,
-        address referrer,
-        PerpsMarketFactory.Data storage factory
-    ) internal returns (uint256 referralFees, uint256 feeCollectorFees) {
-        referralFees = _collectReferrerFees(self, orderFees, referrer, factory);
-        uint256 remainingFees = orderFees - referralFees;
-
-        if (remainingFees == 0 || self.feeCollector == IFeeCollector(address(0))) {
-            return (referralFees, 0);
-        }
-
-        uint256 feeCollectorQuote = self.feeCollector.quoteFees(
-            factory.perpsMarketId,
-            remainingFees,
-            ERC2771Context._msgSender()
-        );
-
-        if (feeCollectorQuote == 0) {
-            return (referralFees, 0);
-        }
-
-        if (feeCollectorQuote > remainingFees) {
-            feeCollectorQuote = remainingFees;
-        }
-
-        factory.withdrawMarketUsd(address(self.feeCollector), feeCollectorQuote);
-
-        return (referralFees, feeCollectorQuote);
-    }
-
     function calculateCollateralLiquidateReward(
         Data storage self,
         uint256 notionalValue
@@ -203,23 +171,6 @@ library GlobalPerpsMarketConfiguration {
             self.supportedCollateralTypes.add(collateralId.to256());
         } else if (maxCollateralAmount == 0 && isSupportedCollateral) {
             self.supportedCollateralTypes.remove(collateralId.to256());
-        }
-    }
-
-    function _collectReferrerFees(
-        Data storage self,
-        uint256 fees,
-        address referrer,
-        PerpsMarketFactory.Data storage factory
-    ) private returns (uint256 referralFeesSent) {
-        if (fees == 0 || referrer == address(0)) {
-            return 0;
-        }
-
-        uint256 referrerShareRatio = self.referrerShare[referrer];
-        if (referrerShareRatio > 0) {
-            referralFeesSent = fees.mulDecimal(referrerShareRatio);
-            factory.withdrawMarketUsd(referrer, referralFeesSent);
         }
     }
 }

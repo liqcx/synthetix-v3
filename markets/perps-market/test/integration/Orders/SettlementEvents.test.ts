@@ -3,7 +3,7 @@ import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber'
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
 import { ethers } from 'ethers';
 import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
-import { bookOrder, settleBook } from '../../helpers';
+import { bookOrder, openPosition, settleBook } from '../../helpers';
 
 const PRICE = bn(1000);
 
@@ -50,19 +50,29 @@ const REFERRER_SHARE = bn(0.1);
 // the async door and on the book door, and `MarketUpdated.sizeDelta` must be the change in
 // open interest on both doors and on liquidation.
 describe('Settlement events', () => {
-  const { systems, perpsMarkets, provider, trader1, trader2, trader3, keeper, owner, signers } =
-    bootstrapMarkets({
-      liquidationGuards: {
-        minLiquidationReward: bn(5),
-        minKeeperProfitRatioD18: bn(0),
-        maxLiquidationReward: bn(1000),
-        maxKeeperScalingRatioD18: bn(0),
-      },
-      synthMarkets: [],
-      perpsMarkets: [flatMarket, cappedMarket],
-      traderAccountIds: [ASYNC, BOOK, SHORT],
-      bookAccountIds: [BOOK, SHORT],
-    });
+  const {
+    systems,
+    perpsMarkets,
+    provider,
+    trader1,
+    trader2,
+    trader3,
+    keeper,
+    owner,
+    signers,
+    superMarketId,
+  } = bootstrapMarkets({
+    liquidationGuards: {
+      minLiquidationReward: bn(5),
+      minKeeperProfitRatioD18: bn(0),
+      maxLiquidationReward: bn(1000),
+      maxKeeperScalingRatioD18: bn(0),
+    },
+    synthMarkets: [],
+    perpsMarkets: [flatMarket, cappedMarket],
+    traderAccountIds: [ASYNC, BOOK, SHORT],
+    bookAccountIds: [BOOK, SHORT],
+  });
 
   let flat: PerpsMarket, capped: PerpsMarket;
   let referrer: ethers.Signer;
@@ -115,6 +125,19 @@ describe('Settlement events', () => {
     return found;
   };
 
+  // snxUSD transfers the transaction made to `to`.
+  const usdTransfersTo = async (tx: ethers.ContractTransaction, to: string) => {
+    const receipt = await receiptOf(tx);
+    const amounts: ethers.BigNumber[] = [];
+    for (const log of receipt.logs) {
+      if (log.address.toLowerCase() !== systems().USD.address.toLowerCase()) continue;
+      const parsed = systems().USD.interface.parseLog(log);
+      // the amount by position: the core's ERC20 names it `amount`, others `value`
+      if (parsed.name === 'Transfer' && parsed.args.to === to) amounts.push(parsed.args[2]);
+    }
+    return amounts;
+  };
+
   const settle = (accountId: number, sizeDeltas: ethers.BigNumber[], market: PerpsMarket = flat) =>
     settleBook({
       systems,
@@ -124,6 +147,94 @@ describe('Settlement events', () => {
         bookOrder(accountId, sizeDelta, market === flat ? PRICE : bn(10))
       ),
     });
+
+  describe('the async door', () => {
+    before(restore);
+
+    let settled: ethers.utils.Result;
+    let collectorBefore: ethers.BigNumber, referrerBefore: ethers.BigNumber;
+    let marketBefore: ethers.BigNumber;
+
+    before('account 2 opens 10 ETH with a referrer', async () => {
+      collectorBefore = await systems().USD.balanceOf(systems().FeeCollectorMock.address);
+      referrerBefore = await systems().USD.balanceOf(await referrer.getAddress());
+      marketBefore = await systems().Core.getWithdrawableMarketUsd(superMarketId());
+      const { settleTx } = await openPosition({
+        systems,
+        provider,
+        trader: trader1(),
+        accountId: ASYNC,
+        keeper: keeper(),
+        marketId: flat.marketId(),
+        sizeDelta: bn(10),
+        settlementStrategyId: flat.strategyId(),
+        price: PRICE,
+        referrer: await referrer.getAddress(),
+      });
+      [settled] = await eventsNamed(settleTx, 'OrderSettled');
+    });
+
+    // 10 ETH at 1000 as taker: 8 of order fee; the strategy's reward of 5 on top of it
+    it('OrderSettled: the account paid the order fee and the settlement reward', () => {
+      assertBn.equal(settled.totalFees, bn(13));
+      assertBn.equal(settled.settlementReward, bn(5));
+    });
+
+    it('OrderSettled: the referrer got a tenth of the order fee, the collector a quarter of the rest', () => {
+      assertBn.equal(settled.referralFees, bn(0.8));
+      assertBn.equal(settled.collectedFees, bn(1.8));
+    });
+
+    it('the shares left the market for the referrer, the collector and the keeper', async () => {
+      const referrerAfter = await systems().USD.balanceOf(await referrer.getAddress());
+      const collectorAfter = await systems().USD.balanceOf(systems().FeeCollectorMock.address);
+      const marketAfter = await systems().Core.getWithdrawableMarketUsd(superMarketId());
+      assertBn.equal(referrerAfter.sub(referrerBefore), bn(0.8));
+      assertBn.equal(collectorAfter.sub(collectorBefore), bn(1.8));
+      assertBn.equal(marketBefore.sub(marketAfter), bn(7.6));
+    });
+  });
+
+  describe('the book door', () => {
+    before(restore);
+
+    let tx: ethers.ContractTransaction;
+    let legs: ethers.utils.Result[];
+    let collectorBefore: ethers.BigNumber, marketBefore: ethers.BigNumber;
+
+    before('account 3 settles two orders in one batch', async () => {
+      collectorBefore = await systems().USD.balanceOf(systems().FeeCollectorMock.address);
+      marketBefore = await systems().Core.getWithdrawableMarketUsd(superMarketId());
+      tx = await settle(BOOK, [bn(10), bn(5)]);
+      legs = await eventsNamed(tx, 'OrderSettled');
+    });
+
+    // 10 then 5 ETH at 1000, both as taker: 8 and 4 of order fee; no keeper, no referrer
+    it('OrderSettled: each order paid its own fee and nothing else', () => {
+      assert.equal(legs.length, 2);
+      assertBn.equal(legs[0].totalFees, bn(8));
+      assertBn.equal(legs[1].totalFees, bn(4));
+      for (const leg of legs) {
+        assertBn.equal(leg.settlementReward, 0);
+        assertBn.equal(leg.referralFees, 0);
+      }
+    });
+
+    it("OrderSettled: each order carries the collector's quote for it", () => {
+      assertBn.equal(legs[0].collectedFees, bn(2));
+      assertBn.equal(legs[1].collectedFees, bn(1));
+    });
+
+    it("the collector received the sum of the orders' quotes, in one transfer", async () => {
+      const collectorAfter = await systems().USD.balanceOf(systems().FeeCollectorMock.address);
+      const marketAfter = await systems().Core.getWithdrawableMarketUsd(superMarketId());
+      assertBn.equal(collectorAfter.sub(collectorBefore), bn(3));
+      assertBn.equal(marketBefore.sub(marketAfter), bn(3));
+      const transfers = await usdTransfersTo(tx, systems().FeeCollectorMock.address);
+      assert.equal(transfers.length, 1);
+      assertBn.equal(transfers[0], bn(3));
+    });
+  });
 
   describe('MarketUpdated.sizeDelta is the change in open interest', () => {
     before(restore);
