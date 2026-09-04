@@ -4,14 +4,12 @@ pragma solidity >=0.8.11 <0.9.0;
 import {DecimalMath} from "@synthetixio/core-contracts/contracts/utils/DecimalMath.sol";
 import {ParameterError} from "@synthetixio/core-contracts/contracts/errors/ParameterError.sol";
 import {FeatureFlag} from "@synthetixio/core-modules/contracts/storage/FeatureFlag.sol";
-import {Account} from "@synthetixio/main/contracts/storage/Account.sol";
-import {AccountRBAC} from "@synthetixio/main/contracts/storage/AccountRBAC.sol";
 import {IBookOrderModule} from "../interfaces/IBookOrderModule.sol";
 import {IAccountEvents} from "../interfaces/IAccountEvents.sol";
 import {IMarketEvents} from "../interfaces/IMarketEvents.sol";
 import {PerpsMarket} from "../storage/PerpsMarket.sol";
 import {PerpsMarketConfiguration} from "../storage/PerpsMarketConfiguration.sol";
-import {PerpsAccount} from "../storage/PerpsAccount.sol";
+import {OrderMode} from "../storage/OrderMode.sol";
 import {PerpsPrice} from "../storage/PerpsPrice.sol";
 import {Settlement} from "../storage/Settlement.sol";
 import {Flags} from "../utils/Flags.sol";
@@ -21,43 +19,8 @@ import {Flags} from "../utils/Flags.sol";
  * @dev See IBookOrderModule.
  */
 contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
-    using PerpsAccount for PerpsAccount.Data;
     using PerpsMarket for PerpsMarket.Data;
     using DecimalMath for uint256;
-
-    event AccountOrderModeChanged(uint128 accountId, bytes16 newMode);
-
-    error IncorrectAccountMode(uint128 accountId, bytes16 mode);
-
-    /**
-     * @inheritdoc IBookOrderModule
-     */
-    function setBookMode(uint128 accountId, bool useBook) external override {
-        FeatureFlag.ensureAccessToFeature(Flags.PERPS_SYSTEM);
-
-        Account.exists(accountId);
-
-        // Check ERC2771Context._msgSender() can commit order for commitment.accountId
-        Account.loadAccountAndValidatePermission(
-            accountId,
-            AccountRBAC._PERPS_COMMIT_ASYNC_ORDER_PERMISSION
-        );
-
-        PerpsAccount.Data storage perpsAccount = PerpsAccount.load(accountId);
-
-        bytes16 newMode = useBook ? bytes16("BOOK") : bytes16("ONCHAIN");
-        perpsAccount.setOrderMode(newMode);
-
-        emit AccountOrderModeChanged(accountId, newMode);
-    }
-
-    /**
-     * @inheritdoc IBookOrderModule
-     */
-    function getOrderMode(uint128 accountId) external view override returns (bytes16) {
-        PerpsAccount.Data storage perpsAccount = PerpsAccount.load(accountId);
-        return perpsAccount.getOrderMode();
-    }
 
     /**
      * @inheritdoc IBookOrderModule
@@ -134,7 +97,8 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
      * @dev Settles one order as a position change at the order's price, judged at `markPrice`,
      * the oracle price read once for the batch, and writes its events with the order's share of
      * the fee.
-     * @dev The mode gate is the module's own; every check the change itself must pass lives in
+     * @dev The door is asked per order: an account off the book reverts the batch with
+     * `IncorrectAccountMode`. Every check the change itself must pass lives in
      * `PerpsAccount.settlePositionChange`, and a rejection there reverts the whole batch.
      */
     function _settleOrder(
@@ -143,10 +107,7 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
         uint256 markPrice,
         Settlement.Fees memory fees
     ) private {
-        bytes16 mode = PerpsAccount.load(order.accountId).getOrderMode();
-        if (mode != "BOOK" && mode != "RECENTLY_CHANGED") {
-            revert IncorrectAccountMode(order.accountId, mode);
-        }
+        OrderMode.admit(order.accountId, OrderMode.BOOK);
 
         Settlement.settle(
             Settlement.Change(

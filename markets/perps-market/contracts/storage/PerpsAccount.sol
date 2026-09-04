@@ -56,7 +56,8 @@ library PerpsAccount {
         // @dev account's debt accrued from previous positions
         // @dev please use updateAccountDebt() to update this value which will update global debt also
         uint256 debt;
-        // @dev indicates the types of orders that this account can make
+        // @dev the door the account trades through, owned by `OrderMode`: "BOOK", "ONCHAIN", or
+        // unset, which is the book; and when it last switched, for the window after a switch
         bytes16 orderMode;
         uint128 orderModeChangeTime;
     }
@@ -125,8 +126,6 @@ library PerpsAccount {
     error MaxCollateralsPerAccountReached(uint128 maxCollateralsPerAccount);
 
     error NonexistentDebt(uint128 accountId);
-
-    uint256 constant ORDER_MODE_CHANGE_GRACE_PERIOD = 15; // seconds
 
     function load(uint128 id) internal pure returns (Data storage account) {
         bytes32 s = keccak256(abi.encode("io.synthetix.perps-market.Account", id));
@@ -920,38 +919,6 @@ library PerpsAccount {
         );
 
         return (amountToLiquidate, newPositionSize, marketUpdateData);
-    }
-
-    function setOrderMode(
-        Data storage self,
-        bytes16 mode
-    ) internal returns (bytes16 previousOrderMode) {
-        previousOrderMode = self.orderMode;
-        self.orderMode = mode;
-
-        // The grace window (RECENTLY_CHANGED) guards genuine mode switches against gaming.
-        // The first set from the unset default ("") is initialization, not a switch, so it
-        // takes effect immediately: a fresh account can opt into ONCHAIN without a 15s
-        // window in which async commits would revert with IncorrectAccountMode.
-        if (previousOrderMode != "") {
-            // solhint-disable-next-line numcast/safe-cast
-            self.orderModeChangeTime = uint128(block.timestamp);
-        }
-    }
-
-    function getOrderMode(Data storage self) internal view returns (bytes16 orderMode) {
-        if (block.timestamp - self.orderModeChangeTime < ORDER_MODE_CHANGE_GRACE_PERIOD) {
-            return "RECENTLY_CHANGED";
-        }
-
-        // BOOK is the default order mode: an account that never called setBookMode
-        // (orderMode unset) is treated as BOOK, so the orderbook can settle for it
-        // without an explicit onboarding tx. ONCHAIN is opt-in via setBookMode(false).
-        if (self.orderMode == "") {
-            return "BOOK";
-        }
-
-        return self.orderMode;
     }
 
     function hasOpenPositions(Data storage self) internal view returns (bool) {

@@ -4,7 +4,7 @@
 
 **Goal:** One library, `OrderMode`, answers which door an account trades through and owns the switch; both doors ask it with one call and one error, the switch is refused while an async order is pending, the dead collateral guard goes, `setBookMode`/`getOrderMode` move to the account module, and both stands check one door table.
 
-**Architecture:** `contracts/storage/OrderMode.sol` owns `PerpsAccount.Data.orderMode` and `orderModeChangeTime` (the fields stay, the layout is unchanged) with three functions: `of` (what `getOrderMode` reports), `admit` (the question both doors ask; reverts `IncorrectAccountMode`), `set` (the switch: same mode → nothing; pending async order → `PendingOrderExists`; first set from the default at once; otherwise the 15-second window; emits `IPerpsAccountModule.AccountOrderModeChanged`). `AsyncOrderModule.commitOrder` and `BookOrderModule._settleOrder` each become one `admit` line; `PerpsAccountModule` hosts `setBookMode`/`getOrderMode` and loses its dead guard; `IBookOrderModule` keeps only the book. The stands get `openOnchainAccount` (TS) and `onchainTrader` (Solidity), a settlement strategy on the Foundry stand described in `test/stand.json`, and `OrderMode.test.ts` + `OrderMode.t.sol` checking the same table.
+**Architecture:** `contracts/storage/OrderMode.sol` owns `PerpsAccount.Data.orderMode` and `orderModeChangeTime` (the fields stay, the layout is unchanged) with three functions: `current` (what `getOrderMode` reports), `admit` (the question both doors ask; reverts `IncorrectAccountMode`), `set` (the switch: same mode → nothing; pending async order → `PendingOrderExists`; first set from the default at once; otherwise the 15-second window; emits `IPerpsAccountModule.AccountOrderModeChanged`). `AsyncOrderModule.commitOrder` and `BookOrderModule._settleOrder` each become one `admit` line; `PerpsAccountModule` hosts `setBookMode`/`getOrderMode` and loses its dead guard; `IBookOrderModule` keeps only the book. The stands get `openOnchainAccount` (TS) and `onchainTrader` (Solidity), a settlement strategy on the Foundry stand described in `test/stand.json`, and `OrderMode.test.ts` + `OrderMode.t.sol` checking the same table.
 
 **Tech Stack:** Solidity 0.8.34 (Hardhat + Cannon, optimizer 200 runs), Hardhat/Mocha/ethers v5 tests under Bun, Foundry (forge-std) for the second stand.
 
@@ -18,7 +18,7 @@
 - After a snapshot restore never `tx.wait()`; poll `provider().getTransactionReceipt(hash)` (`receiptOf` in the test file, `mined` in `helpers/book.ts`).
 - Lint: `.ts` → `pnpm exec prettier --write <file>` from the package, then `pnpm exec eslint --max-warnings=0 markets/perps-market/<file>` **from the repo root**; `.sol` → `pnpm exec prettier --write <file>` and `pnpm exec solhint <file>` from the package; `.md`/`.json` → prettier. The pre-commit hook runs the same checks; if it hangs on a `.sol` file, retry with a long timeout and drop any leftover `lint-staged automatic backup` stash (`git stash list`).
 - Commits end with `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>` and `Claude-Session: https://claude.ai/code/session_0121tBk8JbTuvzfxsc34CQvj`.
-- Names new in this PR, used exactly like this in every task: library `OrderMode` (`contracts/storage/OrderMode.sol`) with `bytes16 constant BOOK/ONCHAIN/RECENTLY_CHANGED`, `uint256 constant SWITCH_WINDOW = 15`, `error IncorrectAccountMode(uint128 accountId, bytes16 mode)`, `of(uint128 accountId) returns (bytes16)`, `admit(uint128 accountId, bytes16 door)`, `set(uint128 accountId, bool useBook)`; event `AccountOrderModeChanged(uint128 accountId, bytes16 newMode)` declared in `IPerpsAccountModule`; TS helpers `openBookAccount` / `openOnchainAccount` in `test/helpers/accounts.ts`; Solidity helper `onchainTrader(address owner, uint128 accountId, uint256 snxUsd)` in `tests/Bootstrap.t.sol`; `test/stand.json` key `marketDefaults.settlementStrategy` with `settlementDelay`, `commitmentPriceDelay`, `settlementWindowDuration`, `settlementReward`.
+- Names new in this PR, used exactly like this in every task: library `OrderMode` (`contracts/storage/OrderMode.sol`) with `bytes16 constant BOOK/ONCHAIN/RECENTLY_CHANGED`, `uint256 constant SWITCH_WINDOW = 15`, `error IncorrectAccountMode(uint128 accountId, bytes16 mode)`, `current(uint128 accountId) returns (bytes16)`, `admit(uint128 accountId, bytes16 door)`, `set(uint128 accountId, bool useBook)`; event `AccountOrderModeChanged(uint128 accountId, bytes16 newMode)` declared in `IPerpsAccountModule`; TS helpers `openBookAccount` / `openOnchainAccount` in `test/helpers/accounts.ts`; Solidity helper `onchainTrader(address owner, uint128 accountId, uint256 snxUsd)` in `tests/Bootstrap.t.sol`; `test/stand.json` key `marketDefaults.settlementStrategy` with `settlementDelay`, `commitmentPriceDelay`, `settlementWindowDuration`, `settlementReward`.
 - Visible through the proxy, only this changes: `setBookMode` with an unexpired pending async order reverts `PendingOrderExists()`; `setBookMode` to the mode already held emits nothing and starts no window; a fresh account on a chain younger than 15 s is not in the window. Selectors, the set of functions/errors/events of the proxy ABI, and the storage layout are unchanged. The `settleBookOrders` caller check (CRIT-2) is **PR B**, not this plan.
 
 ---
@@ -183,7 +183,7 @@ Claude-Session: https://claude.ai/code/session_0121tBk8JbTuvzfxsc34CQvj"
 
 **Interfaces:**
 - Consumes: `openBookAccount`, `openOnchainAccount` (Task 1), `bookOrder`, `settleBook` (existing).
-- Produces: `OrderMode.of/admit/set`, `IPerpsAccountModule.setBookMode/getOrderMode/AccountOrderModeChanged`; the proxy's `setBookMode`/`getOrderMode` selectors unchanged.
+- Produces: `OrderMode.current/admit/set`, `IPerpsAccountModule.setBookMode/getOrderMode/AccountOrderModeChanged`; the proxy's `setBookMode`/`getOrderMode` selectors unchanged.
 
 - [ ] **Step 1: Write the door table as `test/integration/Account/OrderMode.test.ts`**
 
@@ -505,7 +505,7 @@ library OrderMode {
     /**
      * @notice Thrown when an account is not at the door it is asked through.
      * @param accountId the account.
-     * @param mode what `of` reports for it.
+     * @param mode what `current` reports for it.
      */
     error IncorrectAccountMode(uint128 accountId, bytes16 mode);
 
@@ -513,7 +513,7 @@ library OrderMode {
      * @dev What `getOrderMode` reports: `RECENTLY_CHANGED` within the window after a switch,
      * `BOOK` for an account that never set a mode, otherwise the mode set.
      */
-    function of(uint128 accountId) internal view returns (bytes16 mode) {
+    function current(uint128 accountId) internal view returns (bytes16 mode) {
         PerpsAccount.Data storage account = PerpsAccount.load(accountId);
         uint128 changedAt = account.orderModeChangeTime;
         if (changedAt != 0 && block.timestamp - changedAt < SWITCH_WINDOW) {
@@ -528,7 +528,7 @@ library OrderMode {
      * the async door (`ONCHAIN`) only to an account that has opted out of the book.
      */
     function admit(uint128 accountId, bytes16 door) internal view {
-        bytes16 mode = of(accountId);
+        bytes16 mode = current(accountId);
         bool open = door == BOOK ? (mode == BOOK || mode == RECENTLY_CHANGED) : mode == ONCHAIN;
         if (!open) {
             revert IncorrectAccountMode(accountId, mode);
@@ -671,7 +671,7 @@ Replace the import of `ParameterError` (line 5) with `import {OrderMode} from ".
      * @inheritdoc IPerpsAccountModule
      */
     function getOrderMode(uint128 accountId) external view override returns (bytes16) {
-        return OrderMode.of(accountId);
+        return OrderMode.current(accountId);
     }
 ```
 
@@ -701,8 +701,8 @@ Temporarily put the guard back into `modifyCollateral`, as `||`:
 ```solidity
         if (
             amountDelta < 0 &&
-            (OrderMode.of(accountId) == OrderMode.BOOK ||
-                OrderMode.of(accountId) == OrderMode.RECENTLY_CHANGED)
+            (OrderMode.current(accountId) == OrderMode.BOOK ||
+                OrderMode.current(accountId) == OrderMode.RECENTLY_CHANGED)
         ) {
             revert InvalidAmountDelta(amountDelta);
         }

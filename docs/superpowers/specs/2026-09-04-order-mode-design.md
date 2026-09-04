@@ -118,12 +118,12 @@ library OrderMode {
     /// Leaving the book takes this long; entering it is immediate.
     uint256 internal constant SWITCH_WINDOW = 15;
 
-    /// The account is not at this door. `mode` is what `of` reports.
+    /// The account is not at this door. `mode` is what `current` reports.
     error IncorrectAccountMode(uint128 accountId, bytes16 mode);
 
     /// What `getOrderMode` reports: RECENTLY_CHANGED within the window after a switch, BOOK for
     /// an account that never set a mode, otherwise the mode set.
-    function of(uint128 accountId) internal view returns (bytes16 mode);
+    function current(uint128 accountId) internal view returns (bytes16 mode);
 
     /// Reverts with IncorrectAccountMode unless `door` (BOOK or ONCHAIN) is open to the account:
     /// the book is open in BOOK and in the window; the async door only in ONCHAIN.
@@ -137,7 +137,7 @@ library OrderMode {
 }
 ```
 
-`of` reports the window only after a switch has happened (`orderModeChangeTime != 0`). Today's
+`current` reports the window only after a switch has happened (`orderModeChangeTime != 0`). Today's
 check, `block.timestamp − orderModeChangeTime < 15`, puts every fresh account into the window on a
 chain younger than 15 seconds — Foundry's default chain; `foundry.toml` sidesteps it only by
 pinning a 2025 timestamp.
@@ -201,7 +201,7 @@ function setBookMode(uint128 accountId, bool useBook) external override {
 }
 
 function getOrderMode(uint128 accountId) external view override returns (bytes16) {
-    return OrderMode.of(accountId);
+    return OrderMode.current(accountId);
 }
 // modifyCollateral: the dead guard goes, and the ParameterError import with it;
 // AsyncOrder.checkPendingOrder stays.

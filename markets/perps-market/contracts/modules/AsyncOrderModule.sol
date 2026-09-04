@@ -8,6 +8,7 @@ import {AccountRBAC} from "@synthetixio/main/contracts/storage/AccountRBAC.sol";
 import {IAsyncOrderModule} from "../interfaces/IAsyncOrderModule.sol";
 import {PerpsMarket} from "../storage/PerpsMarket.sol";
 import {PerpsAccount} from "../storage/PerpsAccount.sol";
+import {OrderMode} from "../storage/OrderMode.sol";
 import {AsyncOrder} from "../storage/AsyncOrder.sol";
 import {Position} from "../storage/Position.sol";
 import {PerpsPrice} from "../storage/PerpsPrice.sol";
@@ -23,8 +24,6 @@ import {Flags} from "../utils/Flags.sol";
 contract AsyncOrderModule is IAsyncOrderModule {
     using AsyncOrder for AsyncOrder.Data;
     using PerpsAccount for PerpsAccount.Data;
-
-    error IncorrectAccountMode(uint128 accountId, bytes16 mode);
 
     /**
      * @inheritdoc IAsyncOrderModule
@@ -44,19 +43,8 @@ contract AsyncOrderModule is IAsyncOrderModule {
             AccountRBAC._PERPS_COMMIT_ASYNC_ORDER_PERMISSION
         );
 
-        // Async (ONCHAIN) orders require an account that has opted into ONCHAIN via
-        // setBookMode(false). Since BOOK is now the default, getOrderMode() never
-        // returns "" for a live account; the `!= ""` clause is retained as a defensive
-        // no-op only.
-        if (
-            PerpsAccount.load(commitment.accountId).getOrderMode() != "ONCHAIN" &&
-            PerpsAccount.load(commitment.accountId).getOrderMode() != ""
-        ) {
-            revert IncorrectAccountMode(
-                commitment.accountId,
-                PerpsAccount.load(commitment.accountId).getOrderMode()
-            );
-        }
+        // The async door is open only to an account that has opted out of the book.
+        OrderMode.admit(commitment.accountId, OrderMode.ONCHAIN);
 
         SettlementStrategy.Data storage strategy = PerpsMarketConfiguration
             .loadValidSettlementStrategy(commitment.marketId, commitment.settlementStrategyId);

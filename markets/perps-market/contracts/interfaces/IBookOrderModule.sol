@@ -61,20 +61,6 @@ interface IBookOrderModule is ISettlementEvents {
     );
 
     /**
-     * @notice Set the current order mode to BOOK
-     * @param accountId the account id to set to BOOK
-     * @param useBook whether or not to set hte mode to BOOK. If not BOOK, it will be ONCHAIN
-     */
-    function setBookMode(uint128 accountId, bool useBook) external;
-
-    /**
-     * @notice Get the current order mode
-     * @param accountId the account id to pull data for
-     * @return the current order mode
-     */
-    function getOrderMode(uint128 accountId) external view returns (bytes16);
-
-    /**
      * @notice Called by the offchain orderbook to settle previously matched orders onchain. Every
      * order is its own position change at its own price, settled in the order given, which must be
      * non-decreasing by account id; several orders of one account settle one after another, each
@@ -84,7 +70,9 @@ interface IBookOrderModule is ISettlementEvents {
      * recomputed at it, the market's value cap is measured at it, and a fill worse than it counts
      * against the account's margin. The position itself is anchored to the order price. A market
      * may bound how far any order's price sits from the oracle price (`setMaxBookPriceDeviation`);
-     * an order outside the bound reverts the batch with `BookPriceDeviationExceeded`.
+     * an order outside the bound reverts the batch with `BookPriceDeviationExceeded`. An account
+     * off the book (order mode `ONCHAIN`) reverts the batch with `IncorrectAccountMode`; an
+     * account in the window after a switch is still on it.
      * @dev Every position change passes the same checks an async order passes at commitment and
      * settlement: the account must exist, be neither flagged for liquidation nor liquidatable, have
      * room for one more market if the change opens one, be able to pay its fees and stand above its
