@@ -7,7 +7,16 @@
     "minDelegation": 20
   },
   "pool": { "id": 1, "lpStake": 1000 },
-  "marketDefaults": { "maxMarketSize": 10000000, "strictPriceTolerance": 60 },
+  "marketDefaults": {
+    "maxMarketSize": 10000000,
+    "strictPriceTolerance": 60,
+    "settlementStrategy": {
+      "settlementDelay": 5,
+      "commitmentPriceDelay": 2,
+      "settlementWindowDuration": 120,
+      "settlementReward": 5
+    }
+  },
   "markets": [
     {
       "id": 25,

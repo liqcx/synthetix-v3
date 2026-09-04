@@ -61,11 +61,11 @@ type IncomingChainState =
   | ReturnType<typeof bootstrapSynthMarkets>;
 
 export const DEFAULT_SETTLEMENT_STRATEGY = {
-  strategyType: 0, // OFFCHAIN
-  settlementDelay: 5,
-  commitmentPriceDelay: 2,
-  settlementWindowDuration: 120,
-  settlementReward: bn(5),
+  strategyType: 0, // PYTH
+  settlementDelay: stand.marketDefaults.settlementStrategy.settlementDelay,
+  commitmentPriceDelay: stand.marketDefaults.settlementStrategy.commitmentPriceDelay,
+  settlementWindowDuration: stand.marketDefaults.settlementStrategy.settlementWindowDuration,
+  settlementReward: bn(stand.marketDefaults.settlementStrategy.settlementReward),
   disabled: false,
   url: 'https://fakeapi.pyth.synthetix.io/',
   feedId: ethers.utils.formatBytes32String('ETH/USD'),

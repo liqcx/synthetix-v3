@@ -11,6 +11,7 @@ import {IPerpsMarketProxy} from "./interfaces/IPerpsMarketProxy.sol";
 import {ICoreProxy} from "./interfaces/ICoreProxy.sol";
 import {IOracleManagerProxy} from "./interfaces/IOracleManagerProxy.sol";
 import {IBookOrderModule} from "../contracts/interfaces/IBookOrderModule.sol";
+import {SettlementStrategy} from "../contracts/storage/SettlementStrategy.sol";
 import {ISynthetixSystem} from "../contracts/interfaces/external/ISynthetixSystem.sol";
 import {ISpotMarketSystem} from "../contracts/interfaces/external/ISpotMarketSystem.sol";
 import {IPoolModule} from "@synthetixio/main/contracts/interfaces/IPoolModule.sol";
@@ -38,7 +39,7 @@ import {IERC721Receiver} from "@synthetixio/core-contracts/contracts/interfaces/
  *      1e14 in D18). A trader is a staker: `fundStaker` stakes in the traders' pool and mints
  *      the snxUSD that stake supports, `stake * price / issuanceRatio`, into the owner's
  *      wallet; `depositMargin` moves part of it into a perps account. Accounts are on the book
- *      by default, so nothing here calls `setBookMode`.
+ *      by default; `onchainTrader` opts one out.
  */
 contract BootstrapTest is Test, IERC721Receiver {
     using stdJson for string;
@@ -72,6 +73,13 @@ contract BootstrapTest is Test, IERC721Receiver {
     uint128 traderPool;
     uint256 traderStake;
     uint128[] bookAccounts;
+    // ---- test/stand.json -> marketDefaults.settlementStrategy: the async door's strategy
+    uint256 settlementDelay;
+    uint256 settlementWindowDuration;
+    uint256 commitmentPriceDelay;
+    uint256 settlementReward; // D18
+    /// @dev The stand's MockPyth wrapper, the strategy's price verification contract.
+    address pythWrapper;
 
     /// @dev The first market of the description, for tests that trade one market.
     uint128 ethMarketId;
@@ -94,12 +102,14 @@ contract BootstrapTest is Test, IERC721Receiver {
         oracleManager = IOracleManagerProxy(deployer.getAddress("synthetix.oracle_manager.Proxy"));
         usdToken = IERC20(deployer.getAddress("synthetix.USDProxy"));
         collateralToken = CollateralMock(deployer.getAddress("synthetix.CollateralMock"));
+        pythWrapper = deployer.getAddress("MockPythERC7412Wrapper");
         vm.label(address(perps), "PerpsMarketProxy");
         vm.label(address(core), "CoreProxy");
         vm.label(address(accountNft), "AccountProxy");
         vm.label(address(oracleManager), "OracleManagerProxy");
         vm.label(address(usdToken), "snxUSD");
         vm.label(address(collateralToken), "CollateralMock");
+        vm.label(pythWrapper, "MockPythERC7412Wrapper");
 
         _configureCore();
 
@@ -168,6 +178,16 @@ contract BootstrapTest is Test, IERC721Receiver {
         lpStake = stand.readUint(".pool.lpStake") * 1e18;
         maxMarketSize = stand.readUint(".marketDefaults.maxMarketSize") * 1e18;
         strictPriceTolerance = stand.readUint(".marketDefaults.strictPriceTolerance");
+        settlementDelay = stand.readUint(".marketDefaults.settlementStrategy.settlementDelay");
+        settlementWindowDuration = stand.readUint(
+            ".marketDefaults.settlementStrategy.settlementWindowDuration"
+        );
+        commitmentPriceDelay = stand.readUint(
+            ".marketDefaults.settlementStrategy.commitmentPriceDelay"
+        );
+        settlementReward =
+            stand.readUint(".marketDefaults.settlementStrategy.settlementReward") *
+            1e18;
         for (
             uint256 i = 0;
             vm.keyExistsJson(stand, string.concat(".markets[", vm.toString(i), "].id"));
@@ -250,6 +270,21 @@ contract BootstrapTest is Test, IERC721Receiver {
         perps.setOrderFees(marketId, makerFee, takerFee);
         perps.setMaxMarketSize(marketId, maxMarketSize);
         perps.setMaxMarketValue(marketId, 0); // zero is no bound
+        // The async door's strategy, as the Hardhat adapter adds one to every market: the
+        // description's delays, verified by the stand's MockPyth wrapper. Strategy id 0.
+        perps.addSettlementStrategy(
+            marketId,
+            SettlementStrategy.Data({
+                strategyType: SettlementStrategy.Type.PYTH,
+                settlementDelay: settlementDelay,
+                settlementWindowDuration: settlementWindowDuration,
+                priceVerificationContract: pythWrapper,
+                feedId: bytes32("ETH/USD"),
+                settlementReward: settlementReward,
+                disabled: false,
+                commitmentPriceDelay: commitmentPriceDelay
+            })
+        );
         vm.stopPrank();
     }
 
@@ -323,6 +358,16 @@ contract BootstrapTest is Test, IERC721Receiver {
     function bookTrader(address owner, uint256 snxUsd) internal returns (uint128 accountId) {
         vm.prank(owner);
         accountId = perps.createAccount();
+        depositMargin(owner, accountId, snxUsd);
+    }
+
+    /// @dev A funded account off the book, on the async path: opted out with `setBookMode(false)`
+    ///      (the first set from the default takes effect at once). `openOnchainAccount` in the
+    ///      Hardhat adapter.
+    function onchainTrader(address owner, uint128 accountId, uint256 snxUsd) internal {
+        openBookAccount(owner, accountId);
+        vm.prank(owner);
+        perps.setBookMode(accountId, false);
         depositMargin(owner, accountId, snxUsd);
     }
 
