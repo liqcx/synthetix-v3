@@ -16,6 +16,15 @@ on:
 jobs:
   cannon-update:
     runs-on: self-hosted
+    # Explicit least-privilege scopes rather than the ambient default:
+    # contents+pull-requests for peter-evans/create-pull-request to push the
+    # branch and open the PR, packages to let pnpm reach the @liqcx scope on
+    # GitHub Packages (via GT_READ) — a need this workflow did not have under
+    # yarn.
+    permissions:
+      contents: write
+      pull-requests: write
+      packages: read
     env:
       GT_READ: ${{ secrets.GITHUB_TOKEN }}
     steps:
