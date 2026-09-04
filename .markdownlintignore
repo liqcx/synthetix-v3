@@ -6,3 +6,7 @@
 # Vendored Foundry libraries — third-party markdown, not ours to lint.
 # openzeppelin-contracts alone carries ~40 rule violations.
 **/lib/**
+
+# Subagent-driven-development scratch (ledger, briefs, reports) — process
+# files, not documentation.
+.superpowers/

@@ -35,3 +35,6 @@ storage.new.dump.json
 !.yarn/versions
 
 tsconfig.tsbuildinfo
+
+# Subagent-driven-development scratch: ledger, task briefs, review packages.
+.superpowers/
