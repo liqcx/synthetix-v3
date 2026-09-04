@@ -48,7 +48,13 @@ export default function test(): void {
   assert.entityCount('PositionLiquidated', 1);
 
   let positionLiquidatedId =
-    marketId.toString() + '-' + accountId.toString() + '-' + blockNumber.toString();
+    marketId.toString() +
+    '-' +
+    accountId.toString() +
+    '-' +
+    blockNumber.toString() +
+    '-' +
+    logIndex.toString();
 
   assert.fieldEquals('PositionLiquidated', positionLiquidatedId, 'timestamp', timestamp.toString());
   assert.fieldEquals('PositionLiquidated', positionLiquidatedId, 'marketId', marketId.toString());
@@ -64,5 +70,52 @@ export default function test(): void {
     positionLiquidatedId,
     'currentPositionSize',
     currentPositionSize.toString()
+  );
+
+  log.info('Two liquidations of one position in one block are two records, keyed by log', []);
+
+  let secondAmountLiquidated = 100;
+  let secondCurrentPositionSize = 500;
+
+  handlePositionLiquidated(
+    createPositionLiquidatedEvent(
+      accountId,
+      marketId,
+      secondAmountLiquidated,
+      secondCurrentPositionSize,
+      timestamp,
+      blockNumber,
+      logIndex + 1
+    )
+  );
+
+  assert.entityCount('PositionLiquidated', 2);
+
+  let secondId =
+    marketId.toString() +
+    '-' +
+    accountId.toString() +
+    '-' +
+    blockNumber.toString() +
+    '-' +
+    (logIndex + 1).toString();
+
+  assert.fieldEquals(
+    'PositionLiquidated',
+    positionLiquidatedId,
+    'amountLiquidated',
+    amountLiquidated.toString()
+  );
+  assert.fieldEquals(
+    'PositionLiquidated',
+    secondId,
+    'amountLiquidated',
+    secondAmountLiquidated.toString()
+  );
+  assert.fieldEquals(
+    'PositionLiquidated',
+    secondId,
+    'currentPositionSize',
+    secondCurrentPositionSize.toString()
   );
 }

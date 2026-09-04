@@ -3,12 +3,15 @@ import { PositionLiquidated as PositionLiquidatedEvent } from './generated/Perps
 import { Position, PositionLiquidated } from './generated/schema';
 
 export function handlePositionLiquidated(event: PositionLiquidatedEvent): void {
+  // one record per log: a position may be liquidated more than once in a block
   const id =
     event.params.marketId.toString() +
     '-' +
     event.params.accountId.toString() +
     '-' +
-    event.block.number.toString();
+    event.block.number.toString() +
+    '-' +
+    event.logIndex.toString();
 
   const positionLiquidated = new PositionLiquidated(id);
 
