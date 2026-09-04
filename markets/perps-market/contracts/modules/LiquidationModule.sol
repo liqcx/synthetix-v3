@@ -19,7 +19,6 @@ import {MarketUpdate} from "../storage/MarketUpdate.sol";
 import {IMarketEvents} from "../interfaces/IMarketEvents.sol";
 import {KeeperCosts} from "../storage/KeeperCosts.sol";
 import {AsyncOrder} from "../storage/AsyncOrder.sol";
-import {Position} from "../storage/Position.sol";
 import {Settlement} from "../storage/Settlement.sol";
 
 /**
@@ -30,7 +29,6 @@ contract LiquidationModule is ILiquidationModule, IMarketEvents {
     using SafeCastU256 for uint256;
     using SetUtil for SetUtil.UintSet;
     using PerpsAccount for PerpsAccount.Data;
-    using PerpsMarketConfiguration for PerpsMarketConfiguration.Data;
     using PerpsMarketFactory for PerpsMarketFactory.Data;
     using PerpsMarket for PerpsMarket.Data;
     using GlobalPerpsMarketConfiguration for GlobalPerpsMarketConfiguration.Data;
@@ -265,12 +263,12 @@ contract LiquidationModule is ILiquidationModule, IMarketEvents {
     function _liquidateAccount(
         PerpsAccount.MemoryContext memory ctx,
         uint256 costOfFlagExecution,
-        uint256 totalCollateralValue,
+        uint256 seizedMarginValue,
         bool positionFlagged
     ) internal returns (uint256 keeperLiquidationReward) {
         // the flag reward is owed once, at the flag, on the positions as they stood
         uint256 totalFlaggingRewards = positionFlagged
-            ? PerpsAccount.flagReward(ctx, totalCollateralValue, ERC2771Context._msgSender())
+            ? PerpsAccount.flagReward(ctx, seizedMarginValue, ERC2771Context._msgSender())
             : 0;
         uint256 totalLiquidated = _liquidatePositions(ctx);
         bool accountFullyLiquidated;
@@ -281,7 +279,7 @@ contract LiquidationModule is ILiquidationModule, IMarketEvents {
             keeperLiquidationReward = _processLiquidationRewards(
                 totalFlaggingRewards,
                 totalLiquidationCost,
-                totalCollateralValue
+                seizedMarginValue
             );
             accountFullyLiquidated =
                 PerpsAccount.load(ctx.accountId).openPositionMarketIds.length() == 0;

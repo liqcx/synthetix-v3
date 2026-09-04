@@ -71,8 +71,10 @@ library PerpsAccount {
 
     /**
      * @notice The account at one tolerance: its positions at their prices, its collateral at
-     * and without its discount. Every reading of the account starts from one of these — a
-     * caller values the account once and asks; the tolerance is chosen once, for both.
+     * and without its discount. Every reading that needs both halves starts from one of these —
+     * a caller values the account once and asks; the tolerance is chosen once, for both.
+     * Readers of one half (`liquidateFlagged*`, `totalAccountOpenInterest`,
+     * `getAccountFullPositionInfo`, `totalCollateralValue`) keep the parts.
      */
     struct Valuation {
         MemoryContext ctx;
@@ -552,7 +554,9 @@ library PerpsAccount {
             return (0, 0, 0);
         }
 
-        // use separate accounting for liquidation rewards so we can compare against global min/max liquidation reward values
+        // one walk: the margins, the flag reward of a keeper endorsed nowhere, the windows
+        uint256 flagRewardSum;
+        uint256 windows;
         for (uint256 i = 0; i < v.ctx.positions.length; i++) {
             Position.Data memory position = v.ctx.positions[i];
             PerpsMarketConfiguration.Data storage marketConfig = PerpsMarketConfiguration.load(
@@ -563,9 +567,28 @@ library PerpsAccount {
 
             maintenanceMargin += positionMaintenanceMargin;
             initialMargin += positionInitialMargin;
+            flagRewardSum += _positionFlagReward(
+                marketConfig,
+                position,
+                v.ctx.prices[i],
+                address(0)
+            );
+            windows = MathUtil.max(
+                windows,
+                marketConfig.numberOfLiquidationWindows(MathUtil.abs(position.size))
+            );
         }
 
-        possibleLiquidationReward = getPossibleLiquidationReward(v);
+        possibleLiquidationReward = _possibleLiquidationReward(
+            v,
+            _withCollateralReward(
+                v.ctx,
+                flagRewardSum,
+                v.collateralValueWithoutDiscount,
+                address(0)
+            ),
+            windows
+        );
 
         return (initialMargin, maintenanceMargin, possibleLiquidationReward);
     }
@@ -577,6 +600,53 @@ library PerpsAccount {
             ? self.activeCollateralTypes.length() - 1
             : self.activeCollateralTypes.length();
         numberOfUpdatedFeeds = numberOfCollateralFeeds + self.openPositionMarketIds.length();
+    }
+
+    /**
+     * @dev The flag reward a keeper is owed on one position: nothing on a market the keeper is
+     * endorsed on, else the market's flag reward on the position's notional. `config` is the
+     * position's market configuration, which the caller already holds.
+     */
+    function _positionFlagReward(
+        PerpsMarketConfiguration.Data storage config,
+        Position.Data memory position,
+        uint256 price,
+        address keeper
+    ) private view returns (uint256) {
+        if (keeper != address(0) && config.endorsedLiquidator == keeper) {
+            return 0;
+        }
+        return config.calculateFlagReward(MathUtil.abs(position.size).mulDecimal(price));
+    }
+
+    /**
+     * @dev The larger of the summed flag reward and the reward on `collateralValue` — unless the
+     * keeper is endorsed on the market of the last position, which withholds the collateral
+     * reward, as it always has.
+     */
+    function _withCollateralReward(
+        MemoryContext memory ctx,
+        uint256 flagRewardSum,
+        uint256 collateralValue,
+        address keeper
+    ) private view returns (uint256) {
+        if (
+            ctx.positions.length == 0 ||
+            keeper == address(0) ||
+            PerpsMarketConfiguration
+                .load(ctx.positions[ctx.positions.length - 1].marketId)
+                .endorsedLiquidator !=
+            keeper
+        ) {
+            return
+                MathUtil.max(
+                    flagRewardSum,
+                    GlobalPerpsMarketConfiguration.load().calculateCollateralLiquidateReward(
+                        collateralValue
+                    )
+                );
+        }
+        return flagRewardSum;
     }
 
     /**
@@ -593,32 +663,14 @@ library PerpsAccount {
         address keeper
     ) internal view returns (uint256 reward) {
         for (uint256 i = 0; i < ctx.positions.length; i++) {
-            PerpsMarketConfiguration.Data storage config = PerpsMarketConfiguration.load(
-                ctx.positions[i].marketId
-            );
-            if (keeper != address(0) && config.endorsedLiquidator == keeper) {
-                continue;
-            }
-            reward += config.calculateFlagReward(
-                MathUtil.abs(ctx.positions[i].size).mulDecimal(ctx.prices[i])
+            reward += _positionFlagReward(
+                PerpsMarketConfiguration.load(ctx.positions[i].marketId),
+                ctx.positions[i],
+                ctx.prices[i],
+                keeper
             );
         }
-
-        if (
-            ctx.positions.length == 0 ||
-            keeper == address(0) ||
-            PerpsMarketConfiguration
-                .load(ctx.positions[ctx.positions.length - 1].marketId)
-                .endorsedLiquidator !=
-            keeper
-        ) {
-            reward = MathUtil.max(
-                reward,
-                GlobalPerpsMarketConfiguration.load().calculateCollateralLiquidateReward(
-                    collateralValue
-                )
-            );
-        }
+        reward = _withCollateralReward(ctx, reward, collateralValue, keeper);
     }
 
     /**
@@ -639,26 +691,42 @@ library PerpsAccount {
      * @notice What the account must hold for its own liquidation: the flag reward of a keeper
      * endorsed nowhere plus the costs of flagging and liquidating, within the global caps, plus
      * the cost of each further liquidation window its largest position needs.
+     * @dev Two sources: the reward is read from `v.ctx`, which in an assessment holds the
+     * positions with the change made; the flag cost is priced on the feeds the account holds
+     * in storage, without the change — as it was before the valuation.
      */
     function getPossibleLiquidationReward(
         Valuation memory v
     ) internal view returns (uint256 possibleLiquidationReward) {
+        return
+            _possibleLiquidationReward(
+                v,
+                flagReward(v.ctx, v.collateralValueWithoutDiscount, address(0)),
+                liquidationWindows(v.ctx)
+            );
+    }
+
+    /// @dev `reward` is the flag reward already capped with the collateral reward.
+    function _possibleLiquidationReward(
+        Valuation memory v,
+        uint256 reward,
+        uint256 windows
+    ) private view returns (uint256) {
         GlobalPerpsMarketConfiguration.Data storage globalConfig = GlobalPerpsMarketConfiguration
             .load();
         KeeperCosts.Data storage keeperCosts = KeeperCosts.load();
         uint256 costOfFlagging = keeperCosts.getFlagKeeperCosts(load(v.ctx.accountId));
         uint256 costOfLiquidation = keeperCosts.getLiquidateKeeperCosts();
         uint256 liquidateAndFlagCost = globalConfig.keeperReward(
-            flagReward(v.ctx, v.collateralValueWithoutDiscount, address(0)),
+            reward,
             costOfFlagging + costOfLiquidation,
             v.collateralValueWithoutDiscount
         );
-        uint256 windows = liquidationWindows(v.ctx);
         uint256 liquidateWindowsCosts = windows == 0
             ? 0
             : globalConfig.keeperReward(0, costOfLiquidation, 0) * (windows - 1);
 
-        possibleLiquidationReward = liquidateAndFlagCost + liquidateWindowsCosts;
+        return liquidateAndFlagCost + liquidateWindowsCosts;
     }
 
     function seizeCollateral(Data storage self) internal returns (uint256 seizedCollateralValue) {
