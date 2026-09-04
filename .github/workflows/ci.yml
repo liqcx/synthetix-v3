@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+# Never cancel a run on main; supersede in-flight PR runs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Static gates. ~5 minutes, no compilation.
+  lint:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: self-hosted
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read
+    env:
+      # The committed .npmrc routes the @liqcx scope to GitHub Packages and
+      # reads its token from ${GT_READ}. setup-liqcx mirrors this into the
+      # user-level ~/.npmrc — pnpm >= 11.15 ignores env credentials in a
+      # committed project .npmrc.
+      GT_READ: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: liqcx/tooling/.github/actions/setup-liqcx@v1
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm pretty
+      - run: pnpm lint:js
+      - run: pnpm lint:sol
+      - run: pnpm dedupe --check
+      - run: pnpm deps
+      - run: pnpm deps:mismatched
+      - run: pnpm deps:circular
+      - run: pnpm exec liqcx-tooling-sync --check --type=contracts
+
+      # actionlint spawns one shellcheck child per workflow file in parallel,
+      # and every proto shim invocation rewrites the same temp plugin file —
+      # they collide. setup-liqcx resolves both real binaries into the env for
+      # exactly this reason; invoke them directly.
+      - name: Lint workflows
+        run: exec "${ACTIONLINT_BIN:-actionlint}" -shellcheck "${SHELLCHECK_BIN:-shellcheck}"
+      - name: Scan for secrets
+        run: gitleaks detect --source=. --config=.gitleaks.toml --no-banner --redact
+      - run: pnpm lint:yaml
+      - run: pnpm lint:md
+
+  # Compilation, storage layout, contract size, and the Foundry suites that
+  # need no Cannon build. Everything that needs build-testable is in
+  # nightly-contracts.yml.
+  contracts:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: self-hosted
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: read
+    env:
+      GT_READ: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # storage:verify diffs against the merge base; a shallow clone has
+          # no such ref.
+          fetch-depth: 0
+      - uses: liqcx/tooling/.github/actions/setup-liqcx@v1
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build:ts
+      - run: pnpm storage:dump
+      - run: pnpm check:storage
+
+      # Restore the committed dumps from the merge base and diff the freshly
+      # generated ones against them — this is what catches a storage-layout
+      # collision on an upgrade. On a push to main the merge base is the commit
+      # itself, so the comparison would be vacuous; skip it there.
+      - name: Verify storage layout against the merge base
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          base="$(git merge-base HEAD "origin/${BASE_REF}")"
+          echo "Comparing against $base"
+          find . -name 'storage.dump.json' -print0 |
+            xargs -0 -I{} git checkout "$base" -- {} || true
+          pnpm storage:verify
+
+      - run: pnpm size-contracts
+
+      # The Foundry stands that build straight from source. perps-market is NOT
+      # here: its stand needs script/Deploy.sol, which build-testable generates.
+      # RewardsDistributor and RewardsDistributorExternal are NOT here either:
+      # both fail to compile because their test/MintableToken.sol (and, for
+      # RewardsDistributor, test/SnapshotRewardsDistributorUnitTest.sol) import
+      # forge-std/mocks/MockERC20.sol (and MockERC721.sol), which the pinned
+      # forge-std v1.9.7 tag does not ship under src/ — a second, pre-existing
+      # break independent of the pnpm-linking fix applied to these two packages
+      # in the prior commit. Package scripts are inconsistent (forge-test /
+      # forge-coverage / test), so call forge directly and let each
+      # foundry.toml profile apply.
+      - name: Foundry suites (no Cannon)
+        run: |
+          set -euo pipefail
+          for dir in \
+            markets/treasury-market \
+            auxiliary/Faucet
+          do
+            echo "::group::forge test $dir"
+            (cd "$dir" && forge test)
+            echo "::endgroup::"
+          done
