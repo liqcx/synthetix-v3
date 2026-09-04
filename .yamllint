@@ -1,4 +1,4 @@
-# yamllint config for the perps monorepo.
+# yamllint config — liqcx org canon (sync-managed verbatim; never edit in a repo).
 #
 # Focus: catch semantic bugs (duplicate keys, truthy gotchas, broken
 # structure) that Prettier formatting can't catch. Prettier still handles
@@ -14,19 +14,10 @@ yaml-files:
   - '*.yaml'
   - '*.yml'
 
-ignore: |
-  node_modules/
-  **/node_modules/
-  dist/
-  **/dist/
-  tsbuild/
-  **/tsbuild/
-  coverage/
-  **/coverage/
-  .next/
-  **/.next/
-  .moon/cache/
-  **/.moon/cache/
+# Org-wide ignores live in the sync-managed .yamllint-canon-ignores;
+# repo-local additions go in .yamllint-ignores (seeded by liqcx-tooling-sync,
+# repo-owned — see STANDARD.md "Local extensions").
+ignore-from-file: ['.yamllint-canon-ignores', '.yamllint-ignores']
 
 rules:
   # Formatting handled by Prettier — don't duplicate

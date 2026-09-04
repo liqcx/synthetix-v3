@@ -1,0 +1,8 @@
+# Repo-local markdownlint ignores — YOURS to edit (seeded once by
+# liqcx-tooling-sync, never overwritten). gitignore-style patterns.
+# The rule set lives in the sync-managed .markdownlint-cli2.jsonc — never edit
+# that file; add repo-specific ignore paths HERE.
+
+# Vendored Foundry libraries — third-party markdown, not ours to lint.
+# openzeppelin-contracts alone carries ~40 rule violations.
+**/lib/**
