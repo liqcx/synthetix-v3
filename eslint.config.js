@@ -18,6 +18,10 @@ module.exports = [
       '!**/.*',
       '!.github/scripts/test-batch.js',
       '.yarn',
+      // Git-ignored (.gitignore:7). Holds Claude Code state and, when one is
+      // active, a sibling branch's git worktree — another branch's sources are
+      // never this checkout's code to lint.
+      '.claude/**',
       'auxiliary/TrustedMulticallForwarder/lib',
       '**/coverage',
       '**/dist',
