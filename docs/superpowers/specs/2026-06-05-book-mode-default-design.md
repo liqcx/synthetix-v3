@@ -34,11 +34,11 @@ Order mode is stored **per account**, not per market.
 
 The three gates that read the mode:
 
-| Gate | File:line | Allows | On default `""` today |
-| ---- | --------- | ------ | --------------------- |
-| Async commit | `AsyncOrderModule.sol:49-57` | `"ONCHAIN"` or `""` | **passes** (async works) |
-| Book settle | `BookOrderModule.sol:180-188` | `"BOOK"` or `"RECENTLY_CHANGED"` | **reverts** `IncorrectAccountMode` |
-| Collateral withdraw guard | `PerpsAccountModule.sol:65-74` | (see landmine below) | dead — never triggers |
+| Gate                      | File:line                      | Allows                           | On default `""` today              |
+| ------------------------- | ------------------------------ | -------------------------------- | ---------------------------------- |
+| Async commit              | `AsyncOrderModule.sol:49-57`   | `"ONCHAIN"` or `""`              | **passes** (async works)           |
+| Book settle               | `BookOrderModule.sol:180-188`  | `"BOOK"` or `"RECENTLY_CHANGED"` | **reverts** `IncorrectAccountMode` |
+| Collateral withdraw guard | `PerpsAccountModule.sol:65-74` | (see landmine below)             | dead — never triggers              |
 
 So the current default (`""`) means: async orders work, book settlement reverts until
 `setBookMode(true)` is called. The backend (`monorepo` order-gateway
@@ -108,7 +108,10 @@ the new default they revert with `IncorrectAccountMode`. Fix centrally:
   `getOrderMode() == "BOOK" && getOrderMode() == "RECENTLY_CHANGED"` — always false, so the
   "cannot remove collateral while BOOK order mode" guard is currently dead. **Leave it
   dead.** With BOOK as the default, "fixing" it to `||` would block collateral withdrawal
-  for *every* default account. Any redesign of that guard is a separate effort.
+  for _every_ default account. Any redesign of that guard is a separate effort.
+  > Superseded 2026-09-04 by `2026-09-04-order-mode-design.md`: the guard is removed. The door
+  > does not govern withdrawals; a withdrawal between match and settlement is caught by the gate
+  > at settlement, and `AsyncOrder.checkPendingOrder` stays.
 - Do not change the async or book gates; the single `getOrderMode` change is sufficient.
 
 ### 1.4 Package version
@@ -140,11 +143,11 @@ Branch: new `feat-cld/...` in `synthetix-deployments`.
 
 ### 2.2 Targets & ordering
 
-| Omnibus | Env | perps-market ref | Proxy |
-| ------- | --- | ---------------- | ----- |
-| `omnibus-megaeth-testnet-staging.toml` | staging | `3.11.3-orderbook` | `0x8Aa6a7615E12897eC93fd8d71B816204925863FE` |
-| `omnibus-megaeth-mainnet-btc-only.toml` | prod | `3.11.2-orderbook` | `0x330E5A387DFD403a71A81A368eC649b7c1be3AC9` |
-| `omnibus-megaeth-testnet-btc-only.toml` | testnet/dev | `3.11.3-orderbook` | — |
+| Omnibus                                 | Env         | perps-market ref   | Proxy                                        |
+| --------------------------------------- | ----------- | ------------------ | -------------------------------------------- |
+| `omnibus-megaeth-testnet-staging.toml`  | staging     | `3.11.3-orderbook` | `0x8Aa6a7615E12897eC93fd8d71B816204925863FE` |
+| `omnibus-megaeth-mainnet-btc-only.toml` | prod        | `3.11.2-orderbook` | `0x330E5A387DFD403a71A81A368eC649b7c1be3AC9` |
+| `omnibus-megaeth-testnet-btc-only.toml` | testnet/dev | `3.11.3-orderbook` | —                                            |
 
 **Order: staging first → validate → prod.** Update each omnibus's perps-market
 `defaultValue` to the new package version.
