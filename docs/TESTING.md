@@ -4,10 +4,12 @@
 
 | Инструмент | Версия | Проверка |
 |------------|--------|----------|
-| Node.js | ^20.17.0 (не 22+, Hardhat не поддерживает) | `node --version` |
-| Yarn | 4.7.0 (встроен в репо) | `yarn --version` |
+| Node.js | 24.14.0 (пин в `.prototools`) | `node --version` |
+| pnpm | 11.1.2 (пин в `.prototools` и `packageManager` в package.json) | `pnpm --version` |
 | Foundry (Anvil) | >= 1.5.0 | `anvil --version` |
 | IPFS | любая | `curl -s http://127.0.0.1:5001/api/v0/version` |
+
+`proto install` ставит Node и pnpm ровно тех версий, что закреплены в `.prototools`.
 
 ### Установка Foundry
 
@@ -35,10 +37,11 @@ IPFS должен быть доступен на `http://127.0.0.1:5001`.
 
 ```bash
 cd synthetix-v3
-yarn install
+pnpm install
 ```
 
-Yarn 4.7.0 зашит в репозиторий через `corepack`. Workspace-пакеты:
+pnpm 11.1.2 зашит в репозиторий через `.prototools` (proto) и `packageManager` в package.json.
+Workspace-пакеты:
 
 - `utils/**` — утилиты, общий конфиг
 - `protocol/**` — core protocol (synthetix)
@@ -52,7 +55,7 @@ Yarn 4.7.0 зашит в репозиторий через `corepack`. Workspace
 Cannon — фреймворк для деплоя контрактов. Использует IPFS для хранения артефактов.
 
 ```bash
-yarn cannon setup
+pnpm cannon setup
 ```
 
 Проверить/отредактировать конфиг:
@@ -102,7 +105,7 @@ python3 scripts/fix-cannon-state-dumps.py
 ## Шаг 4: Генерация testable-контрактов
 
 ```bash
-yarn generate-testable
+pnpm generate-testable
 ```
 
 Генерирует объединённые контракты (router из модулей) в `contracts/generated/` для пакетов:
@@ -120,7 +123,7 @@ yarn generate-testable
 
 ```bash
 # Сборка testable-артефактов (с моками для тестов)
-yarn build-testable
+pnpm build-testable
 ```
 
 Собирает testable-версии из `cannonfile.test.toml` в топологическом порядке — с моками, тестовыми оракулами, FeeCollectorMock и т.д. Внутри каждого пакета `cannon:build` автоматически вызывает `hardhat compile`, поэтому отдельная компиляция не нужна.
@@ -142,10 +145,10 @@ utils/core-contracts (compile)
 
 ```bash
 # Production сборка (cannonfile.toml, без моков) — для деплоя, не для тестов
-yarn build
+pnpm build
 
 # Только компиляция Solidity (без cannon)
-yarn build:contracts
+pnpm build:contracts
 ```
 
 ---
@@ -155,7 +158,7 @@ yarn build:contracts
 ### Все тесты во всех пакетах
 
 ```bash
-yarn test
+pnpm test
 ```
 
 Это выполняет `CANNON_REGISTRY_PRIORITY=local bun x hardhat test` в каждом workspace параллельно.
@@ -164,7 +167,7 @@ yarn test
 
 ```bash
 cd markets/perps-market
-yarn test
+pnpm test
 ```
 
 ### Конкретный тестовый файл
@@ -213,11 +216,17 @@ pnpm build-testable            # Hardhat-пакет + ~1 мин на генер�
 pnpm forge-test                # forge test
 ```
 
-Пока CI не переехал с CircleCI (P3d), `forge test` запускается только локально.
+В CI стенд perps-market гоняется в ночном прогоне (`nightly-contracts.yml`) — ему нужен
+`script/Deploy.sol`, который появляется только после `build-testable`. Запустить руками:
+`gh workflow run nightly-contracts.yml --repo liqcx/synthetix-v3 -f suite=markets/perps-market`.
+Стенды, которым Cannon не нужен (`treasury-market`, `Faucet`), проверяются на каждом PR в джобе
+`contracts`. `RewardsDistributor` и `RewardsDistributorExternal` сейчас не гоняются нигде в CI:
+их тесты импортируют `forge-std/src/mocks/`, а такого пути нет ни в одном тегированном релизе
+forge-std (только в плавающем `#master`, который `deps:mismatched` как раз запрещает).
 
 ---
 
-## Что происходит при `yarn test`
+## Что происходит при `pnpm test`
 
 ### 1. Cannon Build
 
@@ -299,7 +308,7 @@ export function bootstrapMarkets(data) {
 
 | Переменная | Описание | Где используется |
 |------------|----------|-----------------|
-| `CANNON_REGISTRY_PRIORITY=local` | Искать cannon-пакеты сначала в локальном кеше | `yarn test`, `yarn build` |
+| `CANNON_REGISTRY_PRIORITY=local` | Искать cannon-пакеты сначала в локальном кеше | `pnpm test`, `pnpm build` |
 | `REPORT_GAS=true` | Включить отчет по gas usage | `bun x hardhat test` |
 
 ---
@@ -353,7 +362,7 @@ Error: could not find package synthetix:3.13.1-testable
 
 ```bash
 # Из корня
-yarn build-testable
+pnpm build-testable
 ```
 
 ### Тесты зависают на `restoreSnapshot`
@@ -364,7 +373,7 @@ yarn build-testable
 
 ```bash
 rm -rf ~/.local/share/cannon/ipfs_cache/
-yarn build-testable
+pnpm build-testable
 ```
 
 **Решение 2:** Запускать тесты по каталогам, а не все сразу:
@@ -400,8 +409,8 @@ nvm use 20
 
 ```bash
 # Очистить и пересобрать
-yarn clean
-yarn build
+pnpm clean
+pnpm build
 ```
 
 ### Cannon build слишком долгий

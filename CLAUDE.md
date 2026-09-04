@@ -15,7 +15,16 @@ pnpm build:contracts          # compile + storage dump + cannon build (runs `bun
 pnpm test                     # run hardhat tests via `bun x hardhat test`
 ```
 
-JS runtime: package.json scripts invoke `bun x hardhat …` (and `bun x mocha`, `bun …`). **pnpm 11** is the package manager (migrated from Yarn 4 in P3b; node bumped 20.17→24.14 — pnpm 11 requires ≥22.13) — install with `pnpm install --frozen-lockfile`. Bun 1.3+ for runtime. **CI** is still CircleCI/yarn pending the **P3d** CircleCI→self-hosted-GHA migration; contract builds + the test suite (cannon/solc/forge, heavy) are validated by the operator/CI machines, not in-tree.
+JS runtime: package.json scripts invoke `bun x hardhat …` (and `bun x mocha`, `bun …`). **pnpm 11** is the package manager (migrated from Yarn 4 in P3b; node bumped 20.17→24.14 — pnpm 11 requires ≥22.13) — install with `pnpm install --frozen-lockfile`. Bun 1.3+ for runtime. **CI** runs on GitHub Actions on the org's self-hosted runners (P3d; CircleCI is gone). Two
+workflows: `ci.yml` gates every PR — `lint` (prettier/eslint/solhint/dedupe/deps + the canon set:
+actionlint, gitleaks, yamllint, markdownlint, `liqcx-tooling-sync --check`) and `contracts`
+(`build:ts`, storage dump/check/verify-against-merge-base, `size-contracts`, and the Foundry
+suites that need no Cannon build). `nightly-contracts.yml` runs the heavy path at 03:00 UTC —
+`generate-testable`, `build-testable`, the seven hardhat integration suites one package at a time,
+and the perps-market Foundry stand. Trigger it by hand with
+`gh workflow run nightly-contracts.yml --repo liqcx/synthetix-v3` (inputs: `suite`, `batch_size`).
+The runner pool is 4 x (2 CPU, 4 GB) shared org-wide on the production host — that budget, not
+taste, is why the heavy suites are nightly rather than per-PR.
 
 ### Single test file (Hardhat/Mocha packages)
 
