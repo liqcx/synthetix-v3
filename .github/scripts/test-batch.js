@@ -1,7 +1,13 @@
 const { execSync } = require('node:child_process');
 const { existsSync } = require('node:fs');
 
-const { TEST_FILES = '', BATCH_SIZE = '3', BATCH_RETRIES = '3', MOCHA_RETRIES = '2' } = process.env;
+const {
+  TEST_FILES = '',
+  BATCH_SIZE = '3',
+  BATCH_RETRIES = '3',
+  MOCHA_RETRIES = '2',
+  JUNIT_DIR = '/tmp/junit',
+} = process.env;
 
 function padding() {
   console.log(Array(10).fill('\n').join(''));
@@ -23,7 +29,7 @@ function executeBatch(index, batch) {
       `--timeout 10000`,
       isHardhat ? `--require hardhat/register` : '--require ts-node/register',
       `--reporter mocha-junit-reporter`,
-      `--reporter-options mochaFile=/tmp/junit/batch-${index}.xml,outputs=true,toConsole=true`,
+      `--reporter-options mochaFile=${JUNIT_DIR}/batch-${index}.xml,outputs=true,toConsole=true`,
       `--exit`,
       `${batch.join(' ')}`,
     ].join(' ');

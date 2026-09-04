@@ -24,11 +24,11 @@ To enable the plugin in your [Hardhat](https://hardhat.org/) project you just ne
 
 `hardhat.config.ts`:
 
-```
+```typescript
 import '@synthetixio/hardhat-storage';
 
 export default {
-  solidity: '0.8.11'
+  solidity: '0.8.11',
 };
 ```
 

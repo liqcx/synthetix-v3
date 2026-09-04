@@ -15,17 +15,24 @@ on:
 
 jobs:
   cannon-update:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    # Explicit least-privilege scopes rather than the ambient default:
+    # contents+pull-requests for peter-evans/create-pull-request to push the
+    # branch and open the PR, packages to let pnpm reach the @liqcx scope on
+    # GitHub Packages (via GT_READ) — a need this workflow did not have under
+    # yarn.
+    permissions:
+      contents: write
+      pull-requests: write
+      packages: read
+    env:
+      GT_READ: ${{ secrets.GT_READ }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - uses: liqcx/tooling/.github/actions/setup-liqcx@v1
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20.x
-          cache: yarn
-
-      - run: yarn install --immutable
-      - run: yarn cannon:${{ inputs.cannon_tag }}
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm cannon:${{ inputs.cannon_tag }}
 
       - uses: peter-evans/create-pull-request@v7
         with:
@@ -33,7 +40,9 @@ jobs:
           commit-message: "Cannon Update: ${{ inputs.cannon_tag }}"
           body: ""
           branch: cannon-${{ inputs.cannon_tag }}
-          reviewers: noisekit, dbeal-eth
-          labels: dependabot, cannon
+          # No labels: neither `dependabot` nor `cannon` exists in this repo,
+          # and creating them here would need `issues: write` on top of the
+          # push/PR scopes above. Create them in repo settings first if you
+          # want this line back.
           draft: true
           add-paths: .

@@ -17,7 +17,7 @@ Please refer to the [Official Documentation](https://docs.synthetix.io/) for hig
 
 This is a monorepo with the following folder structure and packages:
 
-```
+```text
 .
 ├── markets                      // Standalone projects that extend the core Synthetix protocol with markets.
 │   ├── legacy-market            // Market that connects Synthetix's v2 and v3 versions.
@@ -225,10 +225,13 @@ Do **NOT** manually update `package.json` of any package.
 
 5.  After successful publishing of all needed packages, reset your git working tree to avoid accidentally
     committing dev version changes and dependency references upstream.
+
     ```sh
     git reset --hard
     ```
+
     And ensure workign tree is clean again
+
     ```sh
     git diff --exit-code
     ```
@@ -244,12 +247,14 @@ Do **NOT** manually update `package.json` of any package.
   ```
 
 - Confirm you are on the `main` branch and that there are no git changes `git diff --exit-code .` and you have write access to `main` branch
+
   ```sh
   git fetch --all
   git checkout main
   git pull
   git diff --exit-code .
   ```
+
 - Publish the release with `yarn publish:release`. (After successful publish, there should be no diff in git.)
 - If you aren't using an EIP-1193 compatible wallet, prepend `CANNON_PRIVATE_KEY=<PRIVATE_KEY>` to the following command.
 - In the directory for each package you’d like to publish to cannon, run `yarn deploy`

@@ -1,0 +1,70 @@
+name: Nightly contracts
+
+# 03:00 UTC. The heavy suite cannot run per-PR: the org's runner pool is
+# 4 x (2 CPU, 4 GB) on the production host, shared with monorepo, dev-agent
+# and infra, and one build-testable plus seven integration suites would hold
+# it for hours. See docs/superpowers/specs/2026-09-04-circleci-to-gha-design.md.
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "Only this package (e.g. markets/perps-market); empty runs all"
+        required: false
+        default: ""
+        type: string
+      batch_size:
+        description: "Override the per-suite batch size; empty keeps the defaults"
+        required: false
+        default: ""
+        type: string
+
+# One nightly at a time, and never cancel one in flight — a half-finished
+# build-testable leaves nothing useful behind.
+concurrency:
+  group: nightly-contracts
+  cancel-in-progress: false
+
+jobs:
+  suites:
+    runs-on: self-hosted
+    # Deliberately generous: CircleCI ran perps-market eight ways in parallel,
+    # we run every suite serially on 2 CPUs.
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      packages: read
+    env:
+      GT_READ: ${{ secrets.GT_READ }}
+      CANNON_REGISTRY_PRIORITY: local
+    steps:
+      - uses: actions/checkout@v5
+      - uses: liqcx/tooling/.github/actions/setup-liqcx@v1
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build:ts
+      - run: pnpm generate-testable
+      - run: pnpm build-testable
+
+      - name: Hardhat integration suites
+        env:
+          SUITE_FILTER: ${{ inputs.suite }}
+          BATCH_SIZE_OVERRIDE: ${{ inputs.batch_size }}
+        run: .github/scripts/run-suites.sh
+
+      # perps-market's Foundry stand reads script/Deploy.sol, which
+      # build-testable has just generated.
+      - name: Foundry stand (perps-market)
+        if: ${{ inputs.suite == '' || inputs.suite == 'markets/perps-market' }}
+        run: cd markets/perps-market && forge test
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: junit-${{ github.run_id }}
+          path: /tmp/junit
+          retention-days: 7
+          if-no-files-found: warn

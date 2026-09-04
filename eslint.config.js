@@ -2,6 +2,7 @@ const progress = require('eslint-plugin-progress');
 const noOnlyTests = require('eslint-plugin-no-only-tests');
 const globals = require('globals');
 const tsParser = require('@typescript-eslint/parser');
+const tsPlugin = require('@typescript-eslint/eslint-plugin');
 const js = require('@eslint/js');
 const { FlatCompat } = require('@eslint/eslintrc');
 
@@ -15,8 +16,13 @@ module.exports = [
   {
     ignores: [
       '!**/.*',
-      '!.circleci/test-batch.js',
+      '!.github/scripts/test-batch.js',
       '.yarn',
+      // Git-ignored (.gitignore:7). Holds Claude Code state and, when one is
+      // active, a sibling branch's git worktree — another branch's sources are
+      // never this checkout's code to lint.
+      '.claude/**',
+      'auxiliary/TrustedMulticallForwarder/lib',
       '**/coverage',
       '**/dist',
       'utils/*/utils',
@@ -96,6 +102,10 @@ module.exports = [
       parserOptions: {
         project: ['./tsconfig.eslint.json'],
       },
+    },
+
+    plugins: {
+      '@typescript-eslint': tsPlugin,
     },
 
     rules: {

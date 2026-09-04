@@ -31,7 +31,7 @@ To sell a synth in an atomic order, a trader may call `sell(uint128 marketId, ui
 
 Traders also have the option to call quote functions prior to a transaction to estimate cost of transaction with fees. The quote functions are listed below:
 
-```
+```solidity
 quoteBuyExactIn(uint128 marketId,uint usdAmount)
 quoteBuyExactOut(uint128 marketId,uint synthAmount)
 quoteSellExactIn(uint128 marketId,uint synthAmount)
@@ -73,7 +73,6 @@ The following actions are involved with asyncronous orders:
     - On-chain: The order is settled the same way an atomic order would except with the price provided by the oracle manager at the time of the settle transaction.
     - Pyth/Chainlink off-chain: a revert message, `OffchainLookup`, is constructed in accordance with [EIP-3668](https://eips.ethereum.org/EIPS/eip-3668) and thrown once the validity of the claim is determined.
 - **Settling offchain**
-
   - The aforementioned `OffchainLookup` provides a callback function signature which the client uses to call the actual settlement _with_ the data returned from the specified gateway in the revert message.
   - The data is verified using the `priceVerificationContract` that was configured on the settlement strategy and the order is settled using the offchain verified price.
 
@@ -125,7 +124,7 @@ The skew fee is calculated in two different ways depending on which asset the tr
 
 `calculateSkew` equation:
 
-```
+```text
 K/2P * sqrt((8CP/K)+(2NiP/K + 2P)^2) - K - Ni
 K = configured skew scale
 C = amount (cost in USD)
@@ -136,7 +135,7 @@ P = price
 For `buyExactOut` and `sellExactIn`, we know the synth amount the user is requested, or is willing to sell, so the skew calculation boils down to just adding or subtracting the synth amount and averaging the skew for before and after the trade.
 Ex:
 
-```
+```text
 configured skew scale: 1000 snxETH
 before fill synth balance in market: 100 snxETH
 

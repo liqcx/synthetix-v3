@@ -48,3 +48,36 @@ utils/core-modules/contracts/interfaces/IOwnerModule.sol
 utils/core-modules/contracts/modules/CoreModule.sol
 
 pnpm-lock.yaml
+
+# Canon-managed, verbatim strategy — liqcx-tooling-sync owns these byte for
+# byte and its --check compares against its own templates. Formatting them to
+# this repo's .prettierrc (4-space TOML, no-tabs JSON) puts the two gates in
+# permanent conflict, so Prettier does not touch them. (.gitleaks.toml and
+# .syncpackrc.cjs are NOT here: the canon seeds those create-if-absent and they
+# are the repo's afterwards.)
+.editorconfig
+.markdownlint-cli2.jsonc
+.gitleaks.canon.toml
+.yamllint
+.yamllint-canon-ignores
+.dependency-cruiser.base.cjs
+.syncpackrc.base.json
+
+# Subagent-driven-development scratch: ledger, task briefs, review packages.
+.superpowers/
+
+# Foundry broadcast logs and the Cannon-generated deploy script — build
+# output, regenerated on every run.
+**/broadcast/
+markets/perps-market/script/
+
+# Subgraph codegen. Committed under spot-market, untracked under
+# perps-market; either way graph-cli owns the formatting.
+**/subgraph/**/generated/
+
+# prettier-plugin-toml (taplo wasm) panics with "RuntimeError: unreachable"
+# on these three files. Formatting them is not worth a crashing gate;
+# revisit when the plugin is fixed upstream.
+protocol/governance/cannonfile.toml
+protocol/governance/cannonfile.satellite.toml
+auxiliary/SpotMarketOracle/cannonfile.toml

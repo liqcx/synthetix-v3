@@ -1,4 +1,6 @@
-// markdownlint-cli2 config for the perps monorepo.
+// markdownlint-cli2 config — liqcx org canon (sync-managed verbatim; never edit
+// in a repo — repo-local ignore paths go in .markdownlintignore, which
+// markdownlint-cli2 honors natively).
 //
 // Scope: **semantic** markdown linting only. Formatting (line wrap,
 // list marker style, trailing whitespace, etc.) is handled by Prettier

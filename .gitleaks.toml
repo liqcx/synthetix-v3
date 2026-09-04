@@ -20,67 +20,79 @@ description = 'Global false-positive filters.'
 # Commits allowlisted because the "secret" is a confirmed false positive.
 # Add fingerprint + explanation when suppressing a specific finding.
 commits = [
-  # packages/liq-onchain/src/turnkey-session-manager.ts line 42:
-  # DEFAULT_STORAGE_KEY = 'liq.sess.turnkey.v1' — localStorage cache key,
-  # not a credential. Triggered generic-api-key rule on the dotted string.
-  '76daa5f65a95fbeb810844d6fea4b427370eb565',
+    # packages/liq-onchain/src/turnkey-session-manager.ts line 42:
+    # DEFAULT_STORAGE_KEY = 'liq.sess.turnkey.v1' — localStorage cache key,
+    # not a credential. Triggered generic-api-key rule on the dotted string.
+    '76daa5f65a95fbeb810844d6fea4b427370eb565',
 ]
 
 # Generated / vendored / cache paths.
 paths = [
-  '''(.*/)?node_modules(/|$)''',
-  '''(.*/)?dist(/|$)''',
-  '''(.*/)?tsbuild(/|$)''',
-  '''(.*/)?coverage(/|$)''',
-  '''(.*/)?\.next(/|$)''',
-  '''(.*/)?\.source(/|$)''',
-  '''(.*/)?\.moon/cache(/|$)''',
-  '''pnpm-lock\.yaml$''',
-  '''(.*/)?CHANGELOG\.md$''',
-  '''(.*/)?prisma/migrations/''',
-  '''(.*/)?\.claude(/|$)''',
-  '''(.*/)?\.agent(/|$)''',
-  # Test fixtures and well-known Anvil/Hardhat deterministic accounts
-  # (these are published in every dev env and are NOT real secrets).
-  '''(.*/)?__tests__(/|$)''',
-  '''(.*/)?__mocks__(/|$)''',
-  '''(.*/)?fixtures?(/|$)''',
-  # Historical planning docs — false-positive regex matches in prose
-  # and curl examples. Skip the spec/plan/archive trees.
-  '''docs/superpowers/(specs|plans|archive)/''',
-  '''docs/ideas/''',
-  '''docs/archive/''',
-  '''docs/draft/''',
-  # Markdown docs in infra READMEs — describe URLs, not secrets.
-  '''infra/.*\.md$''',
+    '''(.*/)?node_modules(/|$)''',
+    '''(.*/)?dist(/|$)''',
+    '''(.*/)?tsbuild(/|$)''',
+    '''(.*/)?coverage(/|$)''',
+    '''(.*/)?\.next(/|$)''',
+    '''(.*/)?\.source(/|$)''',
+    '''(.*/)?\.moon/cache(/|$)''',
+    '''pnpm-lock\.yaml$''',
+    '''(.*/)?CHANGELOG\.md$''',
+    '''(.*/)?prisma/migrations/''',
+    '''(.*/)?\.claude(/|$)''',
+    '''(.*/)?\.agent(/|$)''',
+    # .env is git-ignored (.gitignore:2), so it can never enter a commit and
+    # is absent from a CI checkout — this entry exists so the same gitleaks
+    # command is usable locally, where a real .env sits on disk.
+    '''(^|/)\.env$''',
+    # Test fixtures and well-known Anvil/Hardhat deterministic accounts
+    # (these are published in every dev env and are NOT real secrets).
+    '''(.*/)?__tests__(/|$)''',
+    '''(.*/)?__mocks__(/|$)''',
+    '''(.*/)?fixtures?(/|$)''',
+    # Historical planning docs — false-positive regex matches in prose
+    # and curl examples. Skip the spec/plan/archive trees.
+    '''docs/superpowers/(specs|plans|archive)/''',
+    '''docs/ideas/''',
+    '''docs/archive/''',
+    '''docs/draft/''',
+    # Markdown docs in infra READMEs — describe URLs, not secrets.
+    '''infra/.*\.md$''',
 ]
 
 # Well-known public test keys / addresses. Add here as they come up.
 regexTarget = 'match'
 regexes = [
-  # Hardhat / Anvil default accounts (10× published deterministic keys).
-  '''0xf39[fF]d6e51aad88[fF]6[fF]4ce6a[bB]8827279c[fF]{3}b92266''',
-  '''0x70997970[cC]51812dc3[aA]010[cC]7d01[bB]50e0d17dc79c8''',
-  '''0x3[cC]44[cC]dddb6[aA]900fa2[bB]585dd299e03d12fa4293[bB][cC]''',
-  # Anvil test account #0 private key — documented everywhere, not a
-  # real secret. Published in https://hardhat.org/hardhat-network/docs/reference.
-  '''(?i)ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80''',
-  # Test placeholders we put in fixtures on purpose.
-  '''dead[bB]eef''',
-  '''[fF]akeTokenDoNotUseInProd''',
-  # Versioned localStorage keys used by the landing consent banner —
-  # not a secret, just a cache-bust identifier baked into the app.
-  '''liq-consent-v\d+''',
-  # Versioned localStorage / session-storage key names — not secrets.
-  '''liq\.\S+\.v\d+''',
+    # Hardhat / Anvil default accounts (10× published deterministic keys).
+    '''0xf39[fF]d6e51aad88[fF]6[fF]4ce6a[bB]8827279c[fF]{3}b92266''',
+    '''0x70997970[cC]51812dc3[aA]010[cC]7d01[bB]50e0d17dc79c8''',
+    '''0x3[cC]44[cC]dddb6[aA]900fa2[bB]585dd299e03d12fa4293[bB][cC]''',
+    # Anvil test account #0 private key — documented everywhere, not a
+    # real secret. Published in https://hardhat.org/hardhat-network/docs/reference.
+    '''(?i)ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80''',
+    # Test placeholders we put in fixtures on purpose.
+    '''dead[bB]eef''',
+    '''[fF]akeTokenDoNotUseInProd''',
+    # Versioned localStorage keys used by the landing consent banner —
+    # not a secret, just a cache-bust identifier baked into the app.
+    '''liq-consent-v\d+''',
+    # Versioned localStorage / session-storage key names — not secrets.
+    '''liq\.\S+\.v\d+''',
+    # A bare 40-hex string is an Ethereum ADDRESS, never a key — private keys
+    # are 64 hex and are already caught by this file's own
+    # eth-private-key-no-prefix rule. Fires on public contract addresses in
+    # auxiliary/Faucet/README.md:40,57 and
+    # markets/treasury-market/script/RestorePosition.sol:19,36.
+    # The trailing boundary group is load-bearing: this allowlist runs with
+    # regexTarget = 'match' against gitleaks' OWN rule matches, and without an
+    # anchor an unbounded '0x[a-fA-F0-9]{40}' also matches just the FIRST 40
+    # hex chars of a LONGER hex run — e.g. a 0x-prefixed 64-hex private key
+    # caught by eth-private-key-no-prefix above — silently allowlisting it.
+    # Requiring a non-hex character (or end of string) immediately after the
+    # 40th hex digit means this can only match a complete, standalone 40-hex
+    # address, never a prefix of something longer.
+    '''0x[a-fA-F0-9]{40}([^a-fA-F0-9]|$)''',
 ]
 
 # Use stopwords to suppress obvious noise. Gitleaks uses Hashicorp's
 # set by default; extend here if needed.
-stopwords = [
-  'placeholder',
-  'example',
-  'dummy',
-  'fixture',
-  'fake',
-]
+stopwords = ['placeholder', 'example', 'dummy', 'fixture', 'fake']

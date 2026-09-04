@@ -4,10 +4,12 @@
 
 | Инструмент | Версия | Проверка |
 |------------|--------|----------|
-| Node.js | ^20.17.0 (не 22+, Hardhat не поддерживает) | `node --version` |
-| Yarn | 4.7.0 (встроен в репо) | `yarn --version` |
+| Node.js | 24.14.0 (пин в `.prototools`) | `node --version` |
+| pnpm | 11.1.2 (пин в `.prototools` и `packageManager` в package.json) | `pnpm --version` |
 | Foundry (Anvil) | >= 1.5.0 | `anvil --version` |
 | IPFS | любая | `curl -s http://127.0.0.1:5001/api/v0/version` |
+
+`proto install` ставит Node и pnpm ровно тех версий, что закреплены в `.prototools`.
 
 ### Установка Foundry
 
@@ -35,10 +37,12 @@ IPFS должен быть доступен на `http://127.0.0.1:5001`.
 
 ```bash
 cd synthetix-v3
-yarn install
+pnpm install
 ```
 
-Yarn 4.7.0 зашит в репозиторий через `corepack`. Workspace-пакеты:
+pnpm 11.1.2 зашит в репозиторий через `.prototools` (proto) и `packageManager` в package.json.
+Workspace-пакеты:
+
 - `utils/**` — утилиты, общий конфиг
 - `protocol/**` — core protocol (synthetix)
 - `markets/**` — рынки (perps-market, spot-market)
@@ -51,7 +55,7 @@ Yarn 4.7.0 зашит в репозиторий через `corepack`. Workspace
 Cannon — фреймворк для деплоя контрактов. Использует IPFS для хранения артефактов.
 
 ```bash
-yarn cannon setup
+pnpm cannon setup
 ```
 
 Проверить/отредактировать конфиг:
@@ -61,6 +65,7 @@ cat ~/.local/share/cannon/settings.json
 ```
 
 Должно быть:
+
 ```json
 {
   "ipfsUrl": "http://0.0.0.0:5001",
@@ -75,7 +80,7 @@ cat ~/.local/share/cannon/settings.json
 
 При обновлении Foundry/Anvil с версии < 1.0 на >= 1.5 старые cannon-кеши становятся несовместимыми. Симптомы:
 
-```
+```text
 Error: Failed to decode state dump
 Error: Best hash not found
 ```
@@ -87,6 +92,7 @@ python3 scripts/fix-cannon-state-dumps.py
 ```
 
 Что делает:
+
 1. Сканирует `~/.local/share/cannon/ipfs_cache/*.json`
 2. Находит `chainDump` в старом формате (без поля `best_block_number`)
 3. Добавляет недостающие поля: `best_block_number`, `blocks`, `transactions`, `historical_states`
@@ -99,10 +105,11 @@ python3 scripts/fix-cannon-state-dumps.py
 ## Шаг 4: Генерация testable-контрактов
 
 ```bash
-yarn generate-testable
+pnpm generate-testable
 ```
 
 Генерирует объединённые контракты (router из модулей) в `contracts/generated/` для пакетов:
+
 - `protocol/synthetix`
 - `protocol/oracle-manager`
 - `utils/core-modules`
@@ -116,7 +123,7 @@ yarn generate-testable
 
 ```bash
 # Сборка testable-артефактов (с моками для тестов)
-yarn build-testable
+pnpm build-testable
 ```
 
 Собирает testable-версии из `cannonfile.test.toml` в топологическом порядке — с моками, тестовыми оракулами, FeeCollectorMock и т.д. Внутри каждого пакета `cannon:build` автоматически вызывает `hardhat compile`, поэтому отдельная компиляция не нужна.
@@ -124,7 +131,8 @@ yarn build-testable
 Без этого шага тесты не найдут зависимости (например `synthetix:3.13.1-testable`) и упадут с ошибкой `could not find package`.
 
 Порядок сборки определяется зависимостями между пакетами:
-```
+
+```text
 utils/core-contracts (compile)
   → utils/core-modules (compile)
     → protocol/synthetix (cannon:build cannonfile.test.toml)
@@ -137,10 +145,10 @@ utils/core-contracts (compile)
 
 ```bash
 # Production сборка (cannonfile.toml, без моков) — для деплоя, не для тестов
-yarn build
+pnpm build
 
 # Только компиляция Solidity (без cannon)
-yarn build:contracts
+pnpm build:contracts
 ```
 
 ---
@@ -150,7 +158,7 @@ yarn build:contracts
 ### Все тесты во всех пакетах
 
 ```bash
-yarn test
+pnpm test
 ```
 
 Это выполняет `CANNON_REGISTRY_PRIORITY=local bun x hardhat test` в каждом workspace параллельно.
@@ -159,7 +167,7 @@ yarn test
 
 ```bash
 cd markets/perps-market
-yarn test
+pnpm test
 ```
 
 ### Конкретный тестовый файл
@@ -208,11 +216,17 @@ pnpm build-testable            # Hardhat-пакет + ~1 мин на генер�
 pnpm forge-test                # forge test
 ```
 
-Пока CI не переехал с CircleCI (P3d), `forge test` запускается только локально.
+В CI стенд perps-market гоняется в ночном прогоне (`nightly-contracts.yml`) — ему нужен
+`script/Deploy.sol`, который появляется только после `build-testable`. Запустить руками:
+`gh workflow run nightly-contracts.yml --repo liqcx/synthetix-v3 -f suite=markets/perps-market`.
+Стенды, которым Cannon не нужен (`treasury-market`, `Faucet`), проверяются на каждом PR в джобе
+`contracts`. `RewardsDistributor` и `RewardsDistributorExternal` сейчас не гоняются нигде в CI:
+их тесты импортируют `forge-std/src/mocks/`, а такого пути нет ни в одном тегированном релизе
+forge-std (только в плавающем `#master`, который `deps:mismatched` как раз запрещает).
 
 ---
 
-## Что происходит при `yarn test`
+## Что происходит при `pnpm test`
 
 ### 1. Cannon Build
 
@@ -229,11 +243,12 @@ Hardhat запускает задачу `cannon:build` с файлом `cannonfi
 
 Файл: `utils/core-utils/src/utils/bootstrap/tests.ts`
 
-```
+```typescript
 coreBootstrap({ cannonfile: 'cannonfile.test.toml' })
 ```
 
 Выполняется в `before()` хуке Mocha:
+
 1. Вызывает `hre.run('cannon:build')` — получает outputs с контрактами
 2. Генерирует typechain-типы в `test/generated/typechain/`
 3. Создает ethers.js provider и 10 signer-ов
@@ -241,6 +256,7 @@ coreBootstrap({ cannonfile: 'cannonfile.test.toml' })
 5. Настраивает `anvil_setBlockTimestampInterval = 1`
 
 Возвращает:
+
 - `getContract(name)` — получить ethers.Contract по имени
 - `getSigners()` — массив signer-ов
 - `getProvider()` — ethers.providers.JsonRpcProvider
@@ -250,7 +266,7 @@ coreBootstrap({ cannonfile: 'cannonfile.test.toml' })
 
 Для изоляции тестов используется механизм EVM snapshot:
 
-```
+```text
 Cannon build → чистый стейт
   │
   ├─ evm_snapshot (базовый)
@@ -292,14 +308,14 @@ export function bootstrapMarkets(data) {
 
 | Переменная | Описание | Где используется |
 |------------|----------|-----------------|
-| `CANNON_REGISTRY_PRIORITY=local` | Искать cannon-пакеты сначала в локальном кеше | `yarn test`, `yarn build` |
+| `CANNON_REGISTRY_PRIORITY=local` | Искать cannon-пакеты сначала в локальном кеше | `pnpm test`, `pnpm build` |
 | `REPORT_GAS=true` | Включить отчет по gas usage | `bun x hardhat test` |
 
 ---
 
 ## Структура тестов perps-market
 
-```
+```text
 markets/perps-market/
 ├── cannonfile.test.toml          # Cannon-конфиг для тестов (с моками)
 ├── hardhat.config.ts             # Hardhat-конфиг (mocha timeout: 30s)
@@ -324,12 +340,13 @@ markets/perps-market/
 
 ### IPFS не запущен
 
-```
+```text
 Error: Failed to upload to IPFS. Make sure you have a local IPFS daemon running
 Error: connect ECONNREFUSED 0.0.0.0:5001
 ```
 
 **Решение:** Запустить IPFS daemon:
+
 ```bash
 ipfs daemon
 # или открыть IPFS Desktop
@@ -337,14 +354,15 @@ ipfs daemon
 
 ### Cannon не находит пакет
 
-```
+```text
 Error: could not find package synthetix:3.13.1-testable
 ```
 
 **Решение:** Сначала собрать зависимости:
+
 ```bash
 # Из корня
-yarn build-testable
+pnpm build-testable
 ```
 
 ### Тесты зависают на `restoreSnapshot`
@@ -352,12 +370,14 @@ yarn build-testable
 Проблема: Anvil деградирует при использовании раздутого cannon-кеша с накопленными историческими состояниями.
 
 **Решение 1 (рекомендуется):** Удалить cannon-кеш и пересобрать:
+
 ```bash
 rm -rf ~/.local/share/cannon/ipfs_cache/
-yarn build-testable
+pnpm build-testable
 ```
 
 **Решение 2:** Запускать тесты по каталогам, а не все сразу:
+
 ```bash
 CANNON_REGISTRY_PRIORITY=local bun x hardhat test 'test/integration/Orders/*.test.ts'
 ```
@@ -367,28 +387,38 @@ CANNON_REGISTRY_PRIORITY=local bun x hardhat test 'test/integration/Orders/*.tes
 Cannon-кеш содержит state dumps в старом формате Anvil.
 
 **Решение:**
+
 ```bash
 python3 scripts/fix-cannon-state-dumps.py
 ```
 
-### Hardhat не поддерживает текущую версию Node.js
+### Hardhat предупреждает о версии Node.js
 
-```
+```text
 WARNING: You are currently using Node.js v24.14.0, which is not supported by Hardhat
 Error HH502: Couldn't download compiler version list
 ```
 
-**Решение:** Переключиться на Node.js 20.x:
-```bash
-nvm use 20
-```
+Node.js 24.14.0 — это не проблема, а требование: он запинен в `.prototools` (см. таблицу
+пререквизитов выше) и нужен самому pnpm 11.1.2, который используют встроенный `node:sqlite`
+и требует Node >= 22.13. Откатываться на Node 20.x (`nvm use 20`) не нужно — это не решит
+проблему, а сломает `pnpm install`, потому что pnpm 11 на Node 20 не запустится.
+
+Само `WARNING: ... is not supported by Hardhat` — известный ложный срабатыватель: список
+поддерживаемых версий в проверках Hardhat отстаёт от факта, а сама команда в репозитории
+запускается через `bun x hardhat`, а не напрямую через системный `node`. Предупреждение можно
+игнорировать.
+
+**Решение:** Если следом появляется `Error HH502: Couldn't download compiler version list` —
+это сетевая проблема (Hardhat не может достучаться до списка версий solc), а не версия
+Node.js. Проверьте доступ в интернет/прокси и повторите команду.
 
 ### Компиляция Solidity падает
 
 ```bash
 # Очистить и пересобрать
-yarn clean
-yarn build
+pnpm clean
+pnpm build
 ```
 
 ### Cannon build слишком долгий

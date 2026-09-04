@@ -1,5 +1,8 @@
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": true
+  },
   "include": [
     "./utils/**/*.ts",
     "./utils/**/*.js",
@@ -8,6 +11,7 @@
     "./markets/**/*.ts",
     "./markets/**/*.js",
     "./auxiliary/**/*.js",
-    "./auxiliary/**/*.ts"
+    "./auxiliary/**/*.ts",
+    "**/.solcover.js"
   ]
 }

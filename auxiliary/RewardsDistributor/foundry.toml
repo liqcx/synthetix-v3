@@ -1,15 +1,13 @@
 [profile.default]
 src = "src"
 out = "out"
-libs = []
-allow_paths = [
-    "../../node_modules/forge-std",
-    "../../protocol/synthetix",
-    "../../utils/core-contracts",
-]
+libs = ["../../node_modules", "node_modules", "lib", "../../"]
+# pnpm links workspace packages under this package's node_modules, not the root's.
 remappings = [
     "forge-std=../../node_modules/forge-std/src",
-    "@synthetixio=../../node_modules/@synthetixio",
+    "@synthetixio/core-contracts=node_modules/@synthetixio/core-contracts",
+    "@synthetixio/governance=node_modules/@synthetixio/governance",
+    "@synthetixio/main=node_modules/@synthetixio/main",
 ]
 
 fs_permissions = [{ access = "read", path = "./" }]

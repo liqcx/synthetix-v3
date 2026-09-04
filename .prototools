@@ -7,10 +7,12 @@ node = "24.14.0"
 pnpm = "11.1.2"
 bun = "1.3.14"
 
-# AI-first guardrails — pinned for the canon GHA lint gate (P3d). Not yet wired.
+# AI-first guardrails — pinned and wired into the canon GHA lint gate (P3d).
 actionlint = "1.7.12"
 shellcheck = "0.11.0"
 gitleaks = "8.30.1"
+# uv runs `pnpm lint:yaml` (yamllint via `uv tool run`) in the lint job.
+uv = "0.11.6"
 
 [plugins]
 actionlint = "https://raw.githubusercontent.com/Phault/proto-toml-plugins/main/actionlint/plugin.toml"
