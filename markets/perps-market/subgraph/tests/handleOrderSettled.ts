@@ -117,6 +117,7 @@ export default function test(): void {
   log.info('Two legs of one account in one block are two records, keyed by log', []);
 
   let secondFillPrice = 1100;
+  let secondPnl = -250;
   let secondSizeDelta = 200;
   let secondNewSize = 1000;
 
@@ -125,7 +126,7 @@ export default function test(): void {
       perpsMarketId,
       accountId,
       secondFillPrice,
-      0,
+      secondPnl,
       0,
       secondSizeDelta,
       secondNewSize,
@@ -159,6 +160,10 @@ export default function test(): void {
   assert.fieldEquals('OrderSettled', secondLegId, 'fillPrice', secondFillPrice.toString());
   assert.fieldEquals('OrderSettled', secondLegId, 'sizeDelta', secondSizeDelta.toString());
   assert.fieldEquals('OrderSettled', secondLegId, 'newSize', secondNewSize.toString());
+
+  // the realised pnl of each leg is kept, sign and all
+  assert.fieldEquals('OrderSettled', orderSettledId, 'pnl', pnl.toString());
+  assert.fieldEquals('OrderSettled', secondLegId, 'pnl', secondPnl.toString());
 
   // the account's latest order follows the last leg
   assert.fieldEquals('Order', orderId, 'newSize', secondNewSize.toString());

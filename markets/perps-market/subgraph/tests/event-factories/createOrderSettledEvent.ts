@@ -32,22 +32,19 @@ export function createOrderSettledEvent(
     )
   );
   event.parameters.push(
-    new ethereum.EventParam('pnl', ethereum.Value.fromUnsignedBigInt(BigInt.fromI64(pnl)))
+    new ethereum.EventParam('pnl', ethereum.Value.fromSignedBigInt(BigInt.fromI64(pnl)))
   );
   event.parameters.push(
     new ethereum.EventParam(
       'accruedFunding',
-      ethereum.Value.fromUnsignedBigInt(BigInt.fromI64(accruedFunding))
+      ethereum.Value.fromSignedBigInt(BigInt.fromI64(accruedFunding))
     )
   );
   event.parameters.push(
-    new ethereum.EventParam(
-      'sizeDelta',
-      ethereum.Value.fromUnsignedBigInt(BigInt.fromI64(sizeDelta))
-    )
+    new ethereum.EventParam('sizeDelta', ethereum.Value.fromSignedBigInt(BigInt.fromI64(sizeDelta)))
   );
   event.parameters.push(
-    new ethereum.EventParam('newSize', ethereum.Value.fromUnsignedBigInt(BigInt.fromI64(newSize)))
+    new ethereum.EventParam('newSize', ethereum.Value.fromSignedBigInt(BigInt.fromI64(newSize)))
   );
   event.parameters.push(
     new ethereum.EventParam(

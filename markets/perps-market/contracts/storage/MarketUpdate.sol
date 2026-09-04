@@ -11,6 +11,8 @@ library MarketUpdate {
         uint128 interestRate;
         int256 skew;
         uint256 size;
+        // the change in the market's open interest: |new position| − |old position|
+        int256 sizeDelta;
         int256 currentFundingRate;
         int256 currentFundingVelocity;
     }

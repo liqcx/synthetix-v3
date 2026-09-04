@@ -71,8 +71,8 @@ library PerpsAccount {
     /**
      * @notice What one settled position change amounted to: the caller's accounting and events
      * are written from it.
-     * @dev `debt` is the account's debt after the charge; `marketSizeDelta` is the change in the
-     * market's open interest, which a same-side reduction makes negative.
+     * @dev `debt` is the account's debt after the charge; `marketUpdate.sizeDelta` is the change
+     * in the market's open interest, which a same-side reduction makes negative.
      */
     struct SettledChange {
         Position.Data oldPosition;
@@ -83,7 +83,6 @@ library PerpsAccount {
         int256 chargedAmount;
         uint256 debt;
         MarketUpdate.Data marketUpdate;
-        int256 marketSizeDelta;
     }
 
     /**
@@ -824,7 +823,6 @@ library PerpsAccount {
         settled.chargedAmount = settled.pnl - fees.toInt();
         settled.debt = charge(self, settled.chargedAmount);
 
-        uint256 sizeBefore = market.size;
         (, settled.newPosition, settled.marketUpdate) = applyPositionChange(
             self,
             marketId,
@@ -832,7 +830,6 @@ library PerpsAccount {
             fillPrice,
             markPrice
         );
-        settled.marketSizeDelta = market.size.toInt() - sizeBefore.toInt();
     }
 
     /**

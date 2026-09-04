@@ -42,6 +42,7 @@ export function handleOrderSettled(event: OrderSettledEvent): void {
   orderSettled.marketId = event.params.marketId;
   orderSettled.accountId = event.params.accountId;
   orderSettled.fillPrice = event.params.fillPrice;
+  orderSettled.pnl = event.params.pnl;
   orderSettled.accruedFunding = event.params.accruedFunding;
   orderSettled.sizeDelta = event.params.sizeDelta;
   orderSettled.newSize = event.params.newSize;

@@ -2,7 +2,6 @@
 pragma solidity >=0.8.11 <0.9.0;
 
 import {DecimalMath} from "@synthetixio/core-contracts/contracts/utils/DecimalMath.sol";
-import {ERC2771Context} from "@synthetixio/core-contracts/contracts/utils/ERC2771Context.sol";
 import {ParameterError} from "@synthetixio/core-contracts/contracts/errors/ParameterError.sol";
 import {FeatureFlag} from "@synthetixio/core-modules/contracts/storage/FeatureFlag.sol";
 import {Account} from "@synthetixio/main/contracts/storage/Account.sol";
@@ -14,8 +13,7 @@ import {PerpsMarket} from "../storage/PerpsMarket.sol";
 import {PerpsMarketConfiguration} from "../storage/PerpsMarketConfiguration.sol";
 import {PerpsAccount} from "../storage/PerpsAccount.sol";
 import {PerpsPrice} from "../storage/PerpsPrice.sol";
-import {GlobalPerpsMarketConfiguration} from "../storage/GlobalPerpsMarketConfiguration.sol";
-import {PerpsMarketFactory} from "../storage/PerpsMarketFactory.sol";
+import {Settlement} from "../storage/Settlement.sol";
 import {Flags} from "../utils/Flags.sol";
 
 /**
@@ -25,47 +23,7 @@ import {Flags} from "../utils/Flags.sol";
 contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
     using PerpsAccount for PerpsAccount.Data;
     using PerpsMarket for PerpsMarket.Data;
-    using GlobalPerpsMarketConfiguration for GlobalPerpsMarketConfiguration.Data;
     using DecimalMath for uint256;
-
-    /**
-     * @notice Gets fired when a new order is settled.
-     * @param marketId Id of the market used for the trade.
-     * @param accountId Id of the account used for the trade.
-     * @param fillPrice Price at which the order was settled.
-     * @param pnl Pnl of the previous closed position.
-     * @param accruedFunding Accrued funding of the previous closed position.
-     * @param sizeDelta Size delta from order.
-     * @param newSize New size of the position after settlement.
-     * @param totalFees Amount of fees collected by the protocol.
-     * @param referralFees Amount of fees collected by the referrer.
-     * @param collectedFees Amount of fees collected by fee collector.
-     * @param settlementReward reward to sender for settling order.
-     * @param trackingCode Optional code for integrator tracking purposes.
-     * @param settler address of the settler of the order.
-     */
-    event OrderSettled(
-        uint128 indexed marketId,
-        uint128 indexed accountId,
-        uint256 fillPrice,
-        int256 pnl,
-        int256 accruedFunding,
-        int128 sizeDelta,
-        int128 newSize,
-        uint256 totalFees,
-        uint256 referralFees,
-        uint256 collectedFees,
-        uint256 settlementReward,
-        bytes32 indexed trackingCode,
-        address settler
-    );
-
-    /**
-     * @notice Gets fired after order settles and includes the interest charged to the account.
-     * @param accountId Id of the account used for the trade.
-     * @param interest interest charges
-     */
-    event InterestCharged(uint128 indexed accountId, uint256 interest);
 
     event AccountOrderModeChanged(uint128 accountId, bytes16 newMode);
 
@@ -120,7 +78,7 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
         // settle one after another, each realising the position the previous one left at the
         // price of its own fill. Folding them into one change at one price would hand the pool
         // the price impact of a sweep and the result of a round trip within the batch.
-        uint256 totalCollectedFees;
+        Settlement.Fees memory batch;
         uint128 previousAccountId;
         for (uint256 i = 0; i < orders.length; i++) {
             BookOrder memory order = orders[i];
@@ -135,19 +93,22 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
 
             _checkPriceDeviation(order.accountId, order.orderPrice, markPrice, maxDeviation);
 
-            // the fee reads the skew as the previous orders of the batch left it
-            uint256 orderFee = market.calculateOrderFee(order.sizeDelta, order.orderPrice);
-            totalCollectedFees += _settleOrder(marketId, order, markPrice, orderFee);
+            // the fee reads the skew as the previous orders of the batch left it; no keeper is
+            // rewarded and no referrer is named, so the split is the collector's quote alone
+            Settlement.Fees memory fees = Settlement.quoteFees(
+                market.calculateOrderFee(order.sizeDelta, order.orderPrice),
+                0,
+                address(0)
+            );
+            _settleOrder(marketId, order, markPrice, fees);
+            Settlement.add(batch, fees);
         }
 
-        // send collected fees to the fee collector and etc.
-        GlobalPerpsMarketConfiguration.load().collectFees(
-            totalCollectedFees,
-            address(0),
-            PerpsMarketFactory.load()
-        );
+        // the batch pays its shares once: what its orders' events say the collector received,
+        // in one transfer
+        Settlement.payFees(batch);
 
-        emit BookOrderSettled(marketId, orders, totalCollectedFees);
+        emit BookOrderSettled(marketId, orders, batch.total);
     }
 
     /**
@@ -171,7 +132,8 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
 
     /**
      * @dev Settles one order as a position change at the order's price, judged at `markPrice`,
-     * the oracle price read once for the batch.
+     * the oracle price read once for the batch, and writes its events with the order's share of
+     * the fee.
      * @dev The mode gate is the module's own; every check the change itself must pass lives in
      * `PerpsAccount.settlePositionChange`, and a rejection there reverts the whole batch.
      */
@@ -179,53 +141,23 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
         uint128 marketId,
         BookOrder memory order,
         uint256 markPrice,
-        uint256 orderFee
-    ) private returns (uint256) {
+        Settlement.Fees memory fees
+    ) private {
         bytes16 mode = PerpsAccount.load(order.accountId).getOrderMode();
         if (mode != "BOOK" && mode != "RECENTLY_CHANGED") {
             revert IncorrectAccountMode(order.accountId, mode);
         }
 
-        PerpsAccount.SettledChange memory settled = PerpsAccount.settlePositionChange(
-            order.accountId,
-            marketId,
-            order.sizeDelta,
-            order.orderPrice,
-            markPrice,
-            orderFee
+        Settlement.settle(
+            Settlement.Change(
+                marketId,
+                order.accountId,
+                order.sizeDelta,
+                order.orderPrice,
+                markPrice,
+                order.trackingCode
+            ),
+            fees
         );
-
-        emit AccountCharged(order.accountId, settled.chargedAmount, settled.debt);
-
-        emit MarketUpdated(
-            settled.marketUpdate.marketId,
-            markPrice,
-            settled.marketUpdate.skew,
-            settled.marketUpdate.size,
-            settled.marketSizeDelta,
-            settled.marketUpdate.currentFundingRate,
-            settled.marketUpdate.currentFundingVelocity,
-            settled.marketUpdate.interestRate
-        );
-
-        emit InterestCharged(order.accountId, settled.chargedInterest);
-
-        emit OrderSettled(
-            marketId,
-            order.accountId,
-            order.orderPrice,
-            settled.pnl,
-            settled.accruedFunding,
-            order.sizeDelta,
-            settled.newPosition.size,
-            orderFee,
-            0, // referral fees
-            0, // TODO: fee collector fees
-            0, // settlement reward
-            order.trackingCode,
-            ERC2771Context._msgSender()
-        );
-
-        return orderFee;
     }
 }
