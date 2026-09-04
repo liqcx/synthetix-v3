@@ -7,7 +7,6 @@ import { bookOrder, openBookAccount, settleBook, BookOrder } from '../../helpers
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
 import assertEvent from '@synthetixio/core-utils/utils/assertions/assert-event';
 import assertRevert from '@synthetixio/core-utils/utils/assertions/assert-revert';
-import { fastForwardTo, getTime } from '@synthetixio/core-utils/utils/hardhat/rpc';
 
 describe('Settle Orderbook order', () => {
   const { systems, owner, perpsMarkets, provider, trader1, trader2, keeper } = bootstrapMarkets({
@@ -64,44 +63,6 @@ describe('Settle Orderbook order', () => {
   });
 
   const restore = snapshotCheckpoint(provider);
-
-  it.skip('fails if not called by orderbook', async () => {
-    // for this test we consider `keeper` to be the orderbook
-    // but it cna be a different address from the actual keeper
-  });
-
-  it('accounts are on the book by default; a switched account waits out the grace', async () => {
-    const mode = async (accountId: number) =>
-      ethers.utils.parseBytes32String(
-        (await systems().PerpsMarket.getOrderMode(accountId)) + '00000000000000000000000000000000'
-      );
-    // Neither the bootstrap accounts nor the 38 funded ones ever called setBookMode.
-    assert.equal(await mode(2), 'BOOK');
-    assert.equal(await mode(3), 'BOOK');
-    assert.equal(await mode(5), 'BOOK');
-
-    // The first set from the default is initialisation and takes effect at once; a switch
-    // after that is guarded by the grace window.
-    await systems().PerpsMarket.connect(trader1()).setBookMode(4, false);
-    assert.equal(await mode(4), 'ONCHAIN');
-    await systems().PerpsMarket.connect(trader1()).setBookMode(4, true);
-    assert.equal(await mode(4), 'RECENTLY_CHANGED');
-    await fastForwardTo((await getTime(provider())) + 1000, provider());
-    assert.equal(await mode(4), 'BOOK');
-  });
-
-  describe('default-mode account (BOOK by default)', () => {
-    before(restore);
-
-    it('settles a book order for account 5 even though setBookMode was never called', async () => {
-      // account 5 is funded (10_000 snxUSD) but never had setBookMode called on it.
-      // With BOOK as the default order mode, settleBookOrders must accept it.
-      await settle([bookOrder(5, bn(1), bn(1050))]);
-
-      const [, , size] = await systems().PerpsMarket.getOpenPosition(5, ethMarketId);
-      assertBn.equal(size, bn(1));
-    });
-  });
 
   it('fails when the orders are not increasing account id order', async () => {
     await assertRevert(

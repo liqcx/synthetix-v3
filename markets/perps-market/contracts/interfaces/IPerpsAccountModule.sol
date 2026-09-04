@@ -27,6 +27,13 @@ interface IPerpsAccountModule {
     event DebtPaid(uint128 indexed accountId, uint256 amount, address indexed sender);
 
     /**
+     * @notice Gets fired when an account switches the door it trades through.
+     * @param accountId Id of the account.
+     * @param newMode the mode set: "BOOK" or "ONCHAIN".
+     */
+    event AccountOrderModeChanged(uint128 accountId, bytes16 newMode);
+
+    /**
      * @notice Gets thrown when the amount delta is zero.
      */
     error InvalidAmountDelta(int256 amountDelta);
@@ -38,6 +45,25 @@ interface IPerpsAccountModule {
      * @param amountDelta requested change in amount of collateral delegated to the account.
      */
     function modifyCollateral(uint128 accountId, uint128 collateralId, int256 amountDelta) external;
+
+    /**
+     * @notice Puts the account on the book (`useBook`) or takes it off, onto the async path.
+     * @dev Setting the mode the account already has changes nothing. Leaving the book takes
+     * 15 seconds, during which `getOrderMode` reports "RECENTLY_CHANGED", the book still settles
+     * the account's fills and no async order can be committed; entering the book is immediate.
+     * Reverts with `PendingOrderExists` while the account has an unexpired async order.
+     * @param accountId Id of the account.
+     * @param useBook true for the book, false for the async path.
+     */
+    function setBookMode(uint128 accountId, bool useBook) external;
+
+    /**
+     * @notice The door the account trades through: "BOOK" (the default), "ONCHAIN", or
+     * "RECENTLY_CHANGED" for 15 seconds after a switch.
+     * @param accountId Id of the account.
+     * @return the mode, as a bytes16 word.
+     */
+    function getOrderMode(uint128 accountId) external view returns (bytes16);
 
     /**
      * @notice Gets the account's collateral value for a specific collateral.

@@ -4,6 +4,6 @@ export * from './openPosition';
 export * from './fillPrice';
 export * from './computeFees';
 export * from './requiredMargins';
-export * from './createAccountAndPosition';
+export * from './accounts';
 export * from './interestRate';
 export * from './book';

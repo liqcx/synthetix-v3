@@ -2,7 +2,6 @@
 pragma solidity >=0.8.11 <0.9.0;
 
 import {ERC2771Context} from "@synthetixio/core-contracts/contracts/utils/ERC2771Context.sol";
-import {ParameterError} from "@synthetixio/core-contracts/contracts/errors/ParameterError.sol";
 import {FeatureFlag} from "@synthetixio/core-modules/contracts/storage/FeatureFlag.sol";
 import {Account} from "@synthetixio/main/contracts/storage/Account.sol";
 import {AccountRBAC} from "@synthetixio/main/contracts/storage/AccountRBAC.sol";
@@ -12,6 +11,7 @@ import {PerpsMarketFactory} from "../storage/PerpsMarketFactory.sol";
 import {IPerpsAccountModule} from "../interfaces/IPerpsAccountModule.sol";
 import {IGlobalPerpsMarketModule} from "../interfaces/IGlobalPerpsMarketModule.sol";
 import {PerpsAccount, SNX_USD_MARKET_ID} from "../storage/PerpsAccount.sol";
+import {OrderMode} from "../storage/OrderMode.sol";
 import {Position} from "../storage/Position.sol";
 import {AsyncOrder} from "../storage/AsyncOrder.sol";
 import {PerpsMarket} from "../storage/PerpsMarket.sol";
@@ -62,22 +62,6 @@ contract PerpsAccountModule is IPerpsAccountModule {
 
         if (amountDelta == 0) revert InvalidAmountDelta(amountDelta);
 
-        // DEAD GUARD — DO NOT "FIX" TO ||. getOrderMode() can never be both "BOOK"
-        // and "RECENTLY_CHANGED" at once, so this never triggers. Now that BOOK is the
-        // default, changing `&&` to `||` would block collateral withdrawal for EVERY
-        // default account. Reworking this guard (e.g. only-when-open-book-orders) is a
-        // separate effort tracked in the BOOK-default design spec.
-        if (
-            amountDelta < 0 &&
-            PerpsAccount.load(accountId).getOrderMode() == "BOOK" &&
-            PerpsAccount.load(accountId).getOrderMode() == "RECENTLY_CHANGED"
-        ) {
-            revert ParameterError.InvalidParameter(
-                "amountDelta",
-                "cannot remove collateral while BOOK order mode"
-            );
-        }
-
         PerpsMarketFactory.Data storage perpsMarketFactory = PerpsMarketFactory.load();
 
         GlobalPerpsMarket.Data storage globalPerpsMarket = GlobalPerpsMarket.load();
@@ -108,6 +92,26 @@ contract PerpsAccountModule is IPerpsAccountModule {
         account.updateCollateralAmount(collateralId, amountDelta);
 
         emit CollateralModified(accountId, collateralId, amountDelta, ERC2771Context._msgSender());
+    }
+
+    /**
+     * @inheritdoc IPerpsAccountModule
+     */
+    function setBookMode(uint128 accountId, bool useBook) external override {
+        FeatureFlag.ensureAccessToFeature(Flags.PERPS_SYSTEM);
+        Account.exists(accountId);
+        Account.loadAccountAndValidatePermission(
+            accountId,
+            AccountRBAC._PERPS_COMMIT_ASYNC_ORDER_PERMISSION
+        );
+        OrderMode.set(accountId, useBook);
+    }
+
+    /**
+     * @inheritdoc IPerpsAccountModule
+     */
+    function getOrderMode(uint128 accountId) external view override returns (bytes16) {
+        return OrderMode.current(accountId);
     }
 
     function debt(uint128 accountId) external view override returns (uint256 accountDebt) {

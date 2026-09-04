@@ -7,46 +7,46 @@
 
 ## Summary
 
-| Severity | Count | Key Themes |
-|----------|-------|------------|
-| Critical | 3 | Unverified prices, no settler access control, no order consent |
-| High | 5 | Missing market size limits, no margin checks, corrupted funding/position data |
-| Medium | 6 | Event bugs, race conditions, phantom accounts, missing return values |
-| Low | 4 | Wrong liquidation check ordering, dead code, missing referral/tracking |
-| Informational | 3 | Dead code, redundant computation, missing pending order check |
+| Severity      | Count | Key Themes                                                                    |
+| ------------- | ----- | ----------------------------------------------------------------------------- |
+| Critical      | 3     | Unverified prices, no settler access control, no order consent                |
+| High          | 5     | Missing market size limits, no margin checks, corrupted funding/position data |
+| Medium        | 6     | Event bugs, race conditions, phantom accounts, missing return values          |
+| Low           | 4     | Wrong liquidation check ordering, dead code, missing referral/tracking        |
+| Informational | 3     | Dead code, redundant computation, missing pending order check                 |
 
 **Overall:** CRIT-1 + CRIT-2 + CRIT-3 together mean any address with `perpsSystem` feature flag access can settle arbitrary trades at arbitrary prices against any BOOK-mode account without the account owner's consent. This would allow complete drainage of both LP collateral and trader margin.
 
-## Status as of 2026-09-03
+## Status as of 2026-09-04
 
 The findings below are kept as written on 2026-03-17; this table is the ledger. "Gate" is
 `PerpsAccount.validatePositionChange`, the one check both settlement paths pass through since
 2026-09-02 (see `docs/superpowers/specs/2026-09-02-position-change-gate-design.md`).
 
-| Finding | Status | Closed by |
-| ------- | ------ | --------- |
-| CRIT-1 price verification | Bounded | Since 2026-09-03 the gate judges every fill against the oracle price, and a per-market bound (`setMaxBookPriceDeviation`, zero is no bound) reverts a batch with an order further from it than the bound, naming the account (`BookPriceDeviationExceeded`). `signedPriceData` is still unread: on MegaETH the price feed is a MockPyth with nothing to verify, and a fill still needs the settler to be honest about which side lost within the bound (CRIT-2, CRIT-3) |
-| CRIT-2 access control on `settleBookOrders` | Open | |
-| CRIT-3 order consent | Open | |
-| HIGH-1 `maxMarketSize` / `maxMarketValue` | Fixed | gate check 6, `validateGivenMarketSize` at the oracle price (at the group's price until 2026-09-03) |
-| HIGH-2 credit capacity | Fixed | gate check 7, `validateMarketCapacity` |
-| HIGH-3 margin after settlement | Fixed | gate check 5: fees payable, then initial margin plus liquidation reward measured on the post-change positions |
-| HIGH-4 `latestInteractionFunding` | Fixed | `Position.next` re-anchors funding on every change (PRs #14–#16) |
-| HIGH-5 `marketId = 0` | Fixed | commit `f06b2c3b`; `Position.next` carries the id since PRs #14–#16 |
-| MED-1 `setBookMode` event | Fixed | the event carries the mode that was set |
-| MED-2 grace-period race | Open | the book path still accepts `RECENTLY_CHANGED` |
-| MED-3 phantom accounts | Fixed | gate check 1, `Account.exists`; the module no longer creates accounts |
-| MED-4 `cancelledOrders` | Fixed | the return value is gone: a batch settles whole or reverts whole |
-| MED-5 funding at per-account prices | Fixed | `settleBookOrders` reads the oracle once per batch and passes it as the mark price; funding is recomputed at it, whatever prices the batch names (2026-09-03) |
-| MED-6 `maxPositionsPerAccount` | Fixed | gate check 4 |
-| LOW-1 liquidation check on the wrong account | Fixed | gate checks 2–3 run on the account being changed, before its change |
-| LOW-2 debug events | Fixed | gone with the rewrite of `settleBookOrders` |
-| LOW-3 referral fees | Closed by construction | one code path, `Settlement.quoteFees`, splits the fee on both doors; a `BookOrder` names no referrer, so its share is zero as a result, not a literal. Paying referrers on the book door starts with a field on `BookOrder`, a product decision |
-| LOW-4 `trackingCode` | Fixed | every book order's `OrderSettled` carries its `trackingCode` since PR #21 |
-| INFO-1 dead skew loop | Fixed | gone with the rewrite of `settleBookOrders` |
-| INFO-2 redundant pnl | Open | |
-| INFO-3 pending order on `setBookMode` | Open | |
-| Fold at the first order's price (found 2026-09-03, not in the 2026-03-17 audit) | Fixed in the contract | every order is its own position change at its own price; the settler's half (one order per fill leg) is a monorepo change. See "Found after the audit" |
+| Finding                                                                         | Status                 | Closed by                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CRIT-1 price verification                                                       | Bounded                | Since 2026-09-03 the gate judges every fill against the oracle price, and a per-market bound (`setMaxBookPriceDeviation`, zero is no bound) reverts a batch with an order further from it than the bound, naming the account (`BookPriceDeviationExceeded`). `signedPriceData` is still unread: on MegaETH the price feed is a MockPyth with nothing to verify, and a fill still needs the settler to be honest about which side lost within the bound (CRIT-2, CRIT-3) |
+| CRIT-2 access control on `settleBookOrders`                                     | Open                   |                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| CRIT-3 order consent                                                            | Open                   |                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| HIGH-1 `maxMarketSize` / `maxMarketValue`                                       | Fixed                  | gate check 6, `validateGivenMarketSize` at the oracle price (at the group's price until 2026-09-03)                                                                                                                                                                                                                                                                                                                                                                     |
+| HIGH-2 credit capacity                                                          | Fixed                  | gate check 7, `validateMarketCapacity`                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| HIGH-3 margin after settlement                                                  | Fixed                  | gate check 5: fees payable, then initial margin plus liquidation reward measured on the post-change positions                                                                                                                                                                                                                                                                                                                                                           |
+| HIGH-4 `latestInteractionFunding`                                               | Fixed                  | `Position.next` re-anchors funding on every change (PRs #14–#16)                                                                                                                                                                                                                                                                                                                                                                                                        |
+| HIGH-5 `marketId = 0`                                                           | Fixed                  | commit `f06b2c3b`; `Position.next` carries the id since PRs #14–#16                                                                                                                                                                                                                                                                                                                                                                                                     |
+| MED-1 `setBookMode` event                                                       | Fixed                  | the event carries the mode that was set                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| MED-2 grace-period race                                                         | Fixed                  | `setBookMode` is refused while an unexpired async order is pending (`PendingOrderExists`), and the async door is shut throughout the 15 s window after a switch, so the two doors are never open at once (`OrderMode`, 2026-09-04)                                                                                                                                                                                                                                      |
+| MED-3 phantom accounts                                                          | Fixed                  | gate check 1, `Account.exists`; the module no longer creates accounts                                                                                                                                                                                                                                                                                                                                                                                                   |
+| MED-4 `cancelledOrders`                                                         | Fixed                  | the return value is gone: a batch settles whole or reverts whole                                                                                                                                                                                                                                                                                                                                                                                                        |
+| MED-5 funding at per-account prices                                             | Fixed                  | `settleBookOrders` reads the oracle once per batch and passes it as the mark price; funding is recomputed at it, whatever prices the batch names (2026-09-03)                                                                                                                                                                                                                                                                                                           |
+| MED-6 `maxPositionsPerAccount`                                                  | Fixed                  | gate check 4                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| LOW-1 liquidation check on the wrong account                                    | Fixed                  | gate checks 2–3 run on the account being changed, before its change                                                                                                                                                                                                                                                                                                                                                                                                     |
+| LOW-2 debug events                                                              | Fixed                  | gone with the rewrite of `settleBookOrders`                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| LOW-3 referral fees                                                             | Closed by construction | one code path, `Settlement.quoteFees`, splits the fee on both doors; a `BookOrder` names no referrer, so its share is zero as a result, not a literal. Paying referrers on the book door starts with a field on `BookOrder`, a product decision                                                                                                                                                                                                                         |
+| LOW-4 `trackingCode`                                                            | Fixed                  | every book order's `OrderSettled` carries its `trackingCode` since PR #21                                                                                                                                                                                                                                                                                                                                                                                               |
+| INFO-1 dead skew loop                                                           | Fixed                  | gone with the rewrite of `settleBookOrders`                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| INFO-2 redundant pnl                                                            | Open                   |                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| INFO-3 pending order on `setBookMode`                                           | Fixed                  | `OrderMode.set` runs `AsyncOrder.checkPendingOrder`, the check `modifyCollateral` runs (2026-09-04)                                                                                                                                                                                                                                                                                                                                                                     |
+| Fold at the first order's price (found 2026-09-03, not in the 2026-03-17 audit) | Fixed in the contract  | every order is its own position change at its own price; the settler's half (one order per fill leg) is a monorepo change. See "Found after the audit"                                                                                                                                                                                                                                                                                                                  |
 
 ## Found after the audit
 
@@ -84,12 +84,14 @@ and the three criticals remain.
 `orderPrice` from settler is fully trusted with zero onchain oracle verification. `signedPriceData` field in the BookOrder struct is never read or verified. In contrast, `AsyncOrderSettlementPythModule.settleOrder()` retrieves the price from `IPythERC7412Wrapper.getBenchmarkPrice()` using a Pyth-signed price proof.
 
 **Impact:**
+
 - Drain LP collateral: settle long at inflated price, generating artificial profit charged to pool
 - Drain trader margin: settle at unfavorable price
 - Corrupt funding rate: `recomputeFunding` uses attacker-controlled price
 - Corrupt `debtCorrectionAccumulator` permanently
 
 **Recommendation:**
+
 1. Immediate: add `trustedSettler` address check (`require(msg.sender == trustedSettler)`)
 2. Production: verify `signedPriceData` via `IPythERC7412Wrapper`, enforce `|orderPrice - oraclePrice| / oraclePrice < maxDeviationBps`
 
@@ -115,6 +117,7 @@ Only `FeatureFlag.ensureAccessToFeature(Flags.PERPS_SYSTEM)` is checked. If `all
 In contrast, `AsyncOrderModule.commitOrder()` requires `Account.loadAccountAndValidatePermission(accountId, _PERPS_COMMIT_ASYNC_ORDER_PERMISSION)`.
 
 **Recommendation:** Add a dedicated settler role or `trustedSettler` address restriction. Either:
+
 - Storage slot for `trustedSettler` with `require(msg.sender == trustedSettler)`
 - Separate feature flag (e.g., `"bookSettler"`)
 
@@ -131,6 +134,7 @@ In `AsyncOrderModule`, the owner commits the order on-chain via `commitOrder()`.
 **Impact:** Settler can open/close/flip positions on any BOOK-mode account without owner's consent.
 
 **Recommendation:**
+
 1. EIP-712 signature verification per order: `(accountId, marketId, sizeDelta, orderPrice, nonce, deadline)` signed by account owner
 2. Or on-chain order commitment similar to `AsyncOrder.commitOrder`
 
@@ -147,6 +151,7 @@ The first loop computes `newMarketSkew` but never validates it. Neither `validat
 **Impact:** Settler can push OI beyond configured safety limits, overexposing LP capital.
 
 **Recommendation:**
+
 ```solidity
 market.validateGivenMarketSize(newLongSize, price);
 GlobalPerpsMarket.load().validateMarketCapacity(lockedCreditDelta);
@@ -175,6 +180,7 @@ Code comment: "skip verifications for the account having minimum collateral." Ne
 **Impact:** Settlements leave accounts underwater, immediately liquidatable. Combined with CRIT-1, settler can engineer positions that are instantly liquidated.
 
 **Recommendation:**
+
 ```solidity
 (bool isEligible, , , , ) = PerpsAccount.isEligibleForLiquidation(...);
 require(!isEligible, "Settlement would make account liquidatable");
@@ -191,6 +197,7 @@ require(!isEligible, "Settlement would make account liquidatable");
 **Impact:** Next PnL computation calculates `accruedFunding` from stale funding value. Error compounds with each settlement. Corrupts `debtCorrectionAccumulator`.
 
 **Recommendation:**
+
 ```solidity
 pos.latestInteractionFunding = market.lastFundingValue.to128();
 ```
@@ -332,6 +339,7 @@ Computes `newMarketSkew` in block scope then discards it. Intended for market si
 ## Required for Mainnet
 
 All Critical + High findings, plus:
+
 - MED-2 (race condition), MED-4 (return values), MED-5 (funding), MED-6 (max positions)
 - Pyth price verification (CRIT-1; the per-market deviation bound is in place since 2026-09-03, the signature check waits on a real Pyth)
 - EIP-712 order signatures (CRIT-3)
