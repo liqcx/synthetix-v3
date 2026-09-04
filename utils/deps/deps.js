@@ -56,19 +56,16 @@ async function run() {
 
   const workspaceDeps = workspacePackages.map(({ name }) => [name, 'workspace:*']);
 
-  const exec = require('./lib/exec');
-  const existingDeps = (await exec('yarn info --all --json'))
-    .split('\n')
-    .filter(Boolean)
-    .map((line) => JSON.parse(line))
-    .map(({ value }) => {
-      const name = value.slice(0, value.lastIndexOf('@'));
-      const [, version] = value.slice(value.lastIndexOf('@') + 1).split(':');
-      // if duplicate name detected - it will be overwritten by the latest entry
-      // and as they are sorted ASC, we get the latest version
-      //      return [name, `^${version}`]; // ^version
-      return [name, version]; // exact version
-    });
+  // Versions already in use across the workspace, so a missing dependency can
+  // be suggested at a version that resolves. Was `yarn info --all --json`;
+  // pnpm has no single-command equivalent, and the package.json files are the
+  // same source of truth.
+  const existingDeps = workspacePackages.flatMap(({ location }) => {
+    const pkg = JSON.parse(require('fs').readFileSync(`${location}/package.json`, 'utf-8'));
+    return Object.entries({ ...pkg.dependencies, ...pkg.devDependencies }).filter(
+      ([, version]) => !version.startsWith('workspace:')
+    );
+  });
 
   const deps = Object.fromEntries([].concat(existingDeps).concat(workspaceDeps));
 
@@ -140,7 +137,7 @@ async function run() {
     console.log('');
     console.log('');
     console.log(`${fgGreen}Packages fixed: ${fgGreen}${updatedPackages}${fgReset}`);
-    cp.execSync('yarn install', { encoding: 'utf-8', stdio: 'inherit' });
+    cp.execSync('pnpm install', { encoding: 'utf-8', stdio: 'inherit' });
     return;
   }
 

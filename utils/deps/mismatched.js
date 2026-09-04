@@ -13,7 +13,8 @@ function ignored({ parent, name, absolutePath }) {
 
 async function run() {
   const workspaces = await require('./lib/workspaces')();
-  const ROOT = await require('./lib/exec')('yarn workspace synthetix-v3 exec pwd');
+  // utils/deps/ -> repo root. Was `yarn workspace synthetix-v3 exec pwd`.
+  const ROOT = path.resolve(__dirname, '../..');
 
   const { unique, mismatched: mismatchedUnfiltered } = workspaces
     .flatMap((p) => {
@@ -81,7 +82,7 @@ async function run() {
 
       for (const { absolutePath, name, expected } of mismatched) {
         console.log(`Fixing ${name} in ${absolutePath}`);
-        execSync(`yarn add ${name}@${expected}`, { cwd: absolutePath, stdio: 'inherit' });
+        execSync(`pnpm add ${name}@${expected}`, { cwd: absolutePath, stdio: 'inherit' });
       }
 
       console.log(`${fgGreen}All mismatches fixed.${fgReset}`);

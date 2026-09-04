@@ -328,8 +328,8 @@ importers:
         specifier: 2.25.1
         version: 2.25.1(bufferutil@4.1.0)(encoding@0.1.13)(typescript@5.5.4)(utf-8-validate@5.0.10)
       forge-std:
-        specifier: github:foundry-rs/forge-std#master
-        version: https://codeload.github.com/foundry-rs/forge-std/tar.gz/b3bc8b154382a75d0b0ef22d7fd4a0a5f0feee0e
+        specifier: github:foundry-rs/forge-std#v1.9.7
+        version: https://codeload.github.com/foundry-rs/forge-std/tar.gz/77041d2ce690e692d6e03cc812b57d1ddaa4d505
 
   auxiliary/RewardsDistributorExternal:
     devDependencies:
@@ -337,8 +337,8 @@ importers:
         specifier: 2.25.1
         version: 2.25.1(bufferutil@4.1.0)(encoding@0.1.13)(typescript@5.5.4)(utf-8-validate@5.0.10)
       forge-std:
-        specifier: github:foundry-rs/forge-std#master
-        version: https://codeload.github.com/foundry-rs/forge-std/tar.gz/b3bc8b154382a75d0b0ef22d7fd4a0a5f0feee0e
+        specifier: github:foundry-rs/forge-std#v1.9.7
+        version: https://codeload.github.com/foundry-rs/forge-std/tar.gz/77041d2ce690e692d6e03cc812b57d1ddaa4d505
 
   auxiliary/SpotMarketOracle:
     devDependencies:
@@ -510,6 +510,9 @@ importers:
       '@usecannon/cli':
         specifier: 2.25.1
         version: 2.25.1(bufferutil@4.1.0)(encoding@0.1.13)(typescript@5.5.4)(utf-8-validate@5.0.10)
+      '@usecannon/router':
+        specifier: 4.1.3
+        version: 4.1.3
       ethers:
         specifier: ^5.7.2
         version: 5.8.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
@@ -534,9 +537,6 @@ importers:
       '@usecannon/cli':
         specifier: 2.25.1
         version: 2.25.1(bufferutil@4.1.0)(encoding@0.1.13)(typescript@5.5.4)(utf-8-validate@5.0.10)
-      ethers:
-        specifier: ^5.7.2
-        version: 5.8.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
       matchstick-as:
         specifier: ^0.6.0
         version: 0.6.0
@@ -628,8 +628,8 @@ importers:
         specifier: 2.25.1
         version: 2.25.1(bufferutil@4.1.0)(encoding@0.1.13)(typescript@5.5.4)(utf-8-validate@5.0.10)
       forge-std:
-        specifier: github:foundry-rs/forge-std#master
-        version: https://codeload.github.com/foundry-rs/forge-std/tar.gz/b3bc8b154382a75d0b0ef22d7fd4a0a5f0feee0e
+        specifier: github:foundry-rs/forge-std#v1.9.7
+        version: https://codeload.github.com/foundry-rs/forge-std/tar.gz/77041d2ce690e692d6e03cc812b57d1ddaa4d505
       hardhat:
         specifier: ^2.28.0
         version: 2.28.6(bufferutil@4.1.0)(ts-node@10.9.2(@types/node@20.11.17)(typescript@5.5.4))(typescript@5.5.4)(utf-8-validate@5.0.10)
@@ -4838,10 +4838,6 @@ packages:
   forge-std@https://codeload.github.com/foundry-rs/forge-std/tar.gz/77041d2ce690e692d6e03cc812b57d1ddaa4d505:
     resolution: {gitHosted: true, tarball: https://codeload.github.com/foundry-rs/forge-std/tar.gz/77041d2ce690e692d6e03cc812b57d1ddaa4d505}
     version: 1.9.7
-
-  forge-std@https://codeload.github.com/foundry-rs/forge-std/tar.gz/b3bc8b154382a75d0b0ef22d7fd4a0a5f0feee0e:
-    resolution: {gitHosted: true, tarball: https://codeload.github.com/foundry-rs/forge-std/tar.gz/b3bc8b154382a75d0b0ef22d7fd4a0a5f0feee0e}
-    version: 1.16.1
 
   form-data-encoder@2.1.4:
     resolution: {integrity: sha512-yDYSgNMraqvnxiEXO4hi88+YZxaHC6QKzb5N84iRCTDeRO7ZALpir/lVmf/uXUhnwUr2O4HU8s/n6x+yNjQkHw==}
@@ -11428,7 +11424,7 @@ snapshots:
       chalk: 4.1.2
       clean-stack: 3.0.1
       cli-progress: 3.12.0
-      debug: 4.3.4(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@8.1.1)
       ejs: 3.1.10
       get-package-type: 0.1.0
       globby: 11.1.0
@@ -15452,8 +15448,6 @@ snapshots:
 
   forge-std@https://codeload.github.com/foundry-rs/forge-std/tar.gz/77041d2ce690e692d6e03cc812b57d1ddaa4d505: {}
 
-  forge-std@https://codeload.github.com/foundry-rs/forge-std/tar.gz/b3bc8b154382a75d0b0ef22d7fd4a0a5f0feee0e: {}
-
   form-data-encoder@2.1.4: {}
 
   form-data@2.3.3:
@@ -16352,7 +16346,7 @@ snapshots:
       any-signal: 2.1.2
       blob-to-it: 1.0.4
       browser-readablestream-to-it: 1.0.3
-      debug: 4.3.4(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@8.1.1)
       err-code: 3.0.1
       ipfs-core-types: 0.9.0(node-fetch@3.3.2)
       ipfs-unixfs: 6.0.9
