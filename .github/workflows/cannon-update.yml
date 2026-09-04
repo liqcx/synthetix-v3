@@ -40,6 +40,9 @@ jobs:
           commit-message: "Cannon Update: ${{ inputs.cannon_tag }}"
           body: ""
           branch: cannon-${{ inputs.cannon_tag }}
-          labels: dependabot, cannon
+          # No labels: neither `dependabot` nor `cannon` exists in this repo,
+          # and creating them here would need `issues: write` on top of the
+          # push/PR scopes above. Create them in repo settings first if you
+          # want this line back.
           draft: true
           add-paths: .
