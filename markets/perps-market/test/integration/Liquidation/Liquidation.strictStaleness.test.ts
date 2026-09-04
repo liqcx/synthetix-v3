@@ -74,7 +74,7 @@ describe('Liquidation - with correct staleness tolerance', async () => {
     it('reverts with OracleDataRequired', async () => {
       await assertRevert(
         systems().PerpsMarket.liquidate(2),
-        ethers.utils.id('OracleDataRequired()').substring(0, 8) // first 4 bytes
+        ethers.utils.id('OracleDataRequired()').substring(0, 10) // first 4 bytes
       );
     });
   });

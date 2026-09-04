@@ -12,7 +12,7 @@ const ETH_PRICE = bn(2000);
 // tolerance of exactly 50 seconds (MockPythExternalNode.process): "the price is stale" is one
 // updatePriceData call away, and no time moves.
 const STALE = 50;
-const ORACLE_DATA_REQUIRED = ethers.utils.id('OracleDataRequired()').substring(0, 8);
+const ORACLE_DATA_REQUIRED = ethers.utils.id('OracleDataRequired()').substring(0, 10);
 
 // A withdrawal is the moment the pool's money leaves, and it is judged at fresh prices, as a
 // liquidation is — both halves of the account: the positions at their market prices and the
@@ -107,7 +107,7 @@ describe('ModifyCollateral withdraw - the account is valued strictly, both halve
     });
   });
 
-  describe('when the price of the position market is stale under the strict tolerance', () => {
+  describe('when the position market asks for a fresh price', () => {
     before(restore);
 
     before('the perps market demands a fresh price', async () => {
@@ -126,7 +126,7 @@ describe('ModifyCollateral withdraw - the account is valued strictly, both halve
     });
   });
 
-  describe('when the price of the collateral synth is stale under the strict tolerance', () => {
+  describe('when the spot market asks for a fresh price for the collateral synth', () => {
     before(restore);
 
     before('the spot market demands a fresh price for the synth', async () => {
