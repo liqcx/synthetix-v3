@@ -245,6 +245,8 @@ contract BootstrapTest is Test, IERC721Receiver {
         perps.setPerAccountCaps(100_000, 100_000);
         perps.updateKeeperCostNodeId(zeroCostNode);
         perps.setFeatureFlagAllowAll("createAccount", true);
+        // The test contract is the stand's settler: the one address that may settle the book.
+        perps.addToFeatureFlagAllowlist("settleBookOrders", address(this));
         vm.stopPrank();
     }
 

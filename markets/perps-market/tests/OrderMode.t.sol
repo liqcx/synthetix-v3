@@ -4,7 +4,9 @@ pragma solidity >=0.8.11 <0.9.0;
 /* solhint-disable */
 
 import {Vm} from "forge-std/Vm.sol";
+import {FeatureFlag} from "@synthetixio/core-modules/contracts/storage/FeatureFlag.sol";
 import {BootstrapTest} from "./Bootstrap.t.sol";
+import {IBookOrderModule} from "../contracts/interfaces/IBookOrderModule.sol";
 import {IPerpsAccountModule} from "../contracts/interfaces/IPerpsAccountModule.sol";
 import {AsyncOrder} from "../contracts/storage/AsyncOrder.sol";
 import {OrderMode} from "../contracts/storage/OrderMode.sol";
@@ -184,5 +186,39 @@ contract OrderModeTest is BootstrapTest {
         warp(settlementDelay + settlementWindowDuration + 1);
         setMode(PENDING, true);
         assertMode(PENDING, OrderMode.RECENTLY_CHANGED);
+    }
+
+    // ---------------------------------------------------------------------------- the caller
+
+    function test_theBookIsSettledOnlyFromTheAllowlist() public {
+        bytes memory unavailable = abi.encodeWithSelector(
+            FeatureFlag.FeatureUnavailable.selector,
+            bytes32("settleBookOrders")
+        );
+        IBookOrderModule.BookOrder[] memory orders = new IBookOrderModule.BookOrder[](1);
+        orders[0] = bookOrder(DEFAULT, 1e18, ETH_PRICE);
+
+        // a stranger (the address is made before expectRevert: makeAddr labels through a cheatcode)
+        address stranger = makeAddr("stranger");
+        vm.expectRevert(unavailable);
+        vm.prank(stranger);
+        perps.settleBookOrders(ethMarketId, orders);
+
+        // the stand's settler, taken off the list and put back
+        vm.prank(perps.owner());
+        perps.removeFromFeatureFlagAllowlist("settleBookOrders", address(this));
+        vm.expectRevert(unavailable);
+        perps.settleBookOrders(ethMarketId, orders);
+
+        vm.prank(perps.owner());
+        perps.addToFeatureFlagAllowlist("settleBookOrders", address(this));
+        perps.settleBookOrders(ethMarketId, orders);
+        assertEq(perps.getOpenPositionSize(DEFAULT, ethMarketId), int128(1e18));
+
+        // deny-all shuts the book to the settler too
+        vm.prank(perps.owner());
+        perps.setFeatureFlagDenyAll("settleBookOrders", true);
+        vm.expectRevert(unavailable);
+        perps.settleBookOrders(ethMarketId, orders);
     }
 }
