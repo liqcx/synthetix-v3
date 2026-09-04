@@ -2,8 +2,9 @@ import { ethers } from 'ethers';
 import { Systems } from '../bootstrap';
 
 /**
- * The book vocabulary of the Hardhat stand. `tests/Bootstrap.t.sol` exposes the same names to
- * the Foundry tests; neither test suite spells out an order literal or a settle call itself.
+ * The book vocabulary of the Hardhat stand: orders and batches (accounts are in `accounts.ts`).
+ * `tests/Bootstrap.t.sol` exposes the same names to the Foundry tests; neither test suite spells
+ * out an order literal or a settle call itself.
  */
 export type BookOrder = {
   accountId: number;
@@ -48,28 +49,6 @@ export const settleBook = async ({ systems, keeper, marketId, orders }: Batch) =
 const mined = async (provider: ethers.providers.Provider, hash: string) => {
   while ((await provider.getTransactionReceipt(hash)) === null) {
     await new Promise((resolve) => setTimeout(resolve, 20));
-  }
-};
-
-/**
- * A perps account on the book, funded with `snxUsd` from the trader's wallet (or empty when
- * omitted). BOOK is the protocol default, so nothing here calls setBookMode.
- */
-export const openBookAccount = async ({
-  systems,
-  trader,
-  accountId,
-  snxUsd,
-}: {
-  systems: () => Systems;
-  trader: ethers.Signer;
-  accountId: number;
-  snxUsd?: ethers.BigNumber;
-}) => {
-  const perps = systems().PerpsMarket.connect(trader);
-  await perps['createAccount(uint128)'](accountId);
-  if (snxUsd && !snxUsd.isZero()) {
-    await perps.modifyCollateral(accountId, 0, snxUsd);
   }
 };
 

@@ -1,7 +1,7 @@
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
 import assert from 'assert';
 import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
-import { createAccountAndOpenPosition, openPosition } from '../../helpers';
+import { openOnchainAccount, openPosition } from '../../helpers';
 import { fastForwardTo, getTxTime } from '@synthetixio/core-utils/utils/hardhat/rpc';
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
 import { ethers } from 'ethers';
@@ -90,35 +90,27 @@ describe('Liquidation - flaggedLiquidation', () => {
   });
 
   before('create multiple accounts for trader 2 and open positions', async () => {
+    // Async positions need accounts off the book: `openOnchainAccount` opts each one out.
+    const open = (trader: ethers.Signer, accountId: number, sizeDelta: ethers.BigNumber) =>
+      openOnchainAccount({ systems, trader, accountId, snxUsd: bn(1500) }).then(() =>
+        openPosition({
+          systems,
+          provider,
+          trader,
+          accountId,
+          keeper: keeper(),
+          marketId: perpsMarket.marketId(),
+          sizeDelta,
+          settlementStrategyId: perpsMarket.strategyId(),
+          price: bn(10),
+        })
+      );
+
     for (let i = 0; i < trader2AccountIds.length; i++) {
       const id = trader2AccountIds[i];
-
-      await createAccountAndOpenPosition({
-        systems,
-        provider,
-        trader: trader2(),
-        accountId: id,
-        keeper: keeper(),
-        marketId: perpsMarket.marketId(),
-        sizeDelta: bn(150),
-        settlementStrategyId: perpsMarket.strategyId(),
-        price: bn(10),
-        collateral: bn(1500),
-      });
-
+      await open(trader2(), id, bn(150));
       // balance skew
-      await createAccountAndOpenPosition({
-        systems,
-        provider,
-        trader: trader3(),
-        accountId: id + 100,
-        keeper: keeper(),
-        marketId: perpsMarket.marketId(),
-        sizeDelta: bn(-150),
-        settlementStrategyId: perpsMarket.strategyId(),
-        price: bn(10),
-        collateral: bn(1500),
-      });
+      await open(trader3(), id + 100, bn(-150));
     }
   });
 
