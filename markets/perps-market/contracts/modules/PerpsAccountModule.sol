@@ -247,14 +247,10 @@ contract PerpsAccountModule is IPerpsAccountModule {
     function getAvailableMargin(
         uint128 accountId
     ) external view override returns (int256 availableMargin) {
-        PerpsAccount.Data storage account = PerpsAccount.load(accountId);
-        PerpsAccount.MemoryContext memory ctx = account.getOpenPositionsAndCurrentPrices(
-            PerpsPrice.Tolerance.DEFAULT
-        );
-        (uint256 totalCollateralValueWithDiscount, ) = account.getTotalCollateralValue(
-            PerpsPrice.Tolerance.DEFAULT
-        );
-        availableMargin = PerpsAccount.getAvailableMargin(ctx, totalCollateralValueWithDiscount);
+        return
+            PerpsAccount.getAvailableMargin(
+                PerpsAccount.load(accountId).valuation(PerpsPrice.Tolerance.DEFAULT)
+            );
     }
 
     /**
@@ -263,19 +259,10 @@ contract PerpsAccountModule is IPerpsAccountModule {
     function getWithdrawableMargin(
         uint128 accountId
     ) external view override returns (int256 withdrawableMargin) {
-        PerpsAccount.Data storage account = PerpsAccount.load(accountId);
-        PerpsAccount.MemoryContext memory ctx = account.getOpenPositionsAndCurrentPrices(
-            PerpsPrice.Tolerance.DEFAULT
-        );
-        (
-            uint256 totalCollateralValueWithDiscount,
-            uint256 totalCollateralValueWithoutDiscount
-        ) = account.getTotalCollateralValue(PerpsPrice.Tolerance.DEFAULT);
-        withdrawableMargin = PerpsAccount.getWithdrawableMargin(
-            ctx,
-            totalCollateralValueWithoutDiscount,
-            totalCollateralValueWithDiscount
-        );
+        return
+            PerpsAccount.getWithdrawableMargin(
+                PerpsAccount.load(accountId).valuation(PerpsPrice.Tolerance.DEFAULT)
+            );
     }
 
     /**
@@ -293,19 +280,11 @@ contract PerpsAccountModule is IPerpsAccountModule {
             uint256 maxLiquidationReward
         )
     {
-        PerpsAccount.Data storage account = PerpsAccount.load(accountId);
-        if (account.openPositionMarketIds.length() == 0) {
-            return (0, 0, 0);
-        }
-
-        PerpsAccount.MemoryContext memory ctx = account.getOpenPositionsAndCurrentPrices(
-            PerpsPrice.Tolerance.DEFAULT
-        );
-        (, uint256 totalCollateralValueWithoutDiscount) = account.getTotalCollateralValue(
-            PerpsPrice.Tolerance.DEFAULT
-        );
+        // no positions: the account's side answers zeros itself
         (requiredInitialMargin, requiredMaintenanceMargin, maxLiquidationReward) = PerpsAccount
-            .getAccountRequiredMargins(ctx, totalCollateralValueWithoutDiscount);
+            .getAccountRequiredMargins(
+                PerpsAccount.load(accountId).valuation(PerpsPrice.Tolerance.DEFAULT)
+            );
 
         // Include liquidation rewards to required initial margin and required maintenance margin
         requiredInitialMargin += maxLiquidationReward;

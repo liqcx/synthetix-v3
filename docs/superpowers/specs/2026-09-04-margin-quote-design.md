@@ -2,6 +2,11 @@
 
 **Date:** 2026-09-04
 **Status:** Design approved (the defaults of the card-3 analysis, `card3-margin-quote-20260904.html`)
+
+**Amended 2026-09-04** (review card 2): `Assessment` holds a `Valuation` — the account valued
+with the change made — in place of `ctx` and the two collateral values; see
+`2026-09-04-account-valuation-design.md`.
+
 **Context:** `markets/perps-market/contracts/storage/{PerpsAccount,AsyncOrder}.sol`,
 `contracts/modules/{AsyncOrderModule,BookOrderModule}.sol`,
 `contracts/interfaces/{IAsyncOrderModule,IBookOrderModule}.sol`, both stands (`test/`, `tests/`).

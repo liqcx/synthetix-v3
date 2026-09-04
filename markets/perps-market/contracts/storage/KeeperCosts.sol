@@ -44,16 +44,20 @@ library KeeperCosts {
         sUSDCost = _processWithRuntime(self.keeperCostNodeId, factory, 0, KIND_SETTLEMENT);
     }
 
+    /**
+     * @notice The cost of flagging `account`: priced per feed the keeper must update, which the
+     * account's holdings decide — its non-snxUSD collaterals and its open positions.
+     */
     function getFlagKeeperCosts(
         Data storage self,
-        uint256 numberOfUpdatedFeeds
+        PerpsAccount.Data storage account
     ) internal view returns (uint256 sUSDCost) {
         PerpsMarketFactory.Data storage factory = PerpsMarketFactory.load();
 
         sUSDCost = _processWithRuntime(
             self.keeperCostNodeId,
             factory,
-            numberOfUpdatedFeeds,
+            account.getNumberOfUpdatedFeedsRequired(),
             KIND_FLAG
         );
     }
