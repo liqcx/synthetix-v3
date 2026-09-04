@@ -49,26 +49,15 @@ contract LiquidationModule is ILiquidationModule, IMarketEvents {
             .load()
             .liquidatableAccounts;
         PerpsAccount.Data storage account = PerpsAccount.load(accountId);
-        PerpsAccount.MemoryContext memory ctx = account.getOpenPositionsAndCurrentPrices(
-            PerpsPrice.Tolerance.STRICT
-        );
+        PerpsAccount.Valuation memory v = account.valuation(PerpsPrice.Tolerance.STRICT);
         if (!liquidatableAccounts.contains(accountId)) {
-            (
-                uint256 totalCollateralValueWithDiscount,
-                uint256 totalCollateralValueWithoutDiscount
-            ) = account.getTotalCollateralValue(PerpsPrice.Tolerance.STRICT);
-
             (
                 bool isEligible,
                 int256 availableMargin,
                 ,
                 uint256 requiredMaintenaceMargin,
                 uint256 expectedLiquidationReward
-            ) = PerpsAccount.isEligibleForLiquidation(
-                    ctx,
-                    totalCollateralValueWithDiscount,
-                    totalCollateralValueWithoutDiscount
-                );
+            ) = PerpsAccount.isEligibleForLiquidation(v);
 
             if (isEligible) {
                 (uint256 flagCost, uint256 seizedMarginValue) = account.flagForLiquidation();
@@ -81,12 +70,12 @@ contract LiquidationModule is ILiquidationModule, IMarketEvents {
                     flagCost
                 );
 
-                liquidationReward = _liquidateAccount(ctx, flagCost, seizedMarginValue, true);
+                liquidationReward = _liquidateAccount(v.ctx, flagCost, seizedMarginValue, true);
             } else {
                 revert NotEligibleForLiquidation(accountId);
             }
         } else {
-            liquidationReward = _liquidateAccount(ctx, 0, 0, false);
+            liquidationReward = _liquidateAccount(v.ctx, 0, 0, false);
         }
     }
 
@@ -101,18 +90,8 @@ contract LiquidationModule is ILiquidationModule, IMarketEvents {
             revert AccountHasOpenPositions(accountId);
         }
 
-        PerpsAccount.MemoryContext memory ctx = account.getOpenPositionsAndCurrentPrices(
-            PerpsPrice.Tolerance.STRICT
-        );
-        (
-            uint256 totalCollateralValueWithDiscount,
-            uint256 totalCollateralValueWithoutDiscount
-        ) = account.getTotalCollateralValue(PerpsPrice.Tolerance.STRICT);
-        (bool isEligible, ) = PerpsAccount.isEligibleForMarginLiquidation(
-            ctx,
-            totalCollateralValueWithDiscount,
-            totalCollateralValueWithoutDiscount
-        );
+        PerpsAccount.Valuation memory v = account.valuation(PerpsPrice.Tolerance.STRICT);
+        (bool isEligible, ) = PerpsAccount.isEligibleForMarginLiquidation(v);
         if (isEligible) {
             // margin is sent to liquidation rewards distributor in getMarginLiquidationCostAndSeizeMargin
             uint256 marginLiquidateCost = KeeperCosts.load().getFlagKeeperCosts(
@@ -122,7 +101,7 @@ contract LiquidationModule is ILiquidationModule, IMarketEvents {
 
             // keeper is rewarded in _liquidateAccount
             liquidationReward = _liquidateAccount(
-                ctx,
+                v.ctx,
                 marginLiquidateCost,
                 seizedMarginValue,
                 true
@@ -215,18 +194,8 @@ contract LiquidationModule is ILiquidationModule, IMarketEvents {
             return true;
         }
 
-        PerpsAccount.Data storage account = PerpsAccount.load(accountId);
-        PerpsAccount.MemoryContext memory ctx = account.getOpenPositionsAndCurrentPrices(
-            PerpsPrice.Tolerance.DEFAULT
-        );
-        (
-            uint256 totalCollateralValueWithDiscount,
-            uint256 totalCollateralValueWithoutDiscount
-        ) = account.getTotalCollateralValue(PerpsPrice.Tolerance.DEFAULT);
         (isEligible, , , , ) = PerpsAccount.isEligibleForLiquidation(
-            ctx,
-            totalCollateralValueWithDiscount,
-            totalCollateralValueWithoutDiscount
+            PerpsAccount.load(accountId).valuation(PerpsPrice.Tolerance.DEFAULT)
         );
     }
 
@@ -236,20 +205,10 @@ contract LiquidationModule is ILiquidationModule, IMarketEvents {
         PerpsAccount.Data storage account = PerpsAccount.load(accountId);
         if (account.hasOpenPositions()) {
             return false;
-        } else {
-            PerpsAccount.MemoryContext memory ctx = account.getOpenPositionsAndCurrentPrices(
-                PerpsPrice.Tolerance.DEFAULT
-            );
-            (
-                uint256 totalCollateralValueWithDiscount,
-                uint256 totalCollateralValueWithoutDiscount
-            ) = account.getTotalCollateralValue(PerpsPrice.Tolerance.DEFAULT);
-            (isEligible, ) = PerpsAccount.isEligibleForMarginLiquidation(
-                ctx,
-                totalCollateralValueWithDiscount,
-                totalCollateralValueWithoutDiscount
-            );
         }
+        (isEligible, ) = PerpsAccount.isEligibleForMarginLiquidation(
+            account.valuation(PerpsPrice.Tolerance.DEFAULT)
+        );
     }
 
     /**
