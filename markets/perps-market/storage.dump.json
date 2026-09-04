@@ -738,6 +738,81 @@
           "offset": 0
         }
       ],
+      "Valuation": [
+        {
+          "type": "struct",
+          "name": "ctx",
+          "members": [
+            {
+              "type": "uint128",
+              "name": "accountId"
+            },
+            {
+              "type": "enum",
+              "name": "stalenessTolerance",
+              "members": [
+                "DEFAULT",
+                "STRICT",
+                "ONE_MONTH"
+              ]
+            },
+            {
+              "type": "array",
+              "name": "positions",
+              "value": {
+                "type": "struct",
+                "name": "Position.Data",
+                "members": [
+                  {
+                    "type": "uint128",
+                    "name": "marketId"
+                  },
+                  {
+                    "type": "int128",
+                    "name": "size"
+                  },
+                  {
+                    "type": "uint128",
+                    "name": "latestInteractionPrice"
+                  },
+                  {
+                    "type": "int128",
+                    "name": "latestInteractionFunding"
+                  },
+                  {
+                    "type": "uint256",
+                    "name": "latestInterestAccrued"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "array",
+              "name": "prices",
+              "value": {
+                "type": "uint256"
+              }
+            }
+          ],
+          "size": 96,
+          "slot": "0",
+          "offset": 0
+        },
+        {
+          "type": "uint256",
+          "name": "collateralValueWithDiscount",
+          "size": 32,
+          "slot": "3",
+          "offset": 0
+        },
+        {
+          "type": "uint256",
+          "name": "collateralValueWithoutDiscount",
+          "size": 32,
+          "slot": "4",
+          "offset": 0
+        }
+      ],
       "SettledChange": [
         {
           "type": "struct",
@@ -873,75 +948,75 @@
       "Assessment": [
         {
           "type": "struct",
-          "name": "ctx",
+          "name": "valuation",
           "members": [
             {
-              "type": "uint128",
-              "name": "accountId"
-            },
-            {
-              "type": "enum",
-              "name": "stalenessTolerance",
+              "type": "struct",
+              "name": "ctx",
               "members": [
-                "DEFAULT",
-                "STRICT",
-                "ONE_MONTH"
+                {
+                  "type": "uint128",
+                  "name": "accountId"
+                },
+                {
+                  "type": "enum",
+                  "name": "stalenessTolerance",
+                  "members": [
+                    "DEFAULT",
+                    "STRICT",
+                    "ONE_MONTH"
+                  ]
+                },
+                {
+                  "type": "array",
+                  "name": "positions",
+                  "value": {
+                    "type": "struct",
+                    "name": "Position.Data",
+                    "members": [
+                      {
+                        "type": "uint128",
+                        "name": "marketId"
+                      },
+                      {
+                        "type": "int128",
+                        "name": "size"
+                      },
+                      {
+                        "type": "uint128",
+                        "name": "latestInteractionPrice"
+                      },
+                      {
+                        "type": "int128",
+                        "name": "latestInteractionFunding"
+                      },
+                      {
+                        "type": "uint256",
+                        "name": "latestInterestAccrued"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "array",
+                  "name": "prices",
+                  "value": {
+                    "type": "uint256"
+                  }
+                }
               ]
             },
             {
-              "type": "array",
-              "name": "positions",
-              "value": {
-                "type": "struct",
-                "name": "Position.Data",
-                "members": [
-                  {
-                    "type": "uint128",
-                    "name": "marketId"
-                  },
-                  {
-                    "type": "int128",
-                    "name": "size"
-                  },
-                  {
-                    "type": "uint128",
-                    "name": "latestInteractionPrice"
-                  },
-                  {
-                    "type": "int128",
-                    "name": "latestInteractionFunding"
-                  },
-                  {
-                    "type": "uint256",
-                    "name": "latestInterestAccrued"
-                  }
-                ]
-              }
+              "type": "uint256",
+              "name": "collateralValueWithDiscount"
             },
             {
-              "type": "array",
-              "name": "prices",
-              "value": {
-                "type": "uint256"
-              }
+              "type": "uint256",
+              "name": "collateralValueWithoutDiscount"
             }
           ],
-          "size": 96,
+          "size": 192,
           "slot": "0",
-          "offset": 0
-        },
-        {
-          "type": "uint256",
-          "name": "collateralValueWithDiscount",
-          "size": 32,
-          "slot": "3",
-          "offset": 0
-        },
-        {
-          "type": "uint256",
-          "name": "collateralValueWithoutDiscount",
-          "size": 32,
-          "slot": "4",
           "offset": 0
         },
         {
@@ -970,7 +1045,7 @@
             }
           ],
           "size": 96,
-          "slot": "5",
+          "slot": "6",
           "offset": 0
         },
         {
@@ -999,21 +1074,21 @@
             }
           ],
           "size": 96,
-          "slot": "8",
+          "slot": "9",
           "offset": 0
         },
         {
           "type": "int256",
           "name": "availableMargin",
           "size": 32,
-          "slot": "11",
+          "slot": "12",
           "offset": 0
         },
         {
           "type": "uint256",
           "name": "requiredMargin",
           "size": 32,
-          "slot": "12",
+          "slot": "13",
           "offset": 0
         }
       ]

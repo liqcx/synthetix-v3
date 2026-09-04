@@ -471,9 +471,10 @@ wide enough not to cap:
 - an endorsed keeper (`setMaxLiquidationParameters(…, keeper)`) is paid the costs alone
   (`flagCost` at the account's feeds plus `liquidateCost`, floored by the guards), while
   `getRequiredMargins` before the flag is what it was without the endorsement;
-- margin-only: two accounts alike in everything (the twin technique of
-  `Liquidation.marginOnly.feeds.test.ts`); the first is liquidated and paid `R`; the second is
-  eligible iff its available margin is below `R`, on either side of it.
+- margin-only: `Liquidation.marginOnly.feeds.test.ts` already holds both sides of the boundary
+  and the payout at one feed for an account without positions, and
+  `Liquidation.marginOnly.test.ts` the payout at two; the rewrite of the margin-only
+  eligibility over `getPossibleLiquidationReward` is guarded by them. No twin case is added.
 
 **Hardhat**, `test/integration/Account/ModifyCollateral.withdraw.staleness.test.ts` — *a
 withdrawal values the account strictly, both halves.* One synth market and one perps market; an
