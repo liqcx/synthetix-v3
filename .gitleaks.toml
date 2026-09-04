@@ -82,7 +82,15 @@ regexes = [
     # eth-private-key-no-prefix rule. Fires on public contract addresses in
     # auxiliary/Faucet/README.md:40,57 and
     # markets/treasury-market/script/RestorePosition.sol:19,36.
-    '''0x[a-fA-F0-9]{40}''',
+    # The trailing boundary group is load-bearing: this allowlist runs with
+    # regexTarget = 'match' against gitleaks' OWN rule matches, and without an
+    # anchor an unbounded '0x[a-fA-F0-9]{40}' also matches just the FIRST 40
+    # hex chars of a LONGER hex run — e.g. a 0x-prefixed 64-hex private key
+    # caught by eth-private-key-no-prefix above — silently allowlisting it.
+    # Requiring a non-hex character (or end of string) immediately after the
+    # 40th hex digit means this can only match a complete, standalone 40-hex
+    # address, never a prefix of something longer.
+    '''0x[a-fA-F0-9]{40}([^a-fA-F0-9]|$)''',
 ]
 
 # Use stopwords to suppress obvious noise. Gitleaks uses Hashicorp's
