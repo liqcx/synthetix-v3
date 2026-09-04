@@ -21,12 +21,18 @@
     "forge-coverage": "forge coverage --report lcov"
   },
   "devDependencies": {
+    "@synthetixio/core-contracts": "workspace:*",
+    "@synthetixio/main": "workspace:*",
+    "@synthetixio/rewards-distributor": "workspace:*",
     "@usecannon/cli": "2.25.1",
     "forge-std": "github:foundry-rs/forge-std#v1.9.7"
   },
   "depcheck": {
     "ignoreMatches": [
-      "forge-std"
+      "forge-std",
+      "@synthetixio/core-contracts",
+      "@synthetixio/main",
+      "@synthetixio/rewards-distributor"
     ]
   }
 }

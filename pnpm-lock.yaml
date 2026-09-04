@@ -324,6 +324,15 @@ importers:
 
   auxiliary/RewardsDistributor:
     devDependencies:
+      '@synthetixio/core-contracts':
+        specifier: workspace:*
+        version: link:../../utils/core-contracts
+      '@synthetixio/governance':
+        specifier: workspace:*
+        version: link:../../protocol/governance
+      '@synthetixio/main':
+        specifier: workspace:*
+        version: link:../../protocol/synthetix
       '@usecannon/cli':
         specifier: 2.25.1
         version: 2.25.1(bufferutil@4.1.0)(encoding@0.1.13)(typescript@5.5.4)(utf-8-validate@5.0.10)
@@ -333,6 +342,15 @@ importers:
 
   auxiliary/RewardsDistributorExternal:
     devDependencies:
+      '@synthetixio/core-contracts':
+        specifier: workspace:*
+        version: link:../../utils/core-contracts
+      '@synthetixio/main':
+        specifier: workspace:*
+        version: link:../../protocol/synthetix
+      '@synthetixio/rewards-distributor':
+        specifier: workspace:*
+        version: link:../RewardsDistributor
       '@usecannon/cli':
         specifier: 2.25.1
         version: 2.25.1(bufferutil@4.1.0)(encoding@0.1.13)(typescript@5.5.4)(utf-8-validate@5.0.10)
