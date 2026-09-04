@@ -114,7 +114,10 @@ interface IBookOrderModule is ISettlementEvents {
      * `IncorrectAccountMode`, `BookPriceDeviationExceeded`, `AccountNotFound`,
      * `AccountLiquidatable`, `MaxPositionsPerAccountReached`); the margin it reports. It does
      * not ask the market's size caps or the pool's credit, which a batch is still judged by,
-     * nor who is calling. A zero `sizeDelta` reports the account as it is. Reads the oracle at
+     * nor who is calling. What it cannot see is the batch: the skew and the funding the orders
+     * before this one will leave, which move the fee, the fill it is judged against, and every
+     * account's pnl. It does not ask the `perpsSystem` flag: a paused system still answers a
+     * quote. A zero `sizeDelta` reports the account as it is. Reads the oracle at
      * the default tolerance, as settlement does.
      * @param accountId the account of the order.
      * @param marketId the market of the order.

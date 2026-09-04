@@ -118,7 +118,8 @@ interface IAsyncOrderModule {
      * price, must reach. A reduction is the requirement of the reduced position, not zero.
      * @dev The settlement reward is not included: it depends on the strategy. Reverts as the
      * gate would for an account that may not trade at all: `AccountNotFound`,
-     * `AccountLiquidatable`, `MaxPositionsPerAccountReached`.
+     * `AccountLiquidatable`, `MaxPositionsPerAccountReached`. An unknown market reverts from the
+     * oracle read, not with `InvalidMarket`.
      * @param accountId id of the trader account.
      * @param marketId id of the market.
      * @param sizeDelta size of the change.

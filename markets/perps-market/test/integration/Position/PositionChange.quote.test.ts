@@ -18,9 +18,11 @@ const _PRICE = bn(10);
 // The market of the gate table (PositionChange.gate.test.ts): initial margin is half the
 // notional, maintenance a quarter, the liquidation window admits 50 units per 10 seconds, and
 // the skew scale is wide enough that one subject's position does not move the fill price of
-// another's. The liquidation guards scale the reward by nothing (maxKeeperScalingRatioD18 = 0)
-// and the collateral reward ratio is zero, so the reward does not read the collateral: the
-// requirement of a position is the same number before and after the change that makes it.
+// another's. The bootstrap's liquidation guards (maxKeeperScalingRatioD18 = 0) make
+// maximumKeeperRewardCap, and so possibleLiquidationReward, zero throughout this file: the
+// requirement of a position is the same number before and after the change that makes it. The
+// describe below ("the liquidation reward is part of the requirement") turns the reward on for
+// its own rows through the owner's setter, restoring this checkpoint first.
 const marketParams = {
   price: _PRICE,
   orderFees: { makerFee: bn(0.007), takerFee: bn(0.003) },
@@ -367,6 +369,36 @@ describe('Position change quote', () => {
 
       const { required } = await now(REDUCER);
       assertBn.equal(q.requiredMargin, required);
+    });
+  });
+
+  describe('the liquidation reward is part of the requirement', () => {
+    before(restore);
+    before('the guards let the reward scale with the collateral', async () => {
+      // min 5, no profit ratio, max 1000, and the cap is the collateral itself
+      await systems()
+        .PerpsMarket.connect(owner())
+        .setKeeperRewardGuards(bn(5), bn(0), bn(1000), bn(1));
+    });
+
+    it('a zero quote is the account now, reward included', async () => {
+      await settle([order(SOUND, bn(150))]);
+      const zero = await quote(SOUND, bn(0));
+      const { requiredInitialMargin, maxLiquidationReward } =
+        await systems().PerpsMarket.getRequiredMargins(SOUND);
+      assert(maxLiquidationReward.gt(0), 'the fixture must charge a reward');
+      assertBn.equal(zero.requiredMargin, requiredInitialMargin);
+      assert(zero.requiredMargin.gt(requiredInitialMargin.sub(maxLiquidationReward)));
+    });
+
+    it("the reduction's requirement carries the reward of the reduced position", async () => {
+      await settle([order(REDUCER, bn(400))]);
+      const q = await quote(REDUCER, bn(-50));
+      await settle([order(REDUCER, bn(-50))]);
+      const { requiredInitialMargin, maxLiquidationReward } =
+        await systems().PerpsMarket.getRequiredMargins(REDUCER);
+      assert(maxLiquidationReward.gt(0));
+      assertBn.equal(q.requiredMargin, requiredInitialMargin);
     });
   });
 

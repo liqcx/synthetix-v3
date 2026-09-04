@@ -305,6 +305,16 @@ describe('Position change gate', () => {
     });
   });
 
+  describe('a change of zero size changes nothing', () => {
+    before(restore);
+
+    it('settles on a market the account does not hold, and opens nothing', async () => {
+      await settle([order(EMPTY, bn(0))]);
+      assert.deepEqual(await systems().PerpsMarket.getAccountOpenPositions(EMPTY), []);
+      assertBn.equal(await positionSize(EMPTY), 0);
+    });
+  });
+
   describe('a change the account cannot margin', () => {
     const [BOOK, ASYNC] = THIN;
     before(restore);

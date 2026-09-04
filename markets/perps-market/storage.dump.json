@@ -1003,24 +1003,17 @@
           "offset": 0
         },
         {
-          "type": "uint256",
-          "name": "fees",
-          "size": 32,
-          "slot": "11",
-          "offset": 0
-        },
-        {
           "type": "int256",
           "name": "availableMargin",
           "size": 32,
-          "slot": "12",
+          "slot": "11",
           "offset": 0
         },
         {
           "type": "uint256",
           "name": "requiredMargin",
           "size": 32,
-          "slot": "13",
+          "slot": "12",
           "offset": 0
         }
       ]

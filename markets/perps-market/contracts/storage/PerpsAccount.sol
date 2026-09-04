@@ -91,10 +91,10 @@ library PerpsAccount {
      * judgement.
      * @dev `availableMargin` is the margin after the change is paid for: collateral at its
      * discount plus pnl less debt, valued at oracle prices, less the loss of a fill worse than
-     * the mark price, less `fees`. `requiredMargin` is what the account must then hold: the
-     * initial margin of its positions with the change made, plus the liquidation reward. The
-     * gate admits the change iff `availableMargin >= requiredMargin`. The rest is what
-     * `assess` keeps in memory to stay under the stack limit.
+     * the mark price, less the fees the caller passed in. `requiredMargin` is what the account
+     * must then hold: the initial margin of its positions with the change made, plus the
+     * liquidation reward. The gate admits the change iff `availableMargin >= requiredMargin`.
+     * The rest is what `assess` keeps in memory to stay under the stack limit.
      */
     struct Assessment {
         MemoryContext ctx;
@@ -102,7 +102,6 @@ library PerpsAccount {
         uint256 collateralValueWithoutDiscount;
         Position.Data oldPosition;
         Position.Data newPosition;
-        uint256 fees;
         int256 availableMargin;
         uint256 requiredMargin;
     }
@@ -700,6 +699,8 @@ library PerpsAccount {
      * leaves the positions as they are, so its assessment is the account now. A view: it
      * writes nothing. The checks run in the order listed, so an account with several defects
      * is told about the first.
+     * @return a the assessment.
+     * @return market the market of the change, so the caller does not load it again.
      */
     function assess(
         uint128 accountId,
@@ -708,7 +709,7 @@ library PerpsAccount {
         uint256 fillPrice,
         uint256 markPrice,
         uint256 fees
-    ) internal view returns (Assessment memory a) {
+    ) internal view returns (Assessment memory a, PerpsMarket.Data storage market) {
         Account.exists(accountId);
         GlobalPerpsMarket.load().checkLiquidation(accountId);
 
@@ -732,7 +733,7 @@ library PerpsAccount {
             revert AccountLiquidatable(accountId);
         }
 
-        PerpsMarket.Data storage market = PerpsMarket.load(marketId);
+        market = PerpsMarket.load(marketId);
         a.oldPosition = market.positions[accountId];
         if (a.oldPosition.size == 0 && sizeDelta != 0) {
             uint128 maxPositionsPerAccount = GlobalPerpsMarketConfiguration
@@ -759,7 +760,6 @@ library PerpsAccount {
             sizeDelta.to256().mulDecimal(markPrice.toInt() - fillPrice.toInt()),
             0
         );
-        a.fees = fees;
         a.availableMargin -= fees.toInt();
 
         (
@@ -790,7 +790,14 @@ library PerpsAccount {
         uint256 markPrice,
         uint256 fees
     ) internal view {
-        Assessment memory a = assess(accountId, marketId, sizeDelta, fillPrice, markPrice, fees);
+        (Assessment memory a, PerpsMarket.Data storage market) = assess(
+            accountId,
+            marketId,
+            sizeDelta,
+            fillPrice,
+            markPrice,
+            fees
+        );
 
         if (a.availableMargin < 0) {
             revert InsufficientMargin(a.availableMargin + fees.toInt(), fees);
@@ -803,7 +810,6 @@ library PerpsAccount {
         if (
             sizeDelta != 0 && !MathUtil.isSameSideReducing(a.oldPosition.size, a.newPosition.size)
         ) {
-            PerpsMarket.Data storage market = PerpsMarket.load(marketId);
             market.validateGivenMarketSize(
                 (
                     a.newPosition.size > 0

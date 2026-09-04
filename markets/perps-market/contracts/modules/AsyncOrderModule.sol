@@ -21,7 +21,6 @@ import {Flags} from "../utils/Flags.sol";
  */
 contract AsyncOrderModule is IAsyncOrderModule {
     using AsyncOrder for AsyncOrder.Data;
-    using PerpsAccount for PerpsAccount.Data;
     using PerpsMarket for PerpsMarket.Data;
 
     /**
@@ -192,7 +191,7 @@ contract AsyncOrderModule is IAsyncOrderModule {
             sizeDelta,
             price
         );
-        PerpsAccount.Assessment memory assessment = PerpsAccount.assess(
+        (PerpsAccount.Assessment memory assessment, ) = PerpsAccount.assess(
             accountId,
             marketId,
             sizeDelta,

@@ -194,13 +194,16 @@ describe('Orders - allow size reduction', () => {
   describe('check requiredMarginForOrder', () => {
     // The fees of this fixture are zero, so the view is the requirement alone; the fee term is
     // pinned in Position/PositionChange.quote.test.ts. The reward does not read the collateral
-    // here (maxKeeperScalingRatioD18 = 1000 puts its cap far above it), so the requirement of
-    // the reduced position is the same number before and after the reduction is made.
+    // here (maxKeeperScalingRatioD18 = 1000 puts its cap far above it), and keeper costs are
+    // zero, so closing a market — one price feed fewer to update — does not move the reward:
+    // the requirement of the reduced position is the same number before and after the
+    // reduction is made.
     describe('reduce btc by 2', () => {
-      it('is the initial margin of the reduced position plus the reward', async () => {
-        const required = await systems().PerpsMarket.requiredMarginForOrder(2, 50, bn(-2));
-        assert(required.gt(0));
-
+      let required: ethers.BigNumber;
+      before('the view before the reduction', async () => {
+        required = await systems().PerpsMarket.requiredMarginForOrder(2, 50, bn(-2));
+      });
+      before('settle the reduction', async () => {
         await openPosition({
           systems,
           provider,
@@ -212,16 +215,20 @@ describe('Orders - allow size reduction', () => {
           settlementStrategyId: perpsMarkets()[0].strategyId(),
           price: bn(9_500),
         });
+      });
 
+      it('is the initial margin of the reduced position plus the reward', async () => {
+        assert(required.gt(0));
         const { requiredInitialMargin } = await systems().PerpsMarket.getRequiredMargins(2);
         assertBn.equal(required, requiredInitialMargin);
       });
 
       describe('fully close eth position', () => {
-        it('is the initial margin of what is left plus the reward', async () => {
-          const required = await systems().PerpsMarket.requiredMarginForOrder(2, 51, bn(3));
-          assert(required.gt(0));
-
+        let required: ethers.BigNumber;
+        before('the view before the close', async () => {
+          required = await systems().PerpsMarket.requiredMarginForOrder(2, 51, bn(3));
+        });
+        before('settle the close', async () => {
           await openPosition({
             systems,
             provider,
@@ -233,7 +240,10 @@ describe('Orders - allow size reduction', () => {
             settlementStrategyId: perpsMarkets()[1].strategyId(),
             price: bn(2_040),
           });
+        });
 
+        it('is the initial margin of what is left plus the reward', async () => {
+          assert(required.gt(0));
           const { requiredInitialMargin } = await systems().PerpsMarket.getRequiredMargins(2);
           assertBn.equal(required, requiredInitialMargin);
         });

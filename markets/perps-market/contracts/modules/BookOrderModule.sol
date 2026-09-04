@@ -86,7 +86,6 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
         uint256 orderPrice
     ) external view override returns (Quote memory quote) {
         PerpsMarket.Data storage market = PerpsMarket.loadValid(marketId);
-        OrderMode.admit(accountId, OrderMode.BOOK);
 
         quote.markPrice = PerpsPrice.getCurrentPrice(marketId, PerpsPrice.Tolerance.DEFAULT);
         _checkPriceDeviation(
@@ -95,10 +94,11 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
             quote.markPrice,
             PerpsMarketConfiguration.load(marketId).maxBookPriceDeviationD18
         );
+        OrderMode.admit(accountId, OrderMode.BOOK);
 
         // the fee the account would pay: the order fee at its price, reading the skew as it is
         quote.orderFees = market.calculateOrderFee(sizeDelta, orderPrice);
-        PerpsAccount.Assessment memory assessment = PerpsAccount.assess(
+        (PerpsAccount.Assessment memory assessment, ) = PerpsAccount.assess(
             accountId,
             marketId,
             sizeDelta,
