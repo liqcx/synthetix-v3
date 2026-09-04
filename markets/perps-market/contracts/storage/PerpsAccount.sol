@@ -217,30 +217,14 @@ library PerpsAccount {
         return self.debt;
     }
 
+    /**
+     * @notice Asked of an account without positions: the possible reward is then the
+     * collateral reward and the costs, which is what a margin-only liquidation pays.
+     */
     function isEligibleForMarginLiquidation(
         Valuation memory v
     ) internal view returns (bool isEligible, int256 availableMargin) {
-        // calculate keeper costs; the flag cost is priced per feed the keeper must update
-        KeeperCosts.Data storage keeperCosts = KeeperCosts.load();
-        uint256 totalLiquidationCost = keeperCosts.getFlagKeeperCosts(
-            getNumberOfUpdatedFeedsRequired(load(v.ctx.accountId))
-        ) + keeperCosts.getLiquidateKeeperCosts();
-
-        GlobalPerpsMarketConfiguration.Data storage globalConfig = GlobalPerpsMarketConfiguration
-            .load();
-        uint256 liquidationRewardForKeeper = globalConfig.calculateCollateralLiquidateReward(
-            v.collateralValueWithoutDiscount
-        );
-
-        int256 totalLiquidationReward = globalConfig
-            .keeperReward(
-                liquidationRewardForKeeper,
-                totalLiquidationCost,
-                v.collateralValueWithoutDiscount
-            )
-            .toInt();
-
-        availableMargin = getAvailableMargin(v) - totalLiquidationReward;
+        availableMargin = getAvailableMargin(v) - getPossibleLiquidationReward(v).toInt();
         isEligible = availableMargin < 0 && load(v.ctx.accountId).debt > 0;
     }
 
@@ -275,9 +259,8 @@ library PerpsAccount {
             .liquidatableAccounts;
 
         if (!liquidatableAccounts.contains(self.id)) {
-            flagKeeperCost = KeeperCosts.load().getFlagKeeperCosts(
-                getNumberOfUpdatedFeedsRequired(self)
-            );
+            // the flag cost counts the feeds; the seizure below empties them, so it is asked first
+            flagKeeperCost = KeeperCosts.load().getFlagKeeperCosts(self);
             liquidatableAccounts.add(self.id);
             seizedMarginValue = seizeCollateral(self);
 
@@ -582,16 +565,7 @@ library PerpsAccount {
             initialMargin += positionInitialMargin;
         }
 
-        (
-            uint256 accumulatedLiquidationRewards,
-            uint256 maxNumberOfWindows
-        ) = getKeeperRewardsAndCosts(v.ctx, v.collateralValueWithoutDiscount);
-        possibleLiquidationReward = getPossibleLiquidationReward(
-            accumulatedLiquidationRewards,
-            maxNumberOfWindows,
-            v.collateralValueWithoutDiscount,
-            getNumberOfUpdatedFeedsRequired(load(v.ctx.accountId))
-        );
+        possibleLiquidationReward = getPossibleLiquidationReward(v);
 
         return (initialMargin, maintenanceMargin, possibleLiquidationReward);
     }
@@ -605,55 +579,84 @@ library PerpsAccount {
         numberOfUpdatedFeeds = numberOfCollateralFeeds + self.openPositionMarketIds.length();
     }
 
-    function getKeeperRewardsAndCosts(
+    /**
+     * @notice What a keeper is owed for flagging the account: the flag reward of every position
+     * on a market the keeper is not endorsed on, or the reward on `collateralValue`, whichever
+     * is more. `keeper == address(0)` is a keeper endorsed nowhere — the most any keeper is owed,
+     * which is what the account must hold.
+     * @dev The collateral reward is withheld from a keeper endorsed on the market of the last
+     * position, as it always has been.
+     */
+    function flagReward(
         MemoryContext memory ctx,
-        uint256 totalNonDiscountedCollateralValue
-    ) internal view returns (uint256 accumulatedLiquidationRewards, uint256 maxNumberOfWindows) {
-        uint256 totalFlagReward = 0;
-        // use separate accounting for liquidation rewards so we can compare against global min/max liquidation reward values
+        uint256 collateralValue,
+        address keeper
+    ) internal view returns (uint256 reward) {
         for (uint256 i = 0; i < ctx.positions.length; i++) {
-            Position.Data memory position = ctx.positions[i];
-            PerpsMarketConfiguration.Data storage marketConfig = PerpsMarketConfiguration.load(
-                position.marketId
+            PerpsMarketConfiguration.Data storage config = PerpsMarketConfiguration.load(
+                ctx.positions[i].marketId
             );
-            uint256 numberOfWindows = marketConfig.numberOfLiquidationWindows(
-                MathUtil.abs(position.size)
+            if (keeper != address(0) && config.endorsedLiquidator == keeper) {
+                continue;
+            }
+            reward += config.calculateFlagReward(
+                MathUtil.abs(ctx.positions[i].size).mulDecimal(ctx.prices[i])
             );
-
-            uint256 notionalValue = MathUtil.abs(position.size).mulDecimal(ctx.prices[i]);
-            uint256 flagReward = marketConfig.calculateFlagReward(notionalValue);
-            totalFlagReward += flagReward;
-
-            maxNumberOfWindows = MathUtil.max(numberOfWindows, maxNumberOfWindows);
         }
-        GlobalPerpsMarketConfiguration.Data storage globalConfig = GlobalPerpsMarketConfiguration
-            .load();
-        uint256 collateralReward = globalConfig.calculateCollateralLiquidateReward(
-            totalNonDiscountedCollateralValue
-        );
-        // Take the maximum between flag reward and collateral reward
-        accumulatedLiquidationRewards += MathUtil.max(totalFlagReward, collateralReward);
+
+        if (
+            ctx.positions.length == 0 ||
+            keeper == address(0) ||
+            PerpsMarketConfiguration
+                .load(ctx.positions[ctx.positions.length - 1].marketId)
+                .endorsedLiquidator !=
+            keeper
+        ) {
+            reward = MathUtil.max(
+                reward,
+                GlobalPerpsMarketConfiguration.load().calculateCollateralLiquidateReward(
+                    collateralValue
+                )
+            );
+        }
     }
 
+    /**
+     * @notice The most liquidation windows any position of the account needs.
+     */
+    function liquidationWindows(MemoryContext memory ctx) internal view returns (uint256 windows) {
+        for (uint256 i = 0; i < ctx.positions.length; i++) {
+            windows = MathUtil.max(
+                windows,
+                PerpsMarketConfiguration.load(ctx.positions[i].marketId).numberOfLiquidationWindows(
+                    MathUtil.abs(ctx.positions[i].size)
+                )
+            );
+        }
+    }
+
+    /**
+     * @notice What the account must hold for its own liquidation: the flag reward of a keeper
+     * endorsed nowhere plus the costs of flagging and liquidating, within the global caps, plus
+     * the cost of each further liquidation window its largest position needs.
+     */
     function getPossibleLiquidationReward(
-        uint256 accumulatedLiquidationRewards,
-        uint256 numOfWindows,
-        uint256 totalNonDiscountedCollateralValue,
-        uint256 numberOfUpdatedFeeds
+        Valuation memory v
     ) internal view returns (uint256 possibleLiquidationReward) {
         GlobalPerpsMarketConfiguration.Data storage globalConfig = GlobalPerpsMarketConfiguration
             .load();
         KeeperCosts.Data storage keeperCosts = KeeperCosts.load();
-        uint256 costOfFlagging = keeperCosts.getFlagKeeperCosts(numberOfUpdatedFeeds);
+        uint256 costOfFlagging = keeperCosts.getFlagKeeperCosts(load(v.ctx.accountId));
         uint256 costOfLiquidation = keeperCosts.getLiquidateKeeperCosts();
         uint256 liquidateAndFlagCost = globalConfig.keeperReward(
-            accumulatedLiquidationRewards,
+            flagReward(v.ctx, v.collateralValueWithoutDiscount, address(0)),
             costOfFlagging + costOfLiquidation,
-            totalNonDiscountedCollateralValue
+            v.collateralValueWithoutDiscount
         );
-        uint256 liquidateWindowsCosts = numOfWindows == 0
+        uint256 windows = liquidationWindows(v.ctx);
+        uint256 liquidateWindowsCosts = windows == 0
             ? 0
-            : globalConfig.keeperReward(0, costOfLiquidation, 0) * (numOfWindows - 1);
+            : globalConfig.keeperReward(0, costOfLiquidation, 0) * (windows - 1);
 
         possibleLiquidationReward = liquidateAndFlagCost + liquidateWindowsCosts;
     }

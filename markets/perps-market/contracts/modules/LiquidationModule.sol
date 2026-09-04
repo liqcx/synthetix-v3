@@ -3,7 +3,6 @@ pragma solidity >=0.8.11 <0.9.0;
 
 import {ERC2771Context} from "@synthetixio/core-contracts/contracts/utils/ERC2771Context.sol";
 import {FeatureFlag} from "@synthetixio/core-modules/contracts/storage/FeatureFlag.sol";
-import {DecimalMath} from "@synthetixio/core-contracts/contracts/utils/DecimalMath.sol";
 import {MathUtil} from "../utils/MathUtil.sol";
 import {Flags} from "../utils/Flags.sol";
 import {SafeCastU256} from "@synthetixio/core-contracts/contracts/utils/SafeCast.sol";
@@ -28,7 +27,6 @@ import {Settlement} from "../storage/Settlement.sol";
  * @dev See ILiquidationModule.
  */
 contract LiquidationModule is ILiquidationModule, IMarketEvents {
-    using DecimalMath for uint256;
     using SafeCastU256 for uint256;
     using SetUtil for SetUtil.UintSet;
     using PerpsAccount for PerpsAccount.Data;
@@ -94,9 +92,8 @@ contract LiquidationModule is ILiquidationModule, IMarketEvents {
         (bool isEligible, ) = PerpsAccount.isEligibleForMarginLiquidation(v);
         if (isEligible) {
             // margin is sent to liquidation rewards distributor in getMarginLiquidationCostAndSeizeMargin
-            uint256 marginLiquidateCost = KeeperCosts.load().getFlagKeeperCosts(
-                account.getNumberOfUpdatedFeedsRequired()
-            );
+            // the flag cost counts the feeds; the seizure below empties them, so it is asked first
+            uint256 marginLiquidateCost = KeeperCosts.load().getFlagKeeperCosts(account);
             uint256 seizedMarginValue = account.seizeCollateral();
 
             // keeper is rewarded in _liquidateAccount
@@ -232,12 +229,13 @@ contract LiquidationModule is ILiquidationModule, IMarketEvents {
             );
     }
 
-    function _liquidateAccountPositions(
-        PerpsAccount.MemoryContext memory ctx,
-        uint256 totalCollateralValue
-    ) internal returns (uint256 totalLiquidated, uint256 totalFlaggingRewards) {
-        uint256 i;
-        for (i = 0; i < ctx.positions.length; i++) {
+    /**
+     * @dev Liquidates what the windows admit of each position, and emits for each.
+     */
+    function _liquidatePositions(
+        PerpsAccount.MemoryContext memory ctx
+    ) internal returns (uint256 totalLiquidated) {
+        for (uint256 i = 0; i < ctx.positions.length; i++) {
             (
                 uint256 amountLiquidated,
                 int128 newPositionSize,
@@ -259,39 +257,6 @@ contract LiquidationModule is ILiquidationModule, IMarketEvents {
                 newPositionSize
             );
         }
-
-        for (uint256 j = 0; j <= MathUtil.min(i, ctx.positions.length - 1); j++) {
-            // using oldPositionAbsSize to calculate flag reward
-            if (
-                ERC2771Context._msgSender() !=
-                PerpsMarketConfiguration.load(ctx.positions[j].marketId).endorsedLiquidator
-            ) {
-                totalFlaggingRewards += PerpsMarketConfiguration
-                    .load(ctx.positions[j].marketId)
-                    .calculateFlagReward(
-                        MathUtil.abs(ctx.positions[j].size).mulDecimal(ctx.prices[j])
-                    );
-            }
-        }
-
-        if (
-            ERC2771Context._msgSender() !=
-            PerpsMarketConfiguration
-                .load(ctx.positions[MathUtil.min(i, ctx.positions.length - 1)].marketId)
-                .endorsedLiquidator
-        ) {
-            // Use max of collateral or positions flag rewards
-            uint256 totalCollateralLiquidateRewards = GlobalPerpsMarketConfiguration
-                .load()
-                .calculateCollateralLiquidateReward(totalCollateralValue);
-
-            totalFlaggingRewards = MathUtil.max(
-                totalCollateralLiquidateRewards,
-                totalFlaggingRewards
-            );
-        }
-
-        return (totalLiquidated, totalFlaggingRewards);
     }
 
     /**
@@ -303,25 +268,18 @@ contract LiquidationModule is ILiquidationModule, IMarketEvents {
         uint256 totalCollateralValue,
         bool positionFlagged
     ) internal returns (uint256 keeperLiquidationReward) {
-        uint256 totalLiquidated;
-        uint256 totalFlaggingRewards;
-        if (ctx.positions.length > 0) {
-            (totalLiquidated, totalFlaggingRewards) = _liquidateAccountPositions(
-                ctx,
-                totalCollateralValue
-            );
-        } else {
-            totalFlaggingRewards = GlobalPerpsMarketConfiguration
-                .load()
-                .calculateCollateralLiquidateReward(totalCollateralValue);
-        }
+        // the flag reward is owed once, at the flag, on the positions as they stood
+        uint256 totalFlaggingRewards = positionFlagged
+            ? PerpsAccount.flagReward(ctx, totalCollateralValue, ERC2771Context._msgSender())
+            : 0;
+        uint256 totalLiquidated = _liquidatePositions(ctx);
         bool accountFullyLiquidated;
 
         uint256 totalLiquidationCost = KeeperCosts.load().getLiquidateKeeperCosts() +
             costOfFlagExecution;
         if (positionFlagged || totalLiquidated > 0) {
             keeperLiquidationReward = _processLiquidationRewards(
-                positionFlagged ? totalFlaggingRewards : 0,
+                totalFlaggingRewards,
                 totalLiquidationCost,
                 totalCollateralValue
             );
