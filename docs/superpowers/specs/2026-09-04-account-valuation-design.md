@@ -106,7 +106,11 @@ the flag cost in one text each, asked of the account.**
    The second text of the reward inside `PerpsAccount` goes.
 7. **The liquidation windows are their own pass**, `liquidationWindows(ctx)`;
    `getKeeperRewardsAndCosts` is deleted. One more pass over the positions in a liquidation, one
-   configuration load per position; measured in the PR.
+   configuration load per position; measured in the PR. Amended after the final review: the
+   windows and the flag-reward sum of a keeper endorsed nowhere are accumulated in
+   `getAccountRequiredMargins`'s one walk over the positions (the per-position rule and the
+   collateral cap live in two private helpers that `flagReward` composes too); `liquidationWindows`
+   stays for the path without that walk.
 8. **The base of the payout's cap stays the seized value**, as today:
    `_liquidateAccount(ctx, costOfFlagExecution, seizedMarginValue, positionFlagged)`;
    `flagForLiquidation` and `seizeCollateral` keep returning it. It equals
@@ -450,7 +454,10 @@ strict valuation of an already flagged account values an empty set.
   `AccountFlaggedForLiquidation`, the keeper's payout in `AccountLiquidationAttempt` and
   `AccountMarginLiquidation`, `canLiquidate*`, the gate and the quote.
 - `getRequiredMargins` on an account without positions still returns `(0, 0, 0)`, through the
-  valuation rather than an early return: in a view, one oracle call with an empty list more.
+  valuation rather than an early return: it now values the account's collateral too, so a
+  no-position account holding a synth asks the spot market for the synth's price at the default
+  tolerance, as `getAvailableMargin` and `getWithdrawableMargin` already did; snxUSD-only
+  accounts touch no oracle.
 
 ## The stands
 
@@ -507,7 +514,10 @@ The change rides the router upgrade of review card 1, with #30: `PerpsAccount` a
 `KeeperCosts` are compiled into every module that imports them, so the set of modules whose
 bytecode changes is derived from the build, not named. Until the router is upgraded nothing on
 the contours changes; after it, only a withdrawal against a stale synth price, on a contour that
-has synth collateral at all.
+has synth collateral at all. One caveat of the strict withdrawal: against an oracle graph with a
+staleness circuit breaker, a stricter tolerance does not revert but selects the breaker's
+fallback price, so on such a contour a withdrawal against a stale synth is judged at the
+fallback, not refused.
 
 ## Documents in this repo
 
