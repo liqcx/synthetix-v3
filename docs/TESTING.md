@@ -392,18 +392,26 @@ Cannon-кеш содержит state dumps в старом формате Anvil.
 python3 scripts/fix-cannon-state-dumps.py
 ```
 
-### Hardhat не поддерживает текущую версию Node.js
+### Hardhat предупреждает о версии Node.js
 
 ```text
 WARNING: You are currently using Node.js v24.14.0, which is not supported by Hardhat
 Error HH502: Couldn't download compiler version list
 ```
 
-**Решение:** Переключиться на Node.js 20.x:
+Node.js 24.14.0 — это не проблема, а требование: он запинен в `.prototools` (см. таблицу
+пререквизитов выше) и нужен самому pnpm 11.1.2, который используют встроенный `node:sqlite`
+и требует Node >= 22.13. Откатываться на Node 20.x (`nvm use 20`) не нужно — это не решит
+проблему, а сломает `pnpm install`, потому что pnpm 11 на Node 20 не запустится.
 
-```bash
-nvm use 20
-```
+Само `WARNING: ... is not supported by Hardhat` — известный ложный срабатыватель: список
+поддерживаемых версий в проверках Hardhat отстаёт от факта, а сама команда в репозитории
+запускается через `bun x hardhat`, а не напрямую через системный `node`. Предупреждение можно
+игнорировать.
+
+**Решение:** Если следом появляется `Error HH502: Couldn't download compiler version list` —
+это сетевая проблема (Hardhat не может достучаться до списка версий solc), а не версия
+Node.js. Проверьте доступ в интернет/прокси и повторите команду.
 
 ### Компиляция Solidity падает
 

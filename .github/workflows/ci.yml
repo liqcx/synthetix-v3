@@ -69,6 +69,8 @@ jobs:
       packages: read
     env:
       GT_READ: ${{ secrets.GITHUB_TOKEN }}
+      # Avoid a registry reach-out on the production self-hosted runner.
+      CANNON_REGISTRY_PRIORITY: local
     steps:
       - uses: actions/checkout@v5
         with:
