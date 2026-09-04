@@ -27,13 +27,14 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
      */
     function settleBookOrders(uint128 marketId, BookOrder[] memory orders) external override {
         FeatureFlag.ensureAccessToFeature(Flags.PERPS_SYSTEM);
+        // Only the allowlisted settler(s) may settle the book; a stranger reverts FeatureUnavailable.
+        FeatureFlag.ensureAccessToFeature(Flags.SETTLE_BOOK_ORDERS);
         PerpsMarket.Data storage market = PerpsMarket.loadValid(marketId);
 
         // The oracle price is the mark price every change in the batch is judged at: funding is
         // recomputed at it, the market's value cap is measured at it, and a fill worse than it is
         // a loss the account must already bear. What the batch names is only where each order
-        // fills, and the market may bound how far from this price that may be. Still missing
-        // (audit CRIT-2): a check on who may call this.
+        // fills, and the market may bound how far from this price that may be.
         uint256 markPrice = PerpsPrice.getCurrentPrice(marketId, PerpsPrice.Tolerance.DEFAULT);
         uint256 maxDeviation = PerpsMarketConfiguration.load(marketId).maxBookPriceDeviationD18;
 
