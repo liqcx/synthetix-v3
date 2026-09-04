@@ -27,6 +27,29 @@ SUITES=(
 FILTER="${SUITE_FILTER:-}"
 OVERRIDE="${BATCH_SIZE_OVERRIDE:-}"
 
+# A SUITE_FILTER that matches nothing in SUITES would otherwise make every
+# suite below skip, leaving `failures` at 0 and the job exiting green having
+# run nothing at all. Validate against the known suite names up front and
+# fail loudly, before doing any real work (installs already happened in the
+# calling workflow, but no test has run and no JUnit dir has been touched).
+valid_dirs=()
+for suite in "${SUITES[@]}"; do
+  valid_dirs+=("${suite%%:*}")
+done
+if [ -n "$FILTER" ]; then
+  filter_ok=false
+  for dir in "${valid_dirs[@]}"; do
+    if [ "$FILTER" == "$dir" ]; then
+      filter_ok=true
+      break
+    fi
+  done
+  if [ "$filter_ok" != true ]; then
+    echo "::error::SUITE_FILTER '$FILTER' does not match any known suite. Valid values: ${valid_dirs[*]}"
+    exit 1
+  fi
+fi
+
 export PATH="$PATH:$ROOT/node_modules/.bin"
 export CANNON_REGISTRY_PRIORITY=local
 export REPORT_GAS=true
@@ -34,6 +57,13 @@ export TS_NODE_TRANSPILE_ONLY=true
 export TS_NODE_TYPE_CHECK=false
 export MOCHA_RETRIES="${MOCHA_RETRIES:-2}"
 export BATCH_RETRIES="${BATCH_RETRIES:-5}"
+
+# The self-hosted runner's filesystem persists between runs (unlike CircleCI,
+# where each suite got a fresh container), so /tmp/junit can hold batches
+# left over from a previous night. Start every run from a clean, empty tree —
+# the upload step at the end of the workflow always points at this whole dir.
+rm -rf /tmp/junit
+mkdir -p /tmp/junit
 
 failures=0
 results=()
@@ -51,15 +81,23 @@ for suite in "${SUITES[@]}"; do
 
   files="$(cd "$ROOT/$dir" && find test -name '*.test.ts' 2>/dev/null | sort | tr '\n' ' ')"
   if [ -z "$files" ]; then
-    echo "SKIP $dir — no test files"
-    results+=("skipped|$dir|0")
+    # Every entry in SUITES is here because it has tests; zero files means
+    # something moved (renamed/deleted test dir), not that there is nothing
+    # to do. Treat it as a failure so it can't pass silently as green.
+    echo "::error::$dir has no test files (expected some — a package only appears in SUITES because it has tests)"
+    results+=("failed|$dir|0")
+    failures=$((failures + 1))
     continue
   fi
 
   count="$(echo "$files" | wc -w | tr -d ' ')"
   echo "::group::$dir ($count files, batch size $batch)"
   started="$(date +%s)"
-  if (cd "$ROOT/$dir" && TEST_FILES="$files" BATCH_SIZE="$batch" bun "$RUNNER"); then
+  # Each suite gets its own JUnit subdirectory so suites don't overwrite each
+  # other's batch-N.xml files (test-batch.js numbers batches from 1 every run).
+  junit_dir="/tmp/junit/${dir//\//-}"
+  mkdir -p "$junit_dir"
+  if (cd "$ROOT/$dir" && TEST_FILES="$files" BATCH_SIZE="$batch" JUNIT_DIR="$junit_dir" bun "$RUNNER"); then
     status=passed
   else
     status=failed
