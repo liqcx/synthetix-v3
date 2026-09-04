@@ -36,7 +36,7 @@ jobs:
       contents: read
       packages: read
     env:
-      GT_READ: ${{ secrets.GITHUB_TOKEN }}
+      GT_READ: ${{ secrets.GT_READ }}
       CANNON_REGISTRY_PRIORITY: local
     steps:
       - uses: actions/checkout@v5

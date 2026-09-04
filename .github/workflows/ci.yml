@@ -26,7 +26,13 @@ jobs:
       # reads its token from ${GT_READ}. setup-liqcx mirrors this into the
       # user-level ~/.npmrc — pnpm >= 11.15 ignores env credentials in a
       # committed project .npmrc.
-      GT_READ: ${{ secrets.GITHUB_TOKEN }}
+      #
+      # The org-level GT_READ secret, not GITHUB_TOKEN: this repo's own
+      # GITHUB_TOKEN gets a 403 on @liqcx/tooling-canon, because the @liqcx
+      # packages are published from liqcx/tooling and grant Actions access
+      # per-repository. GT_READ is org-scoped and visible to every private
+      # repo in the org.
+      GT_READ: ${{ secrets.GT_READ }}
     steps:
       - uses: actions/checkout@v5
       - uses: liqcx/tooling/.github/actions/setup-liqcx@v1
@@ -68,7 +74,7 @@ jobs:
       contents: read
       packages: read
     env:
-      GT_READ: ${{ secrets.GITHUB_TOKEN }}
+      GT_READ: ${{ secrets.GT_READ }}
       # Avoid a registry reach-out on the production self-hosted runner.
       CANNON_REGISTRY_PRIORITY: local
     steps:
