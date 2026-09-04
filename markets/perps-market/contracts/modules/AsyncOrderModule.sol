@@ -10,11 +10,9 @@ import {PerpsMarket} from "../storage/PerpsMarket.sol";
 import {PerpsAccount} from "../storage/PerpsAccount.sol";
 import {OrderMode} from "../storage/OrderMode.sol";
 import {AsyncOrder} from "../storage/AsyncOrder.sol";
-import {Position} from "../storage/Position.sol";
 import {PerpsPrice} from "../storage/PerpsPrice.sol";
 import {PerpsMarketConfiguration} from "../storage/PerpsMarketConfiguration.sol";
 import {SettlementStrategy} from "../storage/SettlementStrategy.sol";
-import {MathUtil} from "../utils/MathUtil.sol";
 import {Flags} from "../utils/Flags.sol";
 
 /**
@@ -24,6 +22,7 @@ import {Flags} from "../utils/Flags.sol";
 contract AsyncOrderModule is IAsyncOrderModule {
     using AsyncOrder for AsyncOrder.Data;
     using PerpsAccount for PerpsAccount.Data;
+    using PerpsMarket for PerpsMarket.Data;
 
     /**
      * @inheritdoc IAsyncOrderModule
@@ -124,26 +123,16 @@ contract AsyncOrderModule is IAsyncOrderModule {
         return _computeOrderFeesWithPrice(marketId, sizeDelta, price);
     }
 
+    /// @dev The fill is `price` moved by the market's skew; the fee is at that fill. The market
+    /// alone answers: no account is asked.
     function _computeOrderFeesWithPrice(
         uint128 marketId,
         int128 sizeDelta,
         uint256 price
     ) internal view returns (uint256 orderFees, uint256 fillPrice) {
-        // create a fake order commitment request
-        AsyncOrder.Data memory order = AsyncOrder.Data(
-            0,
-            AsyncOrder.OrderCommitmentRequest(marketId, 0, sizeDelta, 0, 0, bytes32(0), address(0))
-        );
-
-        PerpsAccount.Data storage account = PerpsAccount.load(order.request.accountId);
-
-        // probably should be doing this but cant because the interface (view) doesn't allow it
-        //perpsMarketData.recomputeFunding(orderPrice);
-
-        PerpsAccount.MemoryContext memory ctx = account.getOpenPositionsAndCurrentPrices(
-            PerpsPrice.Tolerance.DEFAULT
-        );
-        (, , , fillPrice, orderFees) = order.createUpdatedPosition(price, ctx);
+        PerpsMarket.Data storage market = PerpsMarket.load(marketId);
+        fillPrice = market.calculateFillPrice(sizeDelta, price);
+        orderFees = market.calculateOrderFee(sizeDelta, fillPrice);
     }
 
     /**
@@ -159,20 +148,9 @@ contract AsyncOrderModule is IAsyncOrderModule {
             );
     }
 
-    function requiredMarginImmut(
-        uint128 accountId,
-        uint128 marketId,
-        int128 sizeDelta
-    ) external returns (uint256 requiredMargin) {
-        return
-            _requiredMarginForOrderWithPrice(
-                accountId,
-                marketId,
-                sizeDelta,
-                PerpsPrice.getCurrentPrice(marketId, PerpsPrice.Tolerance.DEFAULT)
-            );
-    }
-
+    /**
+     * @inheritdoc IAsyncOrderModule
+     */
     function requiredMarginForOrder(
         uint128 accountId,
         uint128 marketId,
@@ -187,6 +165,9 @@ contract AsyncOrderModule is IAsyncOrderModule {
             );
     }
 
+    /**
+     * @inheritdoc IAsyncOrderModule
+     */
     function requiredMarginForOrderWithPrice(
         uint128 accountId,
         uint128 marketId,
@@ -196,55 +177,29 @@ contract AsyncOrderModule is IAsyncOrderModule {
         return _requiredMarginForOrderWithPrice(accountId, marketId, sizeDelta, price);
     }
 
+    /// @dev The required side of the gate's rule plus the order fee: what the available margin,
+    /// less the loss of a fill worse than `price`, must reach. `price` is the mark; the fill is
+    /// `price` moved by the skew. The gate's own refusals of the account (no account, flagged,
+    /// liquidatable, no room) revert here as they would there.
     function _requiredMarginForOrderWithPrice(
         uint128 accountId,
         uint128 marketId,
         int128 sizeDelta,
         uint256 price
     ) internal view returns (uint256 requiredMargin) {
-        // create a fake order commitment request
-        AsyncOrder.Data memory order = AsyncOrder.Data(
-            0,
-            AsyncOrder.OrderCommitmentRequest(
-                marketId,
-                accountId,
-                sizeDelta,
-                0,
-                0,
-                bytes32(0),
-                address(0)
-            )
+        (uint256 orderFees, uint256 fillPrice) = _computeOrderFeesWithPrice(
+            marketId,
+            sizeDelta,
+            price
         );
-
-        PerpsAccount.Data storage account = PerpsAccount.load(order.request.accountId);
-
-        // probably should be doing this but cant because the interface (view) doesn't allow it
-        //perpsMarketData.recomputeFunding(orderPrice);
-
-        PerpsAccount.MemoryContext memory ctx = account.getOpenPositionsAndCurrentPrices(
-            PerpsPrice.Tolerance.DEFAULT
+        PerpsAccount.Assessment memory assessment = PerpsAccount.assess(
+            accountId,
+            marketId,
+            sizeDelta,
+            fillPrice,
+            price,
+            orderFees
         );
-
-        uint256 orderFees;
-        Position.Data memory oldPosition;
-        Position.Data memory newPosition;
-        (ctx, oldPosition, newPosition, , orderFees) = order.createUpdatedPosition(price, ctx);
-
-        // say no margin is required for shrinking position size
-        if (MathUtil.isSameSideReducing(oldPosition.size, newPosition.size)) {
-            return 0;
-        }
-
-        (, uint256 totalCollateralValueWithoutDiscount) = account.getTotalCollateralValue(
-            PerpsPrice.Tolerance.DEFAULT
-        );
-
-        uint256 possibleLiquidationReward;
-        (requiredMargin, , possibleLiquidationReward) = PerpsAccount.getAccountRequiredMargins(
-            ctx,
-            totalCollateralValueWithoutDiscount
-        );
-
-        return requiredMargin + possibleLiquidationReward + orderFees;
+        return assessment.requiredMargin + orderFees;
     }
 }

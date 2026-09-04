@@ -71,12 +71,14 @@ interface IAsyncOrderModule {
     function getOrder(uint128 accountId) external view returns (AsyncOrder.Data memory order);
 
     /**
-     * @notice Simulates what the order fee would be for the given market with the specified size.
-     * @dev    Note that this does not include the settlement reward fee, which is based on the strategy type used
+     * @notice The order fee and the fill price of a change of `sizeDelta` at the oracle price.
+     * @dev The fill is the oracle price moved by the market's skew; the fee is at that fill. The
+     * settlement reward is not included: it depends on the strategy, see
+     * `getSettlementRewardCost`.
      * @param marketId id of the market.
-     * @param sizeDelta size of position.
-     * @return orderFees incurred fees.
-     * @return fillPrice price at which the order would be filled.
+     * @param sizeDelta size of the change.
+     * @return orderFees the order fee.
+     * @return fillPrice the price the change would fill at.
      */
     function computeOrderFees(
         uint128 marketId,
@@ -84,13 +86,13 @@ interface IAsyncOrderModule {
     ) external view returns (uint256 orderFees, uint256 fillPrice);
 
     /**
-     * @notice Simulates what the order fee would be for the given market with the specified size.
-     * @dev    Note that this does not include the settlement reward fee, which is based on the strategy type used
+     * @notice The order fee and the fill price of a change of `sizeDelta` at `price`.
+     * @dev As `computeOrderFees`, with `price` in place of the oracle price.
      * @param marketId id of the market.
-     * @param sizeDelta size of position.
-     * @param price price of the market.
-     * @return orderFees incurred fees.
-     * @return fillPrice price at which the order would be filled.
+     * @param sizeDelta size of the change.
+     * @param price the price to fill from.
+     * @return orderFees the order fee.
+     * @return fillPrice the price the change would fill at.
      */
     function computeOrderFeesWithPrice(
         uint128 marketId,
@@ -110,31 +112,36 @@ interface IAsyncOrderModule {
     ) external view returns (uint256);
 
     /**
-     * @notice For a given market, account id, and a position size, returns the required total account margin for this order to succeed
-     * @dev    Useful for integrators to determine if an order will succeed or fail
-     * @param marketId id of the market.
+     * @notice What the account must hold for a change of `sizeDelta` to be made: the initial
+     * margin of its positions with the change made, plus the liquidation reward, plus the order
+     * fee — the number `getAvailableMargin`, less the loss of a fill worse than the oracle
+     * price, must reach. A reduction is the requirement of the reduced position, not zero.
+     * @dev The settlement reward is not included: it depends on the strategy. Reverts as the
+     * gate would for an account that may not trade at all: `AccountNotFound`,
+     * `AccountLiquidatable`, `MaxPositionsPerAccountReached`.
      * @param accountId id of the trader account.
-     * @param sizeDelta size of position.
-     * @return requiredMargin margin required for the order to succeed.
+     * @param marketId id of the market.
+     * @param sizeDelta size of the change.
+     * @return requiredMargin the requirement.
      */
     function requiredMarginForOrder(
-        uint128 marketId,
         uint128 accountId,
+        uint128 marketId,
         int128 sizeDelta
     ) external view returns (uint256 requiredMargin);
 
     /**
-     * @notice For a given market, account id, and a position size, and expected price returns the required total account margin for this order to succeed
-     * @dev    Useful for integrators to determine if an order will succeed or fail faking different price scenarios
-     * @param marketId id of the market.
+     * @notice As `requiredMarginForOrder`, with `price` in place of the oracle price: the fill
+     * is `price` moved by the skew, and `price` is the mark the fill is judged against.
      * @param accountId id of the trader account.
-     * @param sizeDelta size of position.
-     * @param price price of the market.
-     * @return requiredMargin margin required for the order to succeed.
+     * @param marketId id of the market.
+     * @param sizeDelta size of the change.
+     * @param price the price to judge at.
+     * @return requiredMargin the requirement.
      */
     function requiredMarginForOrderWithPrice(
-        uint128 marketId,
         uint128 accountId,
+        uint128 marketId,
         int128 sizeDelta,
         uint256 price
     ) external view returns (uint256 requiredMargin);

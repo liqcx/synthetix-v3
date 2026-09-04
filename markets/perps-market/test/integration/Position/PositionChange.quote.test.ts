@@ -5,6 +5,7 @@ import {
   bookOrder,
   openBookAccount,
   openOnchainAccount,
+  openPosition,
   settleBook,
   BookOrder,
 } from '../../helpers';
@@ -133,6 +134,19 @@ describe('Position change quote', () => {
   const settle = (orders: BookOrder[], market: PerpsMarket = op) =>
     settleBook({ systems, keeper: keeper(), marketId: market.marketId(), orders });
 
+  const openAsync = (accountId: number, sizeDelta: ethers.BigNumber, market: PerpsMarket = op) =>
+    openPosition({
+      systems,
+      provider,
+      trader: trader3(),
+      accountId,
+      keeper: keeper(),
+      marketId: market.marketId(),
+      sizeDelta,
+      settlementStrategyId: market.strategyId(),
+      price: _PRICE,
+    });
+
   const liquidate = async (accountId: number) => {
     const tx = await systems().PerpsMarket.connect(keeper()).liquidate(accountId);
     await tx.wait();
@@ -195,6 +209,13 @@ describe('Position change quote', () => {
 
       it('is refused', async () => {
         await assertRevert(quote(FLAGGED, bn(1)), `AccountLiquidatable("${FLAGGED}")`);
+      });
+
+      it('requiredMarginForOrder is refused the same way', async () => {
+        await assertRevert(
+          systems().PerpsMarket.requiredMarginForOrder(FLAGGED, op.marketId(), bn(1)),
+          `AccountLiquidatable("${FLAGGED}")`
+        );
       });
     });
 
@@ -315,8 +336,25 @@ describe('Position change quote', () => {
 
   describe('a same-side reduction is the initial margin of the reduced position', () => {
     before(restore);
-    before('the account holds 400 OP', async () => {
+    before('the book account and the async account each hold 400 OP on 10,000', async () => {
       await settle([order(REDUCER, bn(400))]);
+      await openAsync(OFF_BOOK, bn(400));
+    });
+
+    // Runs before the reduction below is settled: it needs REDUCER still at its original 400 OP,
+    // matching OFF_BOOK's untouched 400 OP, so the two -50 quotes are of the same change.
+    it('requiredMarginForOrderWithPrice is the same requirement plus the order fee at the skewed fill', async () => {
+      const q = await quote(REDUCER, bn(-50));
+      const view = await systems().PerpsMarket.requiredMarginForOrderWithPrice(
+        OFF_BOOK,
+        op.marketId(),
+        bn(-50),
+        _PRICE
+      );
+      // the async fill is the oracle price moved by the skew (800 OP on 1,000,000), so its fee
+      // differs from the fee at the oracle price by a fraction of a cent
+      assertBn.near(view, q.requiredMargin.add(q.orderFees), bn(0.01));
+      assert(view.gt(q.requiredMargin));
     });
 
     it("the quote before the reduction is the account's requirement after it", async () => {

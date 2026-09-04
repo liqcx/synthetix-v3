@@ -1,3 +1,4 @@
+import assert from 'assert/strict';
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
 import assertRevert from '@synthetixio/core-utils/utils/assertions/assert-revert';
 import { bn, bootstrapMarkets } from '../../bootstrap';
@@ -191,55 +192,60 @@ describe('Orders - allow size reduction', () => {
   });
 
   describe('check requiredMarginForOrder', () => {
+    // The fees of this fixture are zero, so the view is the requirement alone; the fee term is
+    // pinned in Position/PositionChange.quote.test.ts. The reward does not read the collateral
+    // here (maxKeeperScalingRatioD18 = 1000 puts its cap far above it), so the requirement of
+    // the reduced position is the same number before and after the reduction is made.
     describe('reduce btc by 2', () => {
-      it('is only order fees', async () => {
-        const [orderFees] = await systems().PerpsMarket.computeOrderFees(50, bn(-2));
-        assertBn.equal(
-          await systems().PerpsMarket.requiredMarginForOrder(2, 50, bn(-2)),
-          orderFees
-        );
+      it('is the initial margin of the reduced position plus the reward', async () => {
+        const required = await systems().PerpsMarket.requiredMarginForOrder(2, 50, bn(-2));
+        assert(required.gt(0));
+
+        await openPosition({
+          systems,
+          provider,
+          trader: trader1(),
+          accountId: 2,
+          keeper: keeper(),
+          marketId: perpsMarkets()[0].marketId(),
+          sizeDelta: bn(-2),
+          settlementStrategyId: perpsMarkets()[0].strategyId(),
+          price: bn(9_500),
+        });
+
+        const { requiredInitialMargin } = await systems().PerpsMarket.getRequiredMargins(2);
+        assertBn.equal(required, requiredInitialMargin);
       });
+
       describe('fully close eth position', () => {
-        it('is only order fees', async () => {
-          const [orderFees] = await systems().PerpsMarket.computeOrderFees(50, bn(3));
-          assertBn.equal(
-            await systems().PerpsMarket.requiredMarginForOrder(2, 51, bn(3)),
-            orderFees
-          );
+        it('is the initial margin of what is left plus the reward', async () => {
+          const required = await systems().PerpsMarket.requiredMarginForOrder(2, 51, bn(3));
+          assert(required.gt(0));
+
+          await openPosition({
+            systems,
+            provider,
+            trader: trader1(),
+            accountId: 2,
+            keeper: keeper(),
+            marketId: perpsMarkets()[1].marketId(),
+            sizeDelta: bn(3),
+            settlementStrategyId: perpsMarkets()[1].strategyId(),
+            price: bn(2_040),
+          });
+
+          const { requiredInitialMargin } = await systems().PerpsMarket.getRequiredMargins(2);
+          assertBn.equal(required, requiredInitialMargin);
         });
       });
     });
   });
 
+  // 'check requiredMarginForOrder' above already reduced the btc position by 2 and fully closed
+  // the eth position (it must, to check the view against the resulting requirement), so the
+  // account is already left where this describe used to put it itself — no separate before-hooks
+  // needed.
   describe('lower positions', () => {
-    before('reduce btc by 2', async () => {
-      await openPosition({
-        systems,
-        provider,
-        trader: trader1(),
-        accountId: 2,
-        keeper: keeper(),
-        marketId: perpsMarkets()[0].marketId(),
-        sizeDelta: bn(-2),
-        settlementStrategyId: perpsMarkets()[0].strategyId(),
-        price: bn(10_000),
-      });
-    });
-
-    before('close eth position', async () => {
-      await openPosition({
-        systems,
-        provider,
-        trader: trader1(),
-        accountId: 2,
-        keeper: keeper(),
-        marketId: perpsMarkets()[1].marketId(),
-        sizeDelta: bn(3),
-        settlementStrategyId: perpsMarkets()[1].strategyId(),
-        price: bn(2000),
-      });
-    });
-
     it('reduced btc position', async () => {
       const [, , positionSize] = await systems().PerpsMarket.getOpenPosition(2, 50);
       assertBn.equal(positionSize, bn(3));
