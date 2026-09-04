@@ -91,8 +91,7 @@ Permanent hard-fork of `Synthetixio/synthetix-v3` (no upstream sync in ~19 month
 
 Security audit: [`docs/book-order-module-audit.md`](docs/book-order-module-audit.md) — 3 Critical, 5 High findings.
 
-Open findings (the ledger in the audit doc is authoritative; the High findings are fixed):
+Open findings (the ledger in the audit doc is authoritative; the High findings and CRIT-2 are fixed):
 
 - **Price verification** (CRIT-1) — every book fill is judged at the oracle price and bounded by the market's `maxBookPriceDeviation` (zero is no bound); `signedPriceData` is still not verified onchain.
-- **No access control** (CRIT-2) — any address with `perpsSystem` feature flag can call `settleBookOrders`.
 - **Order consent** (CRIT-3) — the settler names the accounts; no signature ties an order to its owner.
