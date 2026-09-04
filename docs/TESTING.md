@@ -39,6 +39,7 @@ yarn install
 ```
 
 Yarn 4.7.0 зашит в репозиторий через `corepack`. Workspace-пакеты:
+
 - `utils/**` — утилиты, общий конфиг
 - `protocol/**` — core protocol (synthetix)
 - `markets/**` — рынки (perps-market, spot-market)
@@ -61,6 +62,7 @@ cat ~/.local/share/cannon/settings.json
 ```
 
 Должно быть:
+
 ```json
 {
   "ipfsUrl": "http://0.0.0.0:5001",
@@ -75,7 +77,7 @@ cat ~/.local/share/cannon/settings.json
 
 При обновлении Foundry/Anvil с версии < 1.0 на >= 1.5 старые cannon-кеши становятся несовместимыми. Симптомы:
 
-```
+```text
 Error: Failed to decode state dump
 Error: Best hash not found
 ```
@@ -87,6 +89,7 @@ python3 scripts/fix-cannon-state-dumps.py
 ```
 
 Что делает:
+
 1. Сканирует `~/.local/share/cannon/ipfs_cache/*.json`
 2. Находит `chainDump` в старом формате (без поля `best_block_number`)
 3. Добавляет недостающие поля: `best_block_number`, `blocks`, `transactions`, `historical_states`
@@ -103,6 +106,7 @@ yarn generate-testable
 ```
 
 Генерирует объединённые контракты (router из модулей) в `contracts/generated/` для пакетов:
+
 - `protocol/synthetix`
 - `protocol/oracle-manager`
 - `utils/core-modules`
@@ -124,7 +128,8 @@ yarn build-testable
 Без этого шага тесты не найдут зависимости (например `synthetix:3.13.1-testable`) и упадут с ошибкой `could not find package`.
 
 Порядок сборки определяется зависимостями между пакетами:
-```
+
+```text
 utils/core-contracts (compile)
   → utils/core-modules (compile)
     → protocol/synthetix (cannon:build cannonfile.test.toml)
@@ -229,11 +234,12 @@ Hardhat запускает задачу `cannon:build` с файлом `cannonfi
 
 Файл: `utils/core-utils/src/utils/bootstrap/tests.ts`
 
-```
+```typescript
 coreBootstrap({ cannonfile: 'cannonfile.test.toml' })
 ```
 
 Выполняется в `before()` хуке Mocha:
+
 1. Вызывает `hre.run('cannon:build')` — получает outputs с контрактами
 2. Генерирует typechain-типы в `test/generated/typechain/`
 3. Создает ethers.js provider и 10 signer-ов
@@ -241,6 +247,7 @@ coreBootstrap({ cannonfile: 'cannonfile.test.toml' })
 5. Настраивает `anvil_setBlockTimestampInterval = 1`
 
 Возвращает:
+
 - `getContract(name)` — получить ethers.Contract по имени
 - `getSigners()` — массив signer-ов
 - `getProvider()` — ethers.providers.JsonRpcProvider
@@ -250,7 +257,7 @@ coreBootstrap({ cannonfile: 'cannonfile.test.toml' })
 
 Для изоляции тестов используется механизм EVM snapshot:
 
-```
+```text
 Cannon build → чистый стейт
   │
   ├─ evm_snapshot (базовый)
@@ -299,7 +306,7 @@ export function bootstrapMarkets(data) {
 
 ## Структура тестов perps-market
 
-```
+```text
 markets/perps-market/
 ├── cannonfile.test.toml          # Cannon-конфиг для тестов (с моками)
 ├── hardhat.config.ts             # Hardhat-конфиг (mocha timeout: 30s)
@@ -324,12 +331,13 @@ markets/perps-market/
 
 ### IPFS не запущен
 
-```
+```text
 Error: Failed to upload to IPFS. Make sure you have a local IPFS daemon running
 Error: connect ECONNREFUSED 0.0.0.0:5001
 ```
 
 **Решение:** Запустить IPFS daemon:
+
 ```bash
 ipfs daemon
 # или открыть IPFS Desktop
@@ -337,11 +345,12 @@ ipfs daemon
 
 ### Cannon не находит пакет
 
-```
+```text
 Error: could not find package synthetix:3.13.1-testable
 ```
 
 **Решение:** Сначала собрать зависимости:
+
 ```bash
 # Из корня
 yarn build-testable
@@ -352,12 +361,14 @@ yarn build-testable
 Проблема: Anvil деградирует при использовании раздутого cannon-кеша с накопленными историческими состояниями.
 
 **Решение 1 (рекомендуется):** Удалить cannon-кеш и пересобрать:
+
 ```bash
 rm -rf ~/.local/share/cannon/ipfs_cache/
 yarn build-testable
 ```
 
 **Решение 2:** Запускать тесты по каталогам, а не все сразу:
+
 ```bash
 CANNON_REGISTRY_PRIORITY=local bun x hardhat test 'test/integration/Orders/*.test.ts'
 ```
@@ -367,18 +378,20 @@ CANNON_REGISTRY_PRIORITY=local bun x hardhat test 'test/integration/Orders/*.tes
 Cannon-кеш содержит state dumps в старом формате Anvil.
 
 **Решение:**
+
 ```bash
 python3 scripts/fix-cannon-state-dumps.py
 ```
 
 ### Hardhat не поддерживает текущую версию Node.js
 
-```
+```text
 WARNING: You are currently using Node.js v24.14.0, which is not supported by Hardhat
 Error HH502: Couldn't download compiler version list
 ```
 
 **Решение:** Переключиться на Node.js 20.x:
+
 ```bash
 nvm use 20
 ```

@@ -10,7 +10,7 @@ The system consists of nodes which can be registered by anyone using the `regist
 
 A struct of price data can be retrieved for a given node ID by passing it to the `process()` function. The struct consists of:
 
-```
+```solidity
 struct NodeOutput {
   int256 price; // Denominated in dollars with 18 decimal places
   uint256 timestamp; // Denominated as Unix epoch time
@@ -131,7 +131,7 @@ To run the tests:
 
 1.  Add the new node type to NodeType enum in `/storage/NodeDefinition.sol`.
 2.  Add a new library in `/nodes`. It must have the following function interface:
-    ` function process(NodeOutput.Data[] memory prices, bytes memory parameters) internal view returns (NodeOutput.Data memory)`
+    `function process(NodeOutput.Data[] memory prices, bytes memory parameters) internal view returns (NodeOutput.Data memory)`
 3.  Add the new node type into `_validateNodeType()` in `/modules/NodeModule.sol`
 4.  Add a condition for new node type in `_process` in `modules/NodeModule.sol` that calls the node library from step 2.
 5.  Add appropriate tests and documentation.
