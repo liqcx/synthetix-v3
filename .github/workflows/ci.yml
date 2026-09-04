@@ -101,12 +101,19 @@ jobs:
       # RewardsDistributor and RewardsDistributorExternal are NOT here either:
       # both fail to compile because their test/MintableToken.sol (and, for
       # RewardsDistributor, test/SnapshotRewardsDistributorUnitTest.sol) import
-      # forge-std/mocks/MockERC20.sol (and MockERC721.sol), which the pinned
-      # forge-std v1.9.7 tag does not ship under src/ — a second, pre-existing
-      # break independent of the pnpm-linking fix applied to these two packages
-      # in the prior commit. Package scripts are inconsistent (forge-test /
-      # forge-coverage / test), so call forge directly and let each
-      # foundry.toml profile apply.
+      # forge-std/mocks/MockERC20.sol (and MockERC721.sol). Before this plan
+      # both packages floated on forge-std#master, which had drifted onto a
+      # src/mocks/ that shipped in no tagged release; a prior task in this
+      # plan pinned them to the same v1.9.7 tag as the rest of the repo for
+      # deps:mismatched, which took the mocks away (invisible then because the
+      # pnpm-linking break above made these two fail to compile earlier
+      # anyway). No fix: verified against every forge-std tag through the
+      # latest, v1.16.2 (github.com/foundry-rs/forge-std, checked
+      # 2026-09-04) — none ship src/mocks/; only the floating #master ref
+      # currently does, and that is exactly what deps:mismatched exists to
+      # forbid. Package scripts are inconsistent (forge-test / forge-coverage
+      # / test), so call forge directly and let each foundry.toml profile
+      # apply.
       - name: Foundry suites (no Cannon)
         run: |
           set -euo pipefail
