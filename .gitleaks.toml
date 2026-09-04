@@ -40,6 +40,10 @@ paths = [
     '''(.*/)?prisma/migrations/''',
     '''(.*/)?\.claude(/|$)''',
     '''(.*/)?\.agent(/|$)''',
+    # .env is git-ignored (.gitignore:2), so it can never enter a commit and
+    # is absent from a CI checkout — this entry exists so the same gitleaks
+    # command is usable locally, where a real .env sits on disk.
+    '''(^|/)\.env$''',
     # Test fixtures and well-known Anvil/Hardhat deterministic accounts
     # (these are published in every dev env and are NOT real secrets).
     '''(.*/)?__tests__(/|$)''',
@@ -73,6 +77,12 @@ regexes = [
     '''liq-consent-v\d+''',
     # Versioned localStorage / session-storage key names — not secrets.
     '''liq\.\S+\.v\d+''',
+    # A bare 40-hex string is an Ethereum ADDRESS, never a key — private keys
+    # are 64 hex and are already caught by this file's own
+    # eth-private-key-no-prefix rule. Fires on public contract addresses in
+    # auxiliary/Faucet/README.md:40,57 and
+    # markets/treasury-market/script/RestorePosition.sol:19,36.
+    '''0x[a-fA-F0-9]{40}''',
 ]
 
 # Use stopwords to suppress obvious noise. Gitleaks uses Hashicorp's
