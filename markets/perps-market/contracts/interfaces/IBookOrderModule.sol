@@ -73,6 +73,8 @@ interface IBookOrderModule is ISettlementEvents {
      * an order outside the bound reverts the batch with `BookPriceDeviationExceeded`. An account
      * off the book (order mode `ONCHAIN`) reverts the batch with `IncorrectAccountMode`; an
      * account in the window after a switch is still on it.
+     * @dev Callable only from the allowlist of the `settleBookOrders` feature flag, kept by the
+     * owner (`addToFeatureFlagAllowlist`); any other caller reverts `FeatureUnavailable`.
      * @dev Every position change passes the same checks an async order passes at commitment and
      * settlement: the account must exist, be neither flagged for liquidation nor liquidatable, have
      * room for one more market if the change opens one, be able to pay its fees and stand above its

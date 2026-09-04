@@ -32,6 +32,15 @@ export function bootstrapTraders(data: Data) {
     [, , , trader1, trader2, trader3, keeper] = signers();
   });
 
+  before('the keeper is the settler: the owner allowlists it for settleBookOrders', async () => {
+    await systems()
+      .PerpsMarket.connect(owner())
+      .addToFeatureFlagAllowlist(
+        ethers.utils.formatBytes32String('settleBookOrders'),
+        await keeper.getAddress()
+      );
+  });
+
   before('the traders back their snxUSD with a pool of their own', async () => {
     await systems()
       .Core.connect(owner())

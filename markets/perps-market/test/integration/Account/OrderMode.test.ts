@@ -26,7 +26,7 @@ const PRICE = bn(1000);
 // set from the default takes effect at once; a switch after that starts the window; a switch
 // with an unexpired pending async order is refused.
 describe('Order mode', () => {
-  const { systems, perpsMarkets, provider, trader1, keeper } = bootstrapMarkets({
+  const { systems, perpsMarkets, provider, trader1, trader2, keeper, owner } = bootstrapMarkets({
     synthMarkets: [],
     perpsMarkets: [
       {
@@ -269,6 +269,46 @@ describe('Order mode', () => {
 
       await perps(trader1()).setBookMode(PENDING, true);
       assert.equal(await mode(PENDING), 'RECENTLY_CHANGED');
+    });
+  });
+
+  describe('who may settle the book', () => {
+    before(restore);
+
+    const FLAG = ethers.utils.formatBytes32String('settleBookOrders');
+    const unavailable = `FeatureUnavailable("${FLAG}")`;
+    const settleAs = (settler: ethers.Signer) =>
+      settleBook({
+        systems,
+        keeper: settler,
+        marketId: market.marketId(),
+        orders: [bookOrder(DEFAULT, bn(1), PRICE)],
+      });
+    const keeperAddress = () => keeper().getAddress();
+
+    it('a stranger is refused', async () => {
+      await assertRevert(settleAs(trader2()), unavailable, systems().PerpsMarket);
+    });
+
+    it('the allowlisted keeper settles', async () => {
+      await settleAs(keeper());
+      assertBn.equal(await positionSize(DEFAULT), bn(1));
+    });
+
+    it('a keeper taken off the list is refused, and settles again once back on it', async () => {
+      await perps(owner()).removeFromFeatureFlagAllowlist(FLAG, await keeperAddress());
+      await assertRevert(settleAs(keeper()), unavailable, systems().PerpsMarket);
+      await perps(owner()).addToFeatureFlagAllowlist(FLAG, await keeperAddress());
+      await settleAs(keeper());
+      assertBn.equal(await positionSize(DEFAULT), bn(2));
+    });
+
+    it('deny-all shuts the book to the keeper too', async () => {
+      await perps(owner()).setFeatureFlagDenyAll(FLAG, true);
+      await assertRevert(settleAs(keeper()), unavailable, systems().PerpsMarket);
+      await perps(owner()).setFeatureFlagDenyAll(FLAG, false);
+      await settleAs(keeper());
+      assertBn.equal(await positionSize(DEFAULT), bn(3));
     });
   });
 });
