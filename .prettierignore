@@ -65,3 +65,19 @@ pnpm-lock.yaml
 
 # Subagent-driven-development scratch: ledger, task briefs, review packages.
 .superpowers/
+
+# Foundry broadcast logs and the Cannon-generated deploy script — build
+# output, regenerated on every run.
+**/broadcast/
+markets/perps-market/script/
+
+# Subgraph codegen. Committed under spot-market, untracked under
+# perps-market; either way graph-cli owns the formatting.
+**/subgraph/**/generated/
+
+# prettier-plugin-toml (taplo wasm) panics with "RuntimeError: unreachable"
+# on these three files. Formatting them is not worth a crashing gate;
+# revisit when the plugin is fixed upstream.
+protocol/governance/cannonfile.toml
+protocol/governance/cannonfile.satellite.toml
+auxiliary/SpotMarketOracle/cannonfile.toml
