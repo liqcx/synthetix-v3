@@ -870,7 +870,7 @@
           "offset": 0
         }
       ],
-      "ChangeValidation": [
+      "Assessment": [
         {
           "type": "struct",
           "name": "ctx",
@@ -945,13 +945,6 @@
           "offset": 0
         },
         {
-          "type": "int256",
-          "name": "availableMargin",
-          "size": 32,
-          "slot": "5",
-          "offset": 0
-        },
-        {
           "type": "struct",
           "name": "oldPosition",
           "members": [
@@ -977,7 +970,7 @@
             }
           ],
           "size": 96,
-          "slot": "6",
+          "slot": "5",
           "offset": 0
         },
         {
@@ -1006,7 +999,21 @@
             }
           ],
           "size": 96,
-          "slot": "9",
+          "slot": "8",
+          "offset": 0
+        },
+        {
+          "type": "int256",
+          "name": "availableMargin",
+          "size": 32,
+          "slot": "11",
+          "offset": 0
+        },
+        {
+          "type": "uint256",
+          "name": "requiredMargin",
+          "size": 32,
+          "slot": "12",
           "offset": 0
         }
       ]

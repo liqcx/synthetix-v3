@@ -129,6 +129,11 @@ The rest of the account is valued at oracle prices (the `MemoryContext`), whatev
 itself comes at; a settler cannot buy margin by naming a price. `InsufficientMargin` moves from
 `AsyncOrder` to `PerpsAccount`; same signature, so the selector and every test string stay.
 
+> Amended 2026-09-04 (review card 3): the gate's numbers are `PerpsAccount.assess`, which the
+> gate compares and the book door reports through `quoteBookOrder`; the async views read the
+> same assessment, and `createUpdatedPosition` is gone. A zero-size change is assessed as the
+> account now. See `2026-09-04-margin-quote-design.md`.
+
 ### What stays with the callers
 
 - **Order mode.** It says which door an account uses, not whether the change is sound: async

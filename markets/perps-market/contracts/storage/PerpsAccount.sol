@@ -87,15 +87,23 @@ library PerpsAccount {
     }
 
     /**
-     * @dev Working values of `validatePositionChange`, kept in memory to stay under the stack limit.
+     * @notice What the gate judges a position change by, and the working values of the
+     * judgement.
+     * @dev `availableMargin` is the margin after the change is paid for: collateral at its
+     * discount plus pnl less debt, valued at oracle prices, less the loss of a fill worse than
+     * the mark price, less the fees the caller passed in. `requiredMargin` is what the account
+     * must then hold: the initial margin of its positions with the change made, plus the
+     * liquidation reward. The gate admits the change iff `availableMargin >= requiredMargin`.
+     * The rest is what `assess` keeps in memory to stay under the stack limit.
      */
-    struct ChangeValidation {
+    struct Assessment {
         MemoryContext ctx;
         uint256 collateralValueWithDiscount;
         uint256 collateralValueWithoutDiscount;
-        int256 availableMargin;
         Position.Data oldPosition;
         Position.Data newPosition;
+        int256 availableMargin;
+        uint256 requiredMargin;
     }
 
     error InsufficientCollateralAvailableForWithdraw(
@@ -677,21 +685,102 @@ library PerpsAccount {
     }
 
     /**
-     * @notice Reverts unless the change may be made. In order: the account exists; it is neither
-     * flagged for liquidation nor liquidatable now; if the change opens a market the account is not
-     * on, the account has room for it; the account can pay `fees` and still stands above its initial
-     * margin plus the liquidation reward; and, unless the change is same-side reducing, the market
-     * stays under its size caps and inside the credit the pool has delegated.
+     * @notice The account's side of the gate: what the change comes to for the account, or why
+     * the account may not make any change at all. Reverts, in order, unless the account exists;
+     * it is neither flagged for liquidation nor liquidatable now; and, if the change opens a
+     * market the account is not on, the account has room for it. Then the numbers: the margin
+     * after the change is paid for, and what the account must then hold.
      * @param fillPrice - the price the change is made at; the resulting position is anchored to it.
-     * @param markPrice - the price the rest of the system sees the change at: the market's size cap
-     * is valued at it, and a fill worse than it counts against the available margin. Both
-     * settlement paths pass the oracle price.
+     * @param markPrice - the price the rest of the system sees the change at: a fill worse than
+     * it counts against the available margin. Both settlement paths pass the oracle price.
      * @param fees - what the change costs the account besides its pnl: order fees, plus the
      * settlement reward where there is one.
-     * @dev The account's other positions are valued at oracle prices. The checks run in the order
-     * listed, so an account with several defects is told about the first.
+     * @dev The account's other positions are valued at oracle prices. A change of zero size
+     * leaves the positions as they are, so its assessment is the account now. A view: it
+     * writes nothing. The checks run in the order listed, so an account with several defects
+     * is told about the first.
+     * @return a the assessment.
+     * @return market the market of the change, so the caller does not load it again.
+     */
+    function assess(
+        uint128 accountId,
+        uint128 marketId,
+        int128 sizeDelta,
+        uint256 fillPrice,
+        uint256 markPrice,
+        uint256 fees
+    ) internal view returns (Assessment memory a, PerpsMarket.Data storage market) {
+        Account.exists(accountId);
+        GlobalPerpsMarket.load().checkLiquidation(accountId);
+
+        Data storage self = load(accountId);
+        a.ctx = getOpenPositionsAndCurrentPrices(self, PerpsPrice.Tolerance.DEFAULT);
+        // an account that exists but never deposited has no stored id yet
+        a.ctx.accountId = accountId;
+        (a.collateralValueWithDiscount, a.collateralValueWithoutDiscount) = getTotalCollateralValue(
+            self,
+            PerpsPrice.Tolerance.DEFAULT
+        );
+
+        // once an account is liquidatable it may not trade its way out, not even by reducing
+        bool liquidatable;
+        (liquidatable, a.availableMargin, , , ) = isEligibleForLiquidation(
+            a.ctx,
+            a.collateralValueWithDiscount,
+            a.collateralValueWithoutDiscount
+        );
+        if (liquidatable) {
+            revert AccountLiquidatable(accountId);
+        }
+
+        market = PerpsMarket.load(marketId);
+        a.oldPosition = market.positions[accountId];
+        if (a.oldPosition.size == 0 && sizeDelta != 0) {
+            uint128 maxPositionsPerAccount = GlobalPerpsMarketConfiguration
+                .load()
+                .maxPositionsPerAccount;
+            if (maxPositionsPerAccount <= self.openPositionMarketIds.length()) {
+                revert MaxPositionsPerAccountReached(maxPositionsPerAccount);
+            }
+        }
+        a.newPosition = Position.next(
+            a.oldPosition,
+            marketId,
+            sizeDelta,
+            fillPrice,
+            market.lastFundingValue
+        );
+        // a change of zero size changes nothing: no zero-size position joins the context
+        if (sizeDelta != 0) {
+            a.ctx = upsertPosition(a.ctx, a.newPosition);
+        }
+
+        // a fill worse than the mark price is a loss the account must already be able to bear
+        a.availableMargin += MathUtil.min(
+            sizeDelta.to256().mulDecimal(markPrice.toInt() - fillPrice.toInt()),
+            0
+        );
+        a.availableMargin -= fees.toInt();
+
+        (
+            uint256 requiredInitialMargin,
+            ,
+            uint256 possibleLiquidationReward
+        ) = getAccountRequiredMargins(a.ctx, a.collateralValueWithoutDiscount);
+        a.requiredMargin = requiredInitialMargin + possibleLiquidationReward;
+    }
+
+    /**
+     * @notice Reverts unless the change may be made: everything `assess` asks of the account,
+     * then that the account can pay `fees` and still stands above its initial margin plus the
+     * liquidation reward, and, unless the change is same-side reducing, that the market stays
+     * under its size caps and inside the credit the pool has delegated. The market's size cap
+     * is valued at `markPrice`.
      * @dev The one gate for every position change that is not a liquidation. Callers keep only
      * what is theirs and not the change's: order mode, acceptable price, settlement windows.
+     * The two `InsufficientMargin` reverts are the one rule `availableMargin >= requiredMargin`
+     * told in two payloads: the first names the margin before the fees against the fees, as it
+     * always has.
      */
     function validatePositionChange(
         uint128 accountId,
@@ -701,84 +790,35 @@ library PerpsAccount {
         uint256 markPrice,
         uint256 fees
     ) internal view {
-        Account.exists(accountId);
-        GlobalPerpsMarket.load().checkLiquidation(accountId);
-
-        Data storage self = load(accountId);
-        ChangeValidation memory v;
-        v.ctx = getOpenPositionsAndCurrentPrices(self, PerpsPrice.Tolerance.DEFAULT);
-        // an account that exists but never deposited has no stored id yet
-        v.ctx.accountId = accountId;
-        (v.collateralValueWithDiscount, v.collateralValueWithoutDiscount) = getTotalCollateralValue(
-            self,
-            PerpsPrice.Tolerance.DEFAULT
-        );
-
-        // once an account is liquidatable it may not trade its way out, not even by reducing
-        bool liquidatable;
-        (liquidatable, v.availableMargin, , , ) = isEligibleForLiquidation(
-            v.ctx,
-            v.collateralValueWithDiscount,
-            v.collateralValueWithoutDiscount
-        );
-        if (liquidatable) {
-            revert AccountLiquidatable(accountId);
-        }
-
-        PerpsMarket.Data storage market = PerpsMarket.load(marketId);
-        v.oldPosition = market.positions[accountId];
-        if (v.oldPosition.size == 0 && sizeDelta != 0) {
-            uint128 maxPositionsPerAccount = GlobalPerpsMarketConfiguration
-                .load()
-                .maxPositionsPerAccount;
-            if (maxPositionsPerAccount <= self.openPositionMarketIds.length()) {
-                revert MaxPositionsPerAccountReached(maxPositionsPerAccount);
-            }
-        }
-        v.newPosition = Position.next(
-            v.oldPosition,
+        (Assessment memory a, PerpsMarket.Data storage market) = assess(
+            accountId,
             marketId,
             sizeDelta,
             fillPrice,
-            market.lastFundingValue
+            markPrice,
+            fees
         );
-        v.ctx = upsertPosition(v.ctx, v.newPosition);
 
-        // a fill worse than the mark price is a loss the account must already be able to bear
-        v.availableMargin += MathUtil.min(
-            sizeDelta.to256().mulDecimal(markPrice.toInt() - fillPrice.toInt()),
-            0
-        );
-        if (v.availableMargin < fees.toInt()) {
-            revert InsufficientMargin(v.availableMargin, fees);
+        if (a.availableMargin < 0) {
+            revert InsufficientMargin(a.availableMargin + fees.toInt(), fees);
         }
-        v.availableMargin -= fees.toInt();
-
-        (
-            uint256 requiredInitialMargin,
-            ,
-            uint256 possibleLiquidationReward
-        ) = getAccountRequiredMargins(v.ctx, v.collateralValueWithoutDiscount);
-        if (v.availableMargin < (requiredInitialMargin + possibleLiquidationReward).toInt()) {
-            revert InsufficientMargin(
-                v.availableMargin,
-                requiredInitialMargin + possibleLiquidationReward
-            );
+        if (a.availableMargin < a.requiredMargin.toInt()) {
+            revert InsufficientMargin(a.availableMargin, a.requiredMargin);
         }
 
         // growing exposure must fit the market's caps and the credit the pool has delegated
         if (
-            sizeDelta != 0 && !MathUtil.isSameSideReducing(v.oldPosition.size, v.newPosition.size)
+            sizeDelta != 0 && !MathUtil.isSameSideReducing(a.oldPosition.size, a.newPosition.size)
         ) {
             market.validateGivenMarketSize(
                 (
-                    v.newPosition.size > 0
+                    a.newPosition.size > 0
                         ? market.getLongSize().toInt() +
-                            v.newPosition.size -
-                            MathUtil.max(0, v.oldPosition.size)
+                            a.newPosition.size -
+                            MathUtil.max(0, a.oldPosition.size)
                         : market.getShortSize().toInt() -
-                            v.newPosition.size +
-                            MathUtil.min(0, v.oldPosition.size)
+                            a.newPosition.size +
+                            MathUtil.min(0, a.oldPosition.size)
                 ).toUint(),
                 markPrice
             );

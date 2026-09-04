@@ -73,6 +73,7 @@ interface IBookOrderModule is ISettlementEvents {
      * an order outside the bound reverts the batch with `BookPriceDeviationExceeded`. An account
      * off the book (order mode `ONCHAIN`) reverts the batch with `IncorrectAccountMode`; an
      * account in the window after a switch is still on it.
+     * `quoteBookOrder` reports what one order would come to before it is sent.
      * @dev Callable only from the allowlist of the `settleBookOrders` feature flag, kept by the
      * owner (`addToFeatureFlagAllowlist`); any other caller reverts `FeatureUnavailable`.
      * @dev Every position change passes the same checks an async order passes at commitment and
@@ -85,4 +86,49 @@ interface IBookOrderModule is ISettlementEvents {
      * @param orders the list of orders to settle
      */
     function settleBookOrders(uint128 marketId, BookOrder[] memory orders) external;
+
+    /**
+     * @notice What settling one order would come to: the numbers the gate judges the change
+     * by, at the market's oracle price.
+     * @param markPrice the oracle price the change is judged at.
+     * @param orderFees the order fee at `orderPrice`, reading the skew as it is: what the
+     * account pays. The book door pays no settlement reward.
+     * @param availableMargin the account's margin after the change is paid for: the fill's loss
+     * against `markPrice` and `orderFees` taken.
+     * @param requiredMargin what the account must then hold: the initial margin of its
+     * positions with the change made, plus the liquidation reward. The gate admits the change
+     * iff `availableMargin >= requiredMargin`, and its `InsufficientMargin` carries these two.
+     */
+    struct Quote {
+        uint256 markPrice;
+        uint256 orderFees;
+        int256 availableMargin;
+        uint256 requiredMargin;
+    }
+
+    /**
+     * @notice What settling this order now would come to. Asks of the door and the account what
+     * `settleBookOrders` asks — the market exists, the account is on the book, the price is
+     * within the market's deviation bound, the account exists, is neither flagged nor
+     * liquidatable, and has room for the market — and reverts as it would (`InvalidMarket`,
+     * `IncorrectAccountMode`, `BookPriceDeviationExceeded`, `AccountNotFound`,
+     * `AccountLiquidatable`, `MaxPositionsPerAccountReached`); the margin it reports. It does
+     * not ask the market's size caps or the pool's credit, which a batch is still judged by,
+     * nor who is calling. What it cannot see is the batch: the skew and the funding the orders
+     * before this one will leave, which move the fee, the fill it is judged against, and every
+     * account's pnl. It does not ask the `perpsSystem` flag: a paused system still answers a
+     * quote. A zero `sizeDelta` reports the account as it is. Reads the oracle at
+     * the default tolerance, as settlement does.
+     * @param accountId the account of the order.
+     * @param marketId the market of the order.
+     * @param sizeDelta the change, positive for a buy.
+     * @param orderPrice the price the order would fill at.
+     * @return quote the numbers.
+     */
+    function quoteBookOrder(
+        uint128 accountId,
+        uint128 marketId,
+        int128 sizeDelta,
+        uint256 orderPrice
+    ) external view returns (Quote memory quote);
 }

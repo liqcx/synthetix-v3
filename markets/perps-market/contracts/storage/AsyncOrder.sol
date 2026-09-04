@@ -217,46 +217,6 @@ library AsyncOrder {
     }
 
     /**
-     * @notice Builds state variables of the resulting state if a user were to complete the given order.
-     * Useful for validation or various getters on the modules.
-     */
-    function createUpdatedPosition(
-        Data memory order,
-        uint256 orderPrice,
-        PerpsAccount.MemoryContext memory ctx
-    )
-        internal
-        view
-        returns (
-            PerpsAccount.MemoryContext memory newCtx,
-            Position.Data memory oldPosition,
-            Position.Data memory newPosition,
-            uint256 fillPrice,
-            uint256 orderFees
-        )
-    {
-        PerpsMarket.Data storage perpsMarketData = PerpsMarket.load(order.request.marketId);
-
-        fillPrice = perpsMarketData.calculateFillPrice(order.request.sizeDelta, orderPrice).to128();
-        oldPosition = PerpsMarket.load(order.request.marketId).positions[order.request.accountId];
-        newPosition = Position.next(
-            oldPosition,
-            order.request.marketId,
-            order.request.sizeDelta,
-            fillPrice,
-            perpsMarketData.lastFundingValue
-        );
-
-        // update the account positions list, so we can now conveniently recompute required margin
-        newCtx = PerpsAccount.upsertPosition(ctx, newPosition);
-
-        orderFees = perpsMarketData.calculateOrderFee(
-            newPosition.size - oldPosition.size,
-            fillPrice
-        );
-    }
-
-    /**
      * @notice Reverts unless the order could be settled now at `orderPrice`, and says what settling
      * it would cost.
      * @dev Recomputes the market's funding at `orderPrice` first, so a commitment records funding the
