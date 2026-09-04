@@ -10,6 +10,7 @@ import {IMarketEvents} from "../interfaces/IMarketEvents.sol";
 import {PerpsMarket} from "../storage/PerpsMarket.sol";
 import {PerpsMarketConfiguration} from "../storage/PerpsMarketConfiguration.sol";
 import {OrderMode} from "../storage/OrderMode.sol";
+import {PerpsAccount} from "../storage/PerpsAccount.sol";
 import {PerpsPrice} from "../storage/PerpsPrice.sol";
 import {Settlement} from "../storage/Settlement.sol";
 import {Flags} from "../utils/Flags.sol";
@@ -73,6 +74,40 @@ contract BookOrderModule is IBookOrderModule, IAccountEvents, IMarketEvents {
         Settlement.payFees(batch);
 
         emit BookOrderSettled(marketId, orders, batch.total);
+    }
+
+    /**
+     * @inheritdoc IBookOrderModule
+     */
+    function quoteBookOrder(
+        uint128 accountId,
+        uint128 marketId,
+        int128 sizeDelta,
+        uint256 orderPrice
+    ) external view override returns (Quote memory quote) {
+        PerpsMarket.Data storage market = PerpsMarket.loadValid(marketId);
+        OrderMode.admit(accountId, OrderMode.BOOK);
+
+        quote.markPrice = PerpsPrice.getCurrentPrice(marketId, PerpsPrice.Tolerance.DEFAULT);
+        _checkPriceDeviation(
+            accountId,
+            orderPrice,
+            quote.markPrice,
+            PerpsMarketConfiguration.load(marketId).maxBookPriceDeviationD18
+        );
+
+        // the fee the account would pay: the order fee at its price, reading the skew as it is
+        quote.orderFees = market.calculateOrderFee(sizeDelta, orderPrice);
+        PerpsAccount.Assessment memory assessment = PerpsAccount.assess(
+            accountId,
+            marketId,
+            sizeDelta,
+            orderPrice,
+            quote.markPrice,
+            quote.orderFees
+        );
+        quote.availableMargin = assessment.availableMargin;
+        quote.requiredMargin = assessment.requiredMargin;
     }
 
     /**
