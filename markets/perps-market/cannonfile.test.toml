@@ -10,6 +10,10 @@ defaultValue = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 description = "perps market owner"
 defaultValue = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 
+[setting.settler]
+description = "who may settle the book: allowlisted for settleBookOrders. The owner unless the deployment names its settler"
+defaultValue = "<%= settings.owner %>"
+
 [setting.salt]
 defaultValue = ""
 
@@ -133,6 +137,16 @@ target = ["PerpsMarketProxy"]
 func = "addToFeatureFlagAllowlist"
 from = "<%= settings.owner %>"
 args = ["<%= formatBytes32String('createMarket') %>", "<%= settings.owner %>"]
+
+# Mirrors cannonfile.toml: the package opens the book door it closes (see there).
+[invoke.allowSettlerToSettleBookOrders]
+target = ["PerpsMarketProxy"]
+func = "addToFeatureFlagAllowlist"
+from = "<%= settings.owner %>"
+args = [
+    "<%= formatBytes32String('settleBookOrders') %>",
+    "<%= settings.settler %>",
+]
 
 [invoke.addPerpsSystemToFeatureFlag]
 target = ["PerpsMarketProxy"]
