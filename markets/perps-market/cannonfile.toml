@@ -10,6 +10,10 @@ defaultValue = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 description = "perps market owner"
 defaultValue = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 
+[setting.settler]
+description = "who may settle the book: allowlisted for settleBookOrders. The owner unless the deployment names its settler"
+defaultValue = "<%= settings.owner %>"
+
 [setting.synthetixPackage]
 defaultValue = "synthetix:latest"
 
@@ -145,6 +149,19 @@ target = ["PerpsMarketProxy"]
 func = "addToFeatureFlagAllowlist"
 fromCall.func = "owner"
 args = ["<%= formatBytes32String('createMarket') %>", "<%= settings.owner %>"]
+
+# The book asks its settler: Flags.SETTLE_BOOK_ORDERS is born closed, so without this step the
+# book is shut the moment upgrade_proxy lands. The package that closes the door opens it — an
+# omnibus names the settler through `options.settler`, and forgetting to is not an option.
+# addToFeatureFlagAllowlist is idempotent: an address already on the list is left as is.
+[invoke.allowSettlerToSettleBookOrders]
+target = ["PerpsMarketProxy"]
+func = "addToFeatureFlagAllowlist"
+fromCall.func = "owner"
+args = [
+    "<%= formatBytes32String('settleBookOrders') %>",
+    "<%= settings.settler %>",
+]
 
 [invoke.initializeFactory]
 target = ["PerpsMarketProxy"]
