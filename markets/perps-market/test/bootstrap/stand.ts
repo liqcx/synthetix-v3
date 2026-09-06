@@ -20,6 +20,11 @@ import { bn } from './helpers';
  * parameters, and the zeros the file names — costs, guards, bound — are the protocol's
  * unset values, so a reward on the stand is the cost of execution alone unless a test says
  * otherwise.
+ * A field the description sets to zero cannot be told from another zero by any test: a
+ * transposition among `minimumPositionMargin`, `maxLiquidationPd`, the three `keeperCosts` or
+ * the four `keeperRewardGuards` goes unseen until one of them is given a value — the
+ * non-zero fields of the table are pinned by `Liquidation.reward.test.ts` on this stand and
+ * `tests/Stand.t.sol` on Foundry.
  */
 export { stand };
 
