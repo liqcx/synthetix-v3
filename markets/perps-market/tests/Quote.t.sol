@@ -12,11 +12,12 @@ import {PerpsAccount} from "../contracts/storage/PerpsAccount.sol";
  * @title The book door answers "how much"
  * @notice `quoteBookOrder` on the Foundry stand: the door's refusal, and the margin as the
  *         numbers the gate reverts with. The description's liquidation table makes the
- *         requirement real; an account that holds nothing fails on the fees first (a negative
- *         margin after fees is refused before the requirement is compared, `PerpsAccount.sol`),
- *         so the fee case is the one pinned by its numbers here, and the arithmetic of the
- *         requirement is pinned on the Hardhat stand
- *         (`test/integration/Position/PositionChange.quote.test.ts`).
+ *         requirement real: a held 1 ETH needs 10.02 snxUSD of initial margin and 5.01 of
+ *         maintenance — the table's ratios through the protocol's own arithmetic. An account
+ *         that holds nothing fails on the fees first (a negative margin after fees is refused
+ *         before the requirement is compared, `PerpsAccount.sol`), so the fee case is pinned by
+ *         its numbers too; the requirement's arithmetic across sizes is pinned on the Hardhat
+ *         stand (`test/integration/Position/PositionChange.quote.test.ts`).
  */
 contract QuoteTest is BootstrapTest {
     uint256 constant MARGIN = 1_000e18;
@@ -76,8 +77,13 @@ contract QuoteTest is BootstrapTest {
         IBookOrderModule.Quote memory held = quote(SOUND, 0);
         assertEq(held.orderFees, 0);
         assertEq(held.availableMargin, perps.getAvailableMargin(SOUND));
-        (uint256 requiredInitialMargin, , ) = perps.getRequiredMargins(SOUND);
-        assertGt(requiredInitialMargin, 0); // the description's table is in force
+        // 1 ETH at 1,000 under the description's table: the initial margin ratio is
+        // 1 / 100,000 × 2 + 0.01 = 0.01002 of the 1,000 notional, maintenance is half of it,
+        // and the reward adds nothing under the zero guards.
+        (uint256 requiredInitialMargin, uint256 requiredMaintenanceMargin, ) = perps
+            .getRequiredMargins(SOUND);
+        assertEq(requiredInitialMargin, 10.02e18);
+        assertEq(requiredMaintenanceMargin, 5.01e18);
         assertEq(held.requiredMargin, requiredInitialMargin);
     }
 }
