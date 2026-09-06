@@ -211,7 +211,7 @@ Hardhat-стенд: `build-testable` генерирует из `cannonfile.test.
 BOOK-тестов, `Liquidation.reward.test.ts` и Foundry-тесты торгуют рынок и аккаунты, которые он
 называет, а `tests/Stand.t.sol` читает описание обратно через прокси. Словарь — `bookOrder`,
 `settleBook`, `openBookAccount`, `openBookPosition`, `crash` — есть в обоих адаптерах под одними
-именами (`test/helpers/{book,price}.ts` и `tests/Bootstrap.t.sol`).
+именами (`test/helpers/{accounts,book,price}.ts` и `tests/Bootstrap.t.sol`).
 
 ```bash
 cd markets/perps-market
