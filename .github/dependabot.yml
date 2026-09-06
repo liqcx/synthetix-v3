@@ -55,6 +55,13 @@ updates:
     reviewers:
       - "noisekit"
     ignore:
+      # Both sit on an `npm:` alias to the @alxwlw/cannon-* fork. Dependabot
+      # does not understand aliases: it reads the name `@usecannon/*`, compares
+      # against upstream and proposes an "update" that overwrites the alias with
+      # stock Cannon. The fork's version is moved by `cannon-update.yml` /
+      # `pnpm cannon:update` instead.
+      - dependency-name: "@usecannon/builder"
+      - dependency-name: "@usecannon/cli"
       - dependency-name: "@openzeppelin/contracts"
       - dependency-name: "@ethersproject*"
       - dependency-name: "ethers"

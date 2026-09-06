@@ -51,6 +51,23 @@ allowBuilds:
 blockExoticSubdeps: false
 
 overrides:
+  # Cannon приезжает форком alxwlw/cannon (ветка nonce поверх upstream 2.26.1),
+  # опубликованным как @alxwlw/cannon-{builder,cli}. Ставится `npm:`-алиасом под
+  # апстримовыми именами, а не переименованием импортов, по двум причинам.
+  # 1) Сам @alxwlw/cannon-cli тянет билдер тем же алиасом, поэтому специфаер
+  #    `@usecannon/builder` обязан остаться единственным: две копии билдера в
+  #    одном процессе — это второй `require('ses')` → `lockdown()` бросает, и
+  #    `instanceof ChainDefinition` между копиями перестаёт работать.
+  # 2) Здесь оверрайд обязателен, а не косметичен: hardhat-cannon@2.25.1 жёстко
+  #    пинит `@usecannon/{builder,cli}` на 2.25.1, а весь билд репозитория идёт
+  #    через `hardhat cannon:build`. Без этих двух строк форк лежал бы мёртвым
+  #    грузом в devDependencies, а собирал бы по-прежнему сток 2.25.1.
+  # Версия — `$`-ссылка на корневые devDependencies, а не второй литерал: пин
+  # живёт единственный раз, и `pnpm cannon:update` двигает его один. Продублируй
+  # версию сюда — и оверрайд начнёт молча побеждать обновлённую зависимость,
+  # то есть команда обновления станет пустышкой.
+  "@usecannon/builder": "$@usecannon/builder"
+  "@usecannon/cli": "$@usecannon/cli"
   "hardhat-gas-reporter>eth-gas-reporter": "git+https://github.com/dbeal-eth/eth-gas-reporter.git#1772400f123bb9ddda777170f53594205fffda87"
   # Pin the type-check toolchain to the yarn-base versions: pnpm re-resolved
   # within the ^ ranges to newer releases whose stricter generics (TS 5.7+'s

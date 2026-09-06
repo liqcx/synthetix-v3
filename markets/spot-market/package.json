@@ -45,7 +45,7 @@
     "@synthetixio/oracle-manager": "workspace:*",
     "@synthetixio/wei": "^2.74.4",
     "@types/node-fetch": "^2.6.11",
-    "@usecannon/cli": "2.25.1",
+    "@usecannon/cli": "npm:@alxwlw/cannon-cli@2.26.1-nonce.1",
     "ethers": "^5.7.2",
     "hardhat": "^2.28.0",
     "node-fetch": "^2.7.0",

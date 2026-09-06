@@ -75,8 +75,16 @@ To prepare for system upgrades, this repository is used to release new versions 
 Sometimes newer or older versions of cannon may produce incompatible state and as a result deployment state will be borked.
 Using exactly same cannon version as all the repo maintainers use is a requirement and not an recommendation.
 
-Run `yarn upgrade-interactive` and make sure that `@usecannon/cli` and `hardhat-cannon` are updated to the latest versions.
-If not, make a separate PR with cannon update (even though cannon updates are automated, there is a delay up to a day for that to happen)
+Cannon comes from the [`alxwlw/cannon`](https://github.com/alxwlw/cannon) fork, published as
+`@alxwlw/cannon-builder` / `@alxwlw/cannon-cli`. Both are installed under their upstream names via
+`npm:` aliases, and `pnpm-workspace.yaml` overrides pin the same aliases for the whole tree — that
+is what makes `hardhat cannon:build` (which resolves Cannon through `hardhat-cannon`) run the fork
+rather than stock 2.25.1. Every `import`/`require` of `@usecannon/*` therefore stays unchanged, and
+only one copy of the builder is ever loaded.
+
+Do **not** run `pnpm update --interactive` on these two — it drops the alias and silently reinstalls
+stock Cannon. Use `pnpm cannon:update` (or the `cannon-update` workflow) instead; the fork publishes
+the `nonce` and `latest` dist-tags.
 
 After installing for the first time, run `yarn cannon setup` to configure a reliable IPFS URL for publishing packages and any other preferred settings,
 Cannon keeps its settings in file `~/.local/share/cannon/settings.json` and it might be more convenient to update it instead of using setup wizard.

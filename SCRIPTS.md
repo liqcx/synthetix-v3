@@ -63,11 +63,14 @@
 
 ## Cannon
 
-| Script          | Описание                                         |
-| --------------- | ------------------------------------------------ |
-| `cannon:latest` | Обновление Cannon до последней стабильной версии |
-| `cannon:hotfix` | Обновление Cannon до hotfix-версии               |
-| `cannon:alpha`  | Обновление Cannon до alpha-версии                |
+Cannon приезжает форком [`alxwlw/cannon`](https://github.com/alxwlw/cannon) — пакеты
+`@alxwlw/cannon-builder` и `@alxwlw/cannon-cli`, поставленные `npm:`-алиасом под апстримовыми
+именами `@usecannon/*` (см. `overrides` в `pnpm-workspace.yaml`). Обычный `pnpm up @usecannon/...`
+алиас сносит и молча возвращает сток — обновлять только скриптом ниже.
+
+| Script          | Описание                                                                    |
+| --------------- | --------------------------------------------------------------------------- |
+| `cannon:update` | Обновление Cannon-форка; тег берётся из `CANNON_TAG` (`nonce` по умолчанию) |
 
 ## Утилиты
 
