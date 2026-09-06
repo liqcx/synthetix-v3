@@ -16,8 +16,9 @@ import {PerpsAccount} from "../contracts/storage/PerpsAccount.sol";
  *         maintenance — the table's ratios through the protocol's own arithmetic. An account
  *         that holds nothing fails on the fees first (a negative margin after fees is refused
  *         before the requirement is compared, `PerpsAccount.sol`), so the fee case is pinned by
- *         its numbers too; the requirement's arithmetic across sizes is pinned on the Hardhat
- *         stand (`test/integration/Position/PositionChange.quote.test.ts`).
+ *         its numbers too; the quote's agreement with the gate — reductions, a worse fill, the
+ *         reward in the requirement — is checked on the Hardhat stand
+ *         (`test/integration/Position/PositionChange.quote.test.ts`).
  */
 contract QuoteTest is BootstrapTest {
     uint256 constant MARGIN = 1_000e18;
