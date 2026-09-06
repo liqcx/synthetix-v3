@@ -54,9 +54,7 @@
     "copy-storage": "bash -c 'for f in $(find . -name 'storage.new.dump.json'); do cp $f $(dirname $f)/storage.dump.json; git add $(dirname $f)/storage.dump.json; done'",
     "changed": "lerna changed --long",
     "audit": "pnpm audit --audit-level high",
-    "cannon:hotfix": "pnpm up @usecannon/builder@hotfix @usecannon/cli@hotfix hardhat-cannon@hotfix && pnpm dedupe",
-    "cannon:latest": "pnpm up @usecannon/builder@latest @usecannon/cli@latest hardhat-cannon@latest && pnpm dedupe",
-    "cannon:alpha": "pnpm up @usecannon/builder@alpha @usecannon/cli@alpha hardhat-cannon@alpha && pnpm dedupe"
+    "cannon:update": "pnpm up -r @usecannon/builder@npm:@alxwlw/cannon-builder@${CANNON_TAG:-nonce} @usecannon/cli@npm:@alxwlw/cannon-cli@${CANNON_TAG:-nonce} && pnpm dedupe"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.1.0",
@@ -77,7 +75,8 @@
     "@types/semver": "^7.5.8",
     "@typescript-eslint/eslint-plugin": "^8.4.0",
     "@typescript-eslint/parser": "^8.4.0",
-    "@usecannon/cli": "2.25.1",
+    "@usecannon/builder": "npm:@alxwlw/cannon-builder@2.26.1-nonce.1",
+    "@usecannon/cli": "npm:@alxwlw/cannon-cli@2.26.1-nonce.1",
     "eslint": "^9.9.1",
     "eslint-plugin-progress": "workspace:*",
     "eslint-plugin-no-only-tests": "^3.1.0",

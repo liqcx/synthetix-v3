@@ -24,7 +24,7 @@
     "@synthetixio/core-contracts": "workspace:*",
     "@synthetixio/main": "workspace:*",
     "@synthetixio/rewards-distributor": "workspace:*",
-    "@usecannon/cli": "2.25.1",
+    "@usecannon/cli": "npm:@alxwlw/cannon-cli@2.26.1-nonce.1",
     "forge-std": "github:foundry-rs/forge-std#v1.9.7"
   },
   "depcheck": {

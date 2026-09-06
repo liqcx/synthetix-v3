@@ -6,12 +6,14 @@ on:
       cannon_tag:
         description: "Cannon Tag"
         required: true
-        default: latest
+        default: nonce
         type: choice
+        # Cannon comes from the @alxwlw/cannon-* fork, which publishes only
+        # these two dist-tags (both on 2.26.1-nonce.1 today). Upstream's hotfix
+        # and alpha tags do not exist there — picking one would 404 `pnpm add`.
         options:
+          - nonce
           - latest
-          - hotfix
-          - alpha
 
 jobs:
   cannon-update:
@@ -32,7 +34,9 @@ jobs:
       - uses: liqcx/tooling/.github/actions/setup-liqcx@v1
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm cannon:${{ inputs.cannon_tag }}
+      - run: pnpm cannon:update
+        env:
+          CANNON_TAG: ${{ inputs.cannon_tag }}
 
       - uses: peter-evans/create-pull-request@v7
         with:
