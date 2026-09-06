@@ -59,7 +59,7 @@ market its `liquidationParams` (35 live on the zero), 25 give guards (41 live on
 2. **Both adapters set everything the file names.** Hardhat: `standMarket()` carries the
    description's table and bound; `bootstrapMarkets` sets the costs, the guards (the file's, when
    the test gives none) and the account rule from the file. A market a test names itself keeps
-   "unset is zero". Foundry: `createPerpsMarket` sets the table and the bound;
+   "unset is zero". Foundry: `configureLiquidation`, right after `createPerpsMarket`, sets the table and the bound;
    `_configurePerps` deploys `MockGasPriceNode` with the file's costs and keeps it as
    `keeperCostNode` (the lever `keeperCostOracleNode()` is on Hardhat), sets the guards, and
    allowlists the description's traders for `createAccount` instead of admitting anyone.
