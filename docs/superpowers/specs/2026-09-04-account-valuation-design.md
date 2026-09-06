@@ -2,6 +2,11 @@
 
 **Date:** 2026-09-04
 **Status:** Design approved (the defaults of the card-2 analysis, `card2-account-valuation-20260904.html`)
+
+**Amended 2026-09-06** (review card 1): the two halves the "Out of scope" deferred —
+`liquidateMarginOnly` through the flag, and the liquidation errors on the Foundry stand — are
+taken by `2026-09-06-liquidation-flag-design.md`: the flag is one module, `LiquidationFlag`.
+
 **Context:** `markets/perps-market/contracts/storage/{PerpsAccount,KeeperCosts}.sol`,
 `contracts/modules/{LiquidationModule,PerpsAccountModule}.sol`, both stands (`test/`, `tests/`).
 Card 2 of the 2026-09-04 architecture review (card 3 of 2026-09-03: the defect of the argument

@@ -1,7 +1,14 @@
 import assert from 'assert/strict';
 import { ethers } from 'ethers';
 import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
-import { bookOrder, openBookAccount, openOnchainAccount, settleBook } from '../../helpers';
+import {
+  bookOrder,
+  eventsOf,
+  openBookAccount,
+  openOnchainAccount,
+  receiptOf,
+  settleBook,
+} from '../../helpers';
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
 import assertRevert from '@synthetixio/core-utils/utils/assertions/assert-revert';
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
@@ -101,28 +108,9 @@ describe('Order mode', () => {
   const pendingSize = async (accountId: number) =>
     (await systems().PerpsMarket.getOrder(accountId)).request.sizeDelta;
 
-  // Not tx.wait(): after a snapshot restore ethers' poller can sleep past the test's timeout.
-  const receiptOf = async (tx: ethers.ContractTransaction) => {
-    let receipt = await provider().getTransactionReceipt(tx.hash);
-    while (receipt === null) {
-      await new Promise((resolve) => setTimeout(resolve, 20));
-      receipt = await provider().getTransactionReceipt(tx.hash);
-    }
-    return receipt;
-  };
   // The proxy's events of that name in the transaction.
-  const eventsNamed = async (tx: ethers.ContractTransaction, name: string) => {
-    const receipt = await receiptOf(tx);
-    const parsed: ethers.utils.LogDescription[] = [];
-    for (const log of receipt.logs) {
-      try {
-        parsed.push(systems().PerpsMarket.interface.parseLog(log));
-      } catch {
-        // a log of another contract
-      }
-    }
-    return parsed.filter((event) => event.name === name);
-  };
+  const eventsNamed = async (tx: ethers.ContractTransaction, name: string) =>
+    eventsOf(await receiptOf(provider(), tx), systems().PerpsMarket, name);
 
   describe('what the door reports', () => {
     before(restore);
@@ -238,16 +226,16 @@ describe('Order mode', () => {
       const tx = await perps(trader1()).setBookMode(DEFAULT, false);
       assert.equal(await mode(DEFAULT), 'ONCHAIN');
       const [event] = await eventsNamed(tx, 'AccountOrderModeChanged');
-      assertBn.equal(event.args.accountId, DEFAULT);
-      assert.equal(event.args.newMode, asBytes16('ONCHAIN'));
+      assertBn.equal(event.accountId, DEFAULT);
+      assert.equal(event.newMode, asBytes16('ONCHAIN'));
     });
 
     it('after that starts the window and names the new mode', async () => {
       const tx = await perps(trader1()).setBookMode(SET_BOOK, false);
       assert.equal(await mode(SET_BOOK), 'RECENTLY_CHANGED');
       const [event] = await eventsNamed(tx, 'AccountOrderModeChanged');
-      assertBn.equal(event.args.accountId, SET_BOOK);
-      assert.equal(event.args.newMode, asBytes16('ONCHAIN'));
+      assertBn.equal(event.accountId, SET_BOOK);
+      assert.equal(event.newMode, asBytes16('ONCHAIN'));
     });
 
     it('is refused while an async order is pending, and admitted once it has expired', async () => {

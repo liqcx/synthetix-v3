@@ -3,7 +3,7 @@ import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber'
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
 import { ethers } from 'ethers';
 import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
-import { bookOrder, openPosition, settleBook } from '../../helpers';
+import { bookOrder, eventsOf, openPosition, receiptOf, settleBook } from '../../helpers';
 
 const PRICE = bn(1000);
 
@@ -100,34 +100,13 @@ describe('Settlement events', () => {
 
   const restore = snapshotCheckpoint(provider);
 
-  // Not `tx.wait()`: after a snapshot restore ethers' poller can sleep past the test's timeout.
-  const receiptOf = async (tx: ethers.ContractTransaction) => {
-    let receipt = await provider().getTransactionReceipt(tx.hash);
-    while (receipt === null) {
-      await new Promise((resolve) => setTimeout(resolve, 20));
-      receipt = await provider().getTransactionReceipt(tx.hash);
-    }
-    return receipt;
-  };
-
   // The arguments of every event of that name the transaction emitted, in order.
-  const eventsNamed = async (tx: ethers.ContractTransaction, name: string) => {
-    const receipt = await receiptOf(tx);
-    const found: ethers.utils.Result[] = [];
-    for (const log of receipt.logs) {
-      try {
-        const parsed = systems().PerpsMarket.interface.parseLog(log);
-        if (parsed.name === name) found.push(parsed.args);
-      } catch {
-        // a log of another contract
-      }
-    }
-    return found;
-  };
+  const eventsNamed = async (tx: ethers.ContractTransaction, name: string) =>
+    eventsOf(await receiptOf(provider(), tx), systems().PerpsMarket, name);
 
   // snxUSD transfers the transaction made to `to`.
   const usdTransfersTo = async (tx: ethers.ContractTransaction, to: string) => {
-    const receipt = await receiptOf(tx);
+    const receipt = await receiptOf(provider(), tx);
     const amounts: ethers.BigNumber[] = [];
     for (const log of receipt.logs) {
       if (log.address.toLowerCase() !== systems().USD.address.toLowerCase()) continue;
