@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
 import { stand, standMarket } from '../../bootstrap/stand';
-import { bookOrder, openBookAccount, settleBook, BookOrder } from '../../helpers';
+import { bookOrder, crash, openBookAccount, settleBook, BookOrder } from '../../helpers';
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
 import assertRevert from '@synthetixio/core-utils/utils/assertions/assert-revert';
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
@@ -121,7 +121,7 @@ describe('Book order price deviation', () => {
     before(restore);
 
     before('the oracle moves', async () => {
-      await eth.aggregator().mockSetCurrentPrice(bn(1200));
+      await crash(eth, bn(1200));
     });
 
     it('a fill the gate would take as a gain is outside the bound', async () => {

@@ -50,15 +50,6 @@ contract BookPriceDeviationTest is BootstrapTest {
             );
     }
 
-    function one(
-        uint128 accountId,
-        int128 sizeDelta,
-        uint256 price
-    ) internal pure returns (IBookOrderModule.BookOrder[] memory orders) {
-        orders = new IBookOrderModule.BookOrder[](1);
-        orders[0] = bookOrder(accountId, sizeDelta, price);
-    }
-
     function two(
         IBookOrderModule.BookOrder memory first,
         IBookOrderModule.BookOrder memory second
@@ -99,9 +90,9 @@ contract BookPriceDeviationTest is BootstrapTest {
     function test_outsideTheBound_revertsAndNamesTheAccount() public {
         bound(TENTH);
         vm.expectRevert(exceeded(BUYER, 1101e18, ETH_PRICE));
-        settle(one(BUYER, 1e18, 1101e18));
+        openBookPosition(BUYER, ethMarketId, 1e18, 1101e18);
         vm.expectRevert(exceeded(SELLER, 899e18, ETH_PRICE));
-        settle(one(SELLER, -1e18, 899e18));
+        openBookPosition(SELLER, ethMarketId, -1e18, 899e18);
     }
 
     function test_anyOrderOfTheBatch_andNothingSettles() public {
@@ -119,20 +110,20 @@ contract BookPriceDeviationTest is BootstrapTest {
         crash(ethMarketId, 1200e18);
         // a fill the gate would take as a gain is outside the bound
         vm.expectRevert(exceeded(BUYER, 1000e18, 1200e18));
-        settle(one(BUYER, 1e18, 1000e18));
+        openBookPosition(BUYER, ethMarketId, 1e18, 1000e18);
         // a fill near the new price settles
-        settle(one(BUYER, 1e18, 1300e18));
+        openBookPosition(BUYER, ethMarketId, 1e18, 1300e18);
         assertEq(positionSize(BUYER), 1e18);
     }
 
     function test_aBoundOfZero_isNoBound() public {
         // as described: the market fills 30 % off the oracle
-        settle(one(BUYER, 1e18, 1300e18));
+        openBookPosition(BUYER, ethMarketId, 1e18, 1300e18);
         assertEq(positionSize(BUYER), 1e18);
         // and lifting a bound gives that back
         bound(TENTH);
         bound(0);
-        settle(one(BUYER, 1e18, 1300e18));
+        openBookPosition(BUYER, ethMarketId, 1e18, 1300e18);
         assertEq(positionSize(BUYER), 2e18);
     }
 }

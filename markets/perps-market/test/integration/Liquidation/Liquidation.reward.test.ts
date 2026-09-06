@@ -68,6 +68,13 @@ describe('Liquidation - the reward the account must hold is the reward the keepe
       sizeDelta: SIZE,
       price: PRICE,
     });
+
+    // The requirement of 10 ETH at 1,000 under the description's table: 102 initial
+    // (1,000 × 10 × (10 / 100,000 × 2 + 0.01)), 51 maintenance (half of it). getRequiredMargins
+    // adds the reward the account must hold on top of both; it is taken off here.
+    const m = await systems().PerpsMarket.getRequiredMargins(ACCOUNT);
+    assertBn.equal(m.requiredInitialMargin.sub(m.maxLiquidationReward), bn(102));
+    assertBn.equal(m.requiredMaintenanceMargin.sub(m.maxLiquidationReward), bn(51));
   });
 
   const restore = snapshotCheckpoint(provider);

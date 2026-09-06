@@ -337,7 +337,7 @@ function crash(uint128 marketId, uint256 to) internal {
             return;
         }
     }
-    revert("crash: no such market in the description");
+    revert("crash: the description has no such market");
 }
 ```
 
@@ -353,7 +353,7 @@ function crash(uint128 marketId, uint256 to) internal {
 - `test_theLiquidationTable_readsBackAsDescribed`: `getLiquidationParameters(ethMarketId)` is
   `(2e18, 0.01e18, 0.5e18, 0.05e18, 0)`; `getMaxLiquidationParameters(ethMarketId)` is
   `(1e18, 10, 0, address(0))`; `getMaxBookPriceDeviation(ethMarketId)` is 0.
-- `test_theKeeperAndTheGuards_readBackAsDescribed`: `getKeeperCostNodeId()` is
+- `test_theKeeperCostAndTheGuards_readBackAsDescribed`: `getKeeperCostNodeId()` is
   `keeperCostNodeId`; `getKeeperRewardGuards()` is `(0, 0, 0, 0)`; `keeperCostNode.flagCost()`
   is 0.
 - `test_aStrangerCannotCreateAnAccount`: `makeAddr("stranger")` pranked, `createAccount(99)`
@@ -408,8 +408,8 @@ of 40.8 plus a reward of 435; the window admits 1 100 ETH, so the ten go in one 
 **`tests/BookPriceDeviation.t.sol`** — the twin of `BookOrderPriceDeviation.test.ts`.
 `BookPriceDeviationTest is BootstrapTest`: `BUYER = 30`, `SELLER = 31`, both `bookTrader(trader2,
 id, 10_000e18)`; `TENTH = 0.1e18`; `bound()` sets `setMaxBookPriceDeviation(ethMarketId, TENTH)`
-under the owner's prank; `exceeded(accountId, orderPrice, markPrice, bound)` is
-`abi.encodeWithSelector(IBookOrderModule.BookPriceDeviationExceeded.selector, ...)`; batches go
+under the owner's prank; `exceeded(accountId, orderPrice, markPrice)` is
+`abi.encodeWithSelector(IBookOrderModule.BookPriceDeviationExceeded.selector, ..., TENTH)`; batches go
 through `settleBook(ethMarketId, orders)` from the test contract, the stand's settler.
 
 | test                                                | what it pins                                                                                                                                                                      |

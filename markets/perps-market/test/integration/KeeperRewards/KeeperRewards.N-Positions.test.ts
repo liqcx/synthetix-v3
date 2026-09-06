@@ -167,8 +167,8 @@ describe('Keeper Rewards - Multiple Positions', () => {
 
   before('lower price to liquidation', async () => {
     await crash(perpsMarkets()[0]);
-    await perpsMarkets()[1].aggregator().mockSetCurrentPrice(bn(2));
-    await perpsMarkets()[2].aggregator().mockSetCurrentPrice(bn(3));
+    await crash(perpsMarkets()[1], bn(2));
+    await crash(perpsMarkets()[2], bn(3));
   });
 
   let initialKeeperBalance: ethers.BigNumber;
