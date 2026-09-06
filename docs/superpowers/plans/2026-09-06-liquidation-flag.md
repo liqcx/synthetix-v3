@@ -55,11 +55,11 @@ Expected: `0 failing` everywhere. Write the counts down (they go into the PR bod
 
 ```bash
 PROTO_LOG=off pnpm build-testable:foundry 2>&1 | tail -3
-forge test 2>&1 | grep -E "Suite result|PASS|FAIL" | tail -12
+forge test 2>&1 | grep -E "Suite result|FAIL|Ran [0-9]+ test suites"
 forge test --match-test testSettleBookOrders_100_Matches -vv 2>&1 | grep -E "PASS|FAIL"
 ```
 
-Expected: every suite `ok`; `[PASS] testSettleBookOrders_100_Matches() (gas: N)`. Write N down; it goes into the PR body next to the "after" number from Task 3.
+Expected: every `Suite result: ok` line and the runner's own last line, `Ran 4 test suites … 19 tests passed, 0 failed` (Foundry prints suites in completion order, so never cut the output with `tail`: read the summary line); `[PASS] testSettleBookOrders_100_Matches() (gas: N)`. Write the suite/test counts and N down; they go into the PR body next to the "after" numbers from Task 3.
 
 ---
 
@@ -1292,10 +1292,10 @@ contract LiquidationTest is BootstrapTest {
 ```bash
 PROTO_LOG=off pnpm build-testable:foundry 2>&1 | tail -3
 forge test --match-contract LiquidationTest -vv 2>&1 | grep -E "PASS|FAIL|Suite result|Error|revert"
-forge test 2>&1 | grep -E "Suite result|FAIL" | tail -8
+forge test 2>&1 | grep -E "Suite result|FAIL|Ran [0-9]+ test suites"
 ```
 
-Expected: `[PASS] test_healthy_isRefusedByBothEntries`, `[PASS] test_noPositionNoDebt_marginOnlyIsRefused`, `[PASS] test_underwater_isFlaggedAndFullyLiquidatedInOneCall`; every suite `ok`. If `expectEmit` fails on the data of `AccountLiquidationAttempt`, print the events (`forge test --match-test test_underwater -vvvv`) and read the reward: a non-zero reward means the stand's keeper reward guards are not zero, which the spec did not expect — stop and say so rather than loosening the check.
+Expected: `[PASS] test_healthy_isRefusedByBothEntries`, `[PASS] test_noPositionNoDebt_marginOnlyIsRefused`, `[PASS] test_underwater_isFlaggedAndFullyLiquidatedInOneCall`; every `Suite result: ok`, and the runner's last line `Ran 5 test suites … 22 tests passed, 0 failed` (Task 0 saw 4 suites, 19 tests; this file adds one suite of three). If `expectEmit` fails on the data of `AccountLiquidationAttempt`, print the events (`forge test --match-test test_underwater -vvvv`) and read the reward: a non-zero reward means the stand's keeper reward guards are not zero, which the spec did not expect — stop and say so rather than loosening the check.
 
 - [ ] **Step 3: Measure the batch again**
 
