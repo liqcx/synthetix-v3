@@ -21,6 +21,7 @@ import {CollateralMock} from "@synthetixio/main/contracts/mocks/CollateralMock.s
 import {MockV3Aggregator} from "@synthetixio/oracle-manager/contracts/mocks/MockV3Aggregator.sol";
 import {NodeDefinition} from "@synthetixio/oracle-manager/contracts/storage/NodeDefinition.sol";
 import {NodeOutput} from "@synthetixio/oracle-manager/contracts/storage/NodeOutput.sol";
+import {MockGasPriceNode} from "../contracts/mocks/MockGasPriceNode.sol";
 import {IERC20} from "@synthetixio/core-contracts/contracts/interfaces/IERC20.sol";
 import {IERC721} from "@synthetixio/core-contracts/contracts/interfaces/IERC721.sol";
 import {IERC721Receiver} from "@synthetixio/core-contracts/contracts/interfaces/IERC721Receiver.sol";
@@ -32,8 +33,10 @@ import {IERC721Receiver} from "@synthetixio/core-contracts/contracts/interfaces/
  *         the cannonfile the Hardhat suite runs, with the core cloned so the script is
  *         self-contained — and executes the scenario `test/stand.json` describes: the
  *         collateral and its ratios, the perps pool with one LP, the traders' own pool, the
- *         markets on mock Chainlink aggregators, two traders funded by one formula, and the
- *         accounts on the book. The Hardhat adapter (`test/bootstrap/`) executes the same file.
+ *         markets on mock Chainlink aggregators with their liquidation table and book price
+ *         bound, the keeper cost and the keeper reward guards, who may create an account, two
+ *         traders funded by one formula, and the accounts on the book. The Hardhat adapter
+ *         (`test/bootstrap/`) executes the same file.
  *
  * @dev Units of the file: integers in human units, ratios and fees in basis points (1 bps is
  *      1e14 in D18). A trader is a staker: `fundStaker` stakes in the traders' pool and mints
@@ -80,6 +83,33 @@ contract BootstrapTest is Test, IERC721Receiver {
     uint256 settlementReward; // D18
     /// @dev The stand's MockPyth wrapper, the strategy's price verification contract.
     address pythWrapper;
+
+    // ---- test/stand.json -> markets[i].liquidation, markets[i].maxBookPriceDeviationBps
+    struct LiquidationTable {
+        uint256 initialMarginRatio; // D18
+        uint256 minimumInitialMarginRatio; // D18
+        uint256 maintenanceMarginScalar; // D18
+        uint256 flagRewardRatio; // D18
+        uint256 minimumPositionMargin; // D18 snxUSD
+        uint256 maxLiquidationLimitAccumulationMultiplier; // D18
+        uint256 maxSecondsInLiquidationWindow;
+        uint256 maxLiquidationPd; // D18
+    }
+    LiquidationTable[] liquidations;
+    uint256[] maxBookPriceDeviations; // D18; zero is no bound
+    // ---- test/stand.json -> keeperCosts, keeperRewardGuards, createAccount
+    uint256 settlementCost; // D18 snxUSD per transaction
+    uint256 flagCost; // D18 snxUSD per feed the keeper must update
+    uint256 liquidateCost; // D18 snxUSD per transaction
+    uint256 minKeeperRewardUsd; // D18
+    uint256 minKeeperProfitRatio; // D18
+    uint256 maxKeeperRewardUsd; // D18
+    uint256 maxKeeperScalingRatio; // D18
+    string createAccountRule; // "traders" | "anyone"
+    /// @dev The stand's keeper cost node, a lever for the tests (`setCosts`); the Hardhat
+    ///      adapter exposes the same node as `keeperCostOracleNode()`.
+    MockGasPriceNode keeperCostNode;
+    bytes32 keeperCostNodeId;
 
     /// @dev The first market of the description, for tests that trade one market.
     uint128 ethMarketId;
@@ -146,6 +176,7 @@ contract BootstrapTest is Test, IERC721Receiver {
                     stand.readUint(string.concat(m, ".takerFeeBps")) * 1e14
                 )
             );
+            configureLiquidation(marketIds[i], liquidations[i], maxBookPriceDeviations[i]);
         }
         ethMarketId = marketIds[0];
         ETH_PRICE = marketPrices[0];
@@ -196,13 +227,46 @@ contract BootstrapTest is Test, IERC721Receiver {
             string memory m = string.concat(".markets[", vm.toString(i), "]");
             marketIds.push(uint128(stand.readUint(string.concat(m, ".id"))));
             marketPrices.push(stand.readUint(string.concat(m, ".price")) * 1e18);
+            liquidations.push(_readLiquidation(string.concat(m, ".liquidation")));
+            maxBookPriceDeviations.push(
+                stand.readUint(string.concat(m, ".maxBookPriceDeviationBps")) * 1e14
+            );
         }
+        settlementCost = stand.readUint(".keeperCosts.settlement") * 1e18;
+        flagCost = stand.readUint(".keeperCosts.flag") * 1e18;
+        liquidateCost = stand.readUint(".keeperCosts.liquidate") * 1e18;
+        minKeeperRewardUsd = stand.readUint(".keeperRewardGuards.minRewardUsd") * 1e18;
+        minKeeperProfitRatio = stand.readUint(".keeperRewardGuards.minProfitRatioBps") * 1e14;
+        maxKeeperRewardUsd = stand.readUint(".keeperRewardGuards.maxRewardUsd") * 1e18;
+        maxKeeperScalingRatio = stand.readUint(".keeperRewardGuards.maxScalingRatioBps") * 1e14;
+        createAccountRule = stand.readString(".createAccount");
         traderStake = stand.readUint(".trader.stake") * 1e18;
         traderPool = uint128(stand.readUint(".trader.pool"));
         uint256[] memory accounts = stand.readUintArray(".bookAccounts");
         for (uint256 i = 0; i < accounts.length; i++) {
             bookAccounts.push(uint128(accounts[i]));
         }
+    }
+
+    /// @dev One market's liquidation table, field by field (a struct literal of eight reads
+    ///      would not fit the stack beside the loop's locals).
+    function _readLiquidation(string memory l) internal view returns (LiquidationTable memory t) {
+        t.initialMarginRatio = stand.readUint(string.concat(l, ".initialMarginRatioBps")) * 1e14;
+        t.minimumInitialMarginRatio =
+            stand.readUint(string.concat(l, ".minimumInitialMarginRatioBps")) *
+            1e14;
+        t.maintenanceMarginScalar =
+            stand.readUint(string.concat(l, ".maintenanceMarginScalarBps")) *
+            1e14;
+        t.flagRewardRatio = stand.readUint(string.concat(l, ".flagRewardRatioBps")) * 1e14;
+        t.minimumPositionMargin = stand.readUint(string.concat(l, ".minimumPositionMargin")) * 1e18;
+        t.maxLiquidationLimitAccumulationMultiplier =
+            stand.readUint(string.concat(l, ".maxLiquidationLimitAccumulationMultiplierBps")) *
+            1e14;
+        t.maxSecondsInLiquidationWindow = stand.readUint(
+            string.concat(l, ".maxSecondsInLiquidationWindow")
+        );
+        t.maxLiquidationPd = stand.readUint(string.concat(l, ".maxLiquidationPdBps")) * 1e14;
     }
 
     // ------------------------------------------------------------------ the deployed protocol
@@ -231,20 +295,34 @@ contract BootstrapTest is Test, IERC721Receiver {
         collateralConfig = core.getCollateralConfiguration(address(collateralToken));
     }
 
-    /// @dev snxUSD as margin without a cap, no keeper cost, accounts creatable by anyone.
+    /// @dev snxUSD as margin without a cap; the keeper cost, the reward guards and who may
+    ///      create an account as the description says; the test contract is the stand's settler.
     function _configurePerps() internal {
         bytes32[] memory noParents = new bytes32[](0);
-        bytes32 zeroCostNode = oracleManager.registerNode(
-            NodeDefinition.NodeType.CONSTANT,
-            abi.encode(0),
+        keeperCostNode = new MockGasPriceNode();
+        keeperCostNode.setCosts(settlementCost, flagCost, liquidateCost);
+        keeperCostNodeId = oracleManager.registerNode(
+            NodeDefinition.NodeType.EXTERNAL,
+            abi.encode(address(keeperCostNode)),
             noParents
         );
 
         vm.startPrank(perps.owner());
         perps.setCollateralConfiguration(collateralId, type(uint256).max, 0, 0, 0);
         perps.setPerAccountCaps(100_000, 100_000);
-        perps.updateKeeperCostNodeId(zeroCostNode);
-        perps.setFeatureFlagAllowAll("createAccount", true);
+        perps.updateKeeperCostNodeId(keeperCostNodeId);
+        perps.setKeeperRewardGuards(
+            minKeeperRewardUsd,
+            minKeeperProfitRatio,
+            maxKeeperRewardUsd,
+            maxKeeperScalingRatio
+        );
+        if (keccak256(bytes(createAccountRule)) == keccak256("traders")) {
+            perps.addToFeatureFlagAllowlist("createAccount", trader1);
+            perps.addToFeatureFlagAllowlist("createAccount", trader2);
+        } else {
+            perps.setFeatureFlagAllowAll("createAccount", true);
+        }
         // The test contract is the stand's settler: the one address that may settle the book.
         perps.addToFeatureFlagAllowlist("settleBookOrders", address(this));
         vm.stopPrank();
@@ -287,6 +365,35 @@ contract BootstrapTest is Test, IERC721Receiver {
                 commitmentPriceDelay: commitmentPriceDelay
             })
         );
+        vm.stopPrank();
+    }
+
+    /// @dev The market's liquidation table and its book price bound, as the description gives
+    ///      them; a test that needs its own calls the same setters. Beside `createPerpsMarket`
+    ///      rather than in it: the market function already carries eight arguments and a
+    ///      struct literal.
+    function configureLiquidation(
+        uint128 marketId,
+        LiquidationTable memory table,
+        uint256 maxBookPriceDeviation
+    ) internal {
+        vm.startPrank(perps.owner());
+        perps.setLiquidationParameters(
+            marketId,
+            table.initialMarginRatio,
+            table.minimumInitialMarginRatio,
+            table.maintenanceMarginScalar,
+            table.flagRewardRatio,
+            table.minimumPositionMargin
+        );
+        perps.setMaxLiquidationParameters(
+            marketId,
+            table.maxLiquidationLimitAccumulationMultiplier,
+            table.maxSecondsInLiquidationWindow,
+            table.maxLiquidationPd,
+            address(0)
+        );
+        perps.setMaxBookPriceDeviation(marketId, maxBookPriceDeviation);
         vm.stopPrank();
     }
 
@@ -356,13 +463,6 @@ contract BootstrapTest is Test, IERC721Receiver {
         depositMargin(owner, accountId, snxUsd);
     }
 
-    /// @dev The same, with an id the protocol picks.
-    function bookTrader(address owner, uint256 snxUsd) internal returns (uint128 accountId) {
-        vm.prank(owner);
-        accountId = perps.createAccount();
-        depositMargin(owner, accountId, snxUsd);
-    }
-
     /// @dev A funded account off the book, on the async path: opted out with `setBookMode(false)`
     ///      (the first set from the default takes effect at once). `openOnchainAccount` in the
     ///      Hardhat adapter.
@@ -425,6 +525,20 @@ contract BootstrapTest is Test, IERC721Receiver {
         IBookOrderModule.BookOrder[] memory orders = new IBookOrderModule.BookOrder[](1);
         orders[0] = bookOrder(accountId, sizeDelta, price);
         perps.settleBookOrders(marketId, orders);
+    }
+
+    /// @dev The market's oracle price falls (or moves) to `to` — and stays there: `warp`
+    ///      re-pins every aggregator to `marketPrices`, so the change is recorded in it. The
+    ///      word of `test/helpers/price.ts` on the Hardhat stand.
+    function crash(uint128 marketId, uint256 to) internal {
+        for (uint256 i = 0; i < marketIds.length; i++) {
+            if (marketIds[i] == marketId) {
+                marketPrices[i] = to;
+                aggregators[i].mockSetCurrentPrice(to, 18);
+                return;
+            }
+        }
+        revert("crash: the description has no such market");
     }
 
     /// @dev Advances time with every oracle price pinned, so no price pnl is generated and no

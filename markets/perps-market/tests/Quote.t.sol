@@ -11,9 +11,12 @@ import {PerpsAccount} from "../contracts/storage/PerpsAccount.sol";
 /**
  * @title The book door answers "how much"
  * @notice `quoteBookOrder` on the Foundry stand: the door's refusal, and the margin as the
- *         numbers the gate reverts with. The stand sets no liquidation parameters, so the
- *         requirement is zero here and the fee case is the one that fails; the arithmetic is
- *         pinned on the Hardhat stand (`test/integration/Position/PositionChange.quote.test.ts`).
+ *         numbers the gate reverts with. The description's liquidation table makes the
+ *         requirement real; an account that holds nothing fails on the fees first (a negative
+ *         margin after fees is refused before the requirement is compared, `PerpsAccount.sol`),
+ *         so the fee case is the one pinned by its numbers here, and the arithmetic of the
+ *         requirement is pinned on the Hardhat stand
+ *         (`test/integration/Position/PositionChange.quote.test.ts`).
  */
 contract QuoteTest is BootstrapTest {
     uint256 constant MARGIN = 1_000e18;
@@ -74,6 +77,7 @@ contract QuoteTest is BootstrapTest {
         assertEq(held.orderFees, 0);
         assertEq(held.availableMargin, perps.getAvailableMargin(SOUND));
         (uint256 requiredInitialMargin, , ) = perps.getRequiredMargins(SOUND);
+        assertGt(requiredInitialMargin, 0); // the description's table is in force
         assertEq(held.requiredMargin, requiredInitialMargin);
     }
 }
