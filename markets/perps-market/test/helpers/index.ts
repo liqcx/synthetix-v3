@@ -7,3 +7,4 @@ export * from './requiredMargins';
 export * from './accounts';
 export * from './interestRate';
 export * from './book';
+export * from './events';

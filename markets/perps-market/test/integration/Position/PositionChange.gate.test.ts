@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
 import {
   bookOrder,
+  eventArgs,
   openBookAccount,
   openPosition,
   settleBook,
@@ -180,22 +181,6 @@ describe('Position change gate', () => {
   const liquidate = async (accountId: number) => {
     const tx = await systems().PerpsMarket.connect(keeper()).liquidate(accountId);
     await tx.wait();
-  };
-
-  // The arguments of the one event of that name the transaction emitted.
-  const eventArgs = async (tx: ethers.ContractTransaction, name: string) => {
-    const receipt = await tx.wait();
-    const events = [];
-    for (const log of receipt.logs) {
-      try {
-        events.push(systems().PerpsMarket.interface.parseLog(log));
-      } catch {
-        // a log of another contract
-      }
-    }
-    const found = events.filter((event) => event.name === name);
-    assert.equal(found.length, 1, `expected one ${name} event, saw ${found.length}`);
-    return found[0].args;
   };
 
   describe('an account that does not exist', () => {
@@ -459,7 +444,11 @@ describe('Position change gate', () => {
       before(restoreAfterDay);
       before('settle one more OP', async () => {
         const tx = await settle([order(FUNDED, bn(1))]);
-        fundingAtOracle = (await eventArgs(tx, 'OrderSettled')).accruedFunding;
+        fundingAtOracle = eventArgs(
+          await tx.wait(),
+          systems().PerpsMarket,
+          'OrderSettled'
+        ).accruedFunding;
       });
 
       it('fixture: realises a day of funding, well away from zero', async () => {
@@ -473,8 +462,8 @@ describe('Position change gate', () => {
       before(restoreAfterDay);
       before('settle one more OP at 20', async () => {
         const tx = await settle([order(FUNDED, bn(1), _PRICE.mul(2))]);
-        settled = await eventArgs(tx, 'OrderSettled');
-        marketUpdate = await eventArgs(tx, 'MarketUpdated');
+        settled = eventArgs(await tx.wait(), systems().PerpsMarket, 'OrderSettled');
+        marketUpdate = eventArgs(await tx.wait(), systems().PerpsMarket, 'MarketUpdated');
       });
 
       it('realises the same funding as the batch at the oracle price', async () => {

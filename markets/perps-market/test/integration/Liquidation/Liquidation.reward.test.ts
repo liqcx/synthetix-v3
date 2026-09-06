@@ -3,7 +3,7 @@ import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber'
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
 import { ethers } from 'ethers';
 import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
-import { openBookPosition } from '../../helpers';
+import { eventArgs, openBookPosition, receiptOf } from '../../helpers';
 
 const PRICE = bn(100);
 const COLLATERAL = bn(200);
@@ -83,30 +83,6 @@ describe('Liquidation - the reward the account must hold is the reward the keepe
 
   const restore = snapshotCheckpoint(provider);
 
-  // The receipt without tx.wait(): after a snapshot restore ethers' block cache makes wait hang.
-  const receiptOf = async (tx: ethers.ContractTransaction) => {
-    let receipt: ethers.providers.TransactionReceipt | null = null;
-    while ((receipt = await provider().getTransactionReceipt(tx.hash)) === null) {
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    }
-    return receipt;
-  };
-
-  // The arguments of the one event of that name the transaction emitted.
-  const eventArgs = (receipt: ethers.providers.TransactionReceipt, name: string) => {
-    const found: ethers.utils.Result[] = [];
-    for (const log of receipt.logs) {
-      try {
-        const event = systems().PerpsMarket.interface.parseLog(log);
-        if (event.name === name) found.push(event.args);
-      } catch {
-        // a log of another contract
-      }
-    }
-    assert.equal(found.length, 1, `expected one ${name} event, saw ${found.length}`);
-    return found[0];
-  };
-
   // The price falls to 80: the pnl eats the collateral, the account stands below its
   // maintenance margin plus the reward, and nobody has flagged it yet.
   const sink = async () => {
@@ -122,10 +98,11 @@ describe('Liquidation - the reward the account must hold is the reward the keepe
     const collateral = await systems().PerpsMarket.totalCollateralValue(ACCOUNT);
     const before = await systems().USD.balanceOf(await keeper().getAddress());
     const receipt = await receiptOf(
+      provider(),
       await systems().PerpsMarket.connect(keeper()).liquidate(ACCOUNT)
     );
-    const flagged = eventArgs(receipt, 'AccountFlaggedForLiquidation');
-    const attempt = eventArgs(receipt, 'AccountLiquidationAttempt');
+    const flagged = eventArgs(receipt, systems().PerpsMarket, 'AccountFlaggedForLiquidation');
+    const attempt = eventArgs(receipt, systems().PerpsMarket, 'AccountLiquidationAttempt');
     const gain = (await systems().USD.balanceOf(await keeper().getAddress())).sub(before);
     return {
       held,

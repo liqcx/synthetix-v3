@@ -8,6 +8,8 @@ import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
 import {
   bookOrder,
   depositCollateral,
+  eventArgs,
+  eventsOf,
   openBookAccount,
   openOnchainAccount,
   openPosition,
@@ -174,27 +176,6 @@ describe('Liquidation - the flag', () => {
 
   const flagged = async () => (await perps().flaggedAccounts()).map((id) => id.toNumber());
 
-  // The arguments of every event of that name the transaction emitted.
-  const eventsOf = (receipt: ethers.providers.TransactionReceipt, name: string) => {
-    const found: ethers.utils.Result[] = [];
-    for (const log of receipt.logs) {
-      try {
-        const event = perps().interface.parseLog(log);
-        if (event.name === name) found.push(event.args);
-      } catch {
-        // a log of another contract
-      }
-    }
-    return found;
-  };
-
-  // The arguments of the one event of that name the transaction emitted.
-  const eventArgs = (receipt: ethers.providers.TransactionReceipt, name: string) => {
-    const found = eventsOf(receipt, name);
-    assert.equal(found.length, 1, `expected one ${name} event, saw ${found.length}`);
-    return found[0];
-  };
-
   // The gas of the three liquidations the spec measures; printed only when asked for.
   const gas: Record<string, ethers.BigNumber> = {};
   after('gas', () => {
@@ -288,8 +269,8 @@ describe('Liquidation - the flag', () => {
         await liquidate(PENDING);
         const receipt = await liquidate(FLAGGED);
         gas.flagAndRest = receipt.gasUsed;
-        flag = eventArgs(receipt, 'AccountFlaggedForLiquidation');
-        attempt = eventArgs(receipt, 'AccountLiquidationAttempt');
+        flag = eventArgs(receipt, perps(), 'AccountFlaggedForLiquidation');
+        attempt = eventArgs(receipt, perps(), 'AccountLiquidationAttempt');
       }
     );
 
@@ -348,8 +329,8 @@ describe('Liquidation - the flag', () => {
     it('is not flagged twice: a second liquidate in the same window flags, pays and liquidates nothing', async () => {
       const receipt = await liquidate(FLAGGED);
       gas.flaggedRest = receipt.gasUsed;
-      assert.equal(eventsOf(receipt, 'AccountFlaggedForLiquidation').length, 0);
-      const attempt = eventArgs(receipt, 'AccountLiquidationAttempt');
+      assert.equal(eventsOf(receipt, perps(), 'AccountFlaggedForLiquidation').length, 0);
+      const attempt = eventArgs(receipt, perps(), 'AccountLiquidationAttempt');
       assertBn.equal(attempt.reward, 0);
       assert.equal(attempt.fullLiquidation, false);
       assertBn.equal(await positionSize(FLAGGED), bn(4));
@@ -362,7 +343,7 @@ describe('Liquidation - the flag', () => {
 
     before('the next window admits the remaining 4 ETH', async () => {
       await fastForwardTo((await getTime(provider())) + 11, provider());
-      attempt = eventArgs(await liquidate(FLAGGED), 'AccountLiquidationAttempt');
+      attempt = eventArgs(await liquidate(FLAGGED), perps(), 'AccountLiquidationAttempt');
     });
 
     it('liquidates the rest and lowers the flag', async () => {
@@ -386,7 +367,7 @@ describe('Liquidation - the flag', () => {
         assert.equal(await perps().canLiquidateMarginOnly(MARGIN), true);
         const receipt = await (await perps().connect(keeper()).liquidateMarginOnly(MARGIN)).wait();
         gas.marginOnly = receipt.gasUsed;
-        eventArgs(receipt, 'AccountMarginLiquidation');
+        eventArgs(receipt, perps(), 'AccountMarginLiquidation');
       }
     );
 
