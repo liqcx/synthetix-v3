@@ -178,9 +178,12 @@ What the numbers mean on the description's market (price 1 000, skew scale 100 0
 | what the account must hold for its liquidation | `min(max(costs, flag reward + costs), cap)` with the guards at zero              | 0                                                 | 0      | 0       |
 | liquidation window                             | `(maker + taker) × skewScale × multiplier × seconds` = 0.0011 × 100 000 × 1 × 10 | 1 100 ETH per window: a position goes in one call |        |         |
 
-Every existing Foundry test stays admissible: `Orderbook` (20 000 snxUSD, fills of 1 ETH),
-`OrderMode` and `Quote` (1 000 snxUSD, 1 ETH), `Liquidation` (1 000 snxUSD, 10 ETH),
-`PhantomEscrow` (100 000 snxUSD, ±500 ETH with its fees zeroed). What is not named:
+Every existing Foundry test but one stays admissible: `Orderbook` (20 000 snxUSD, fills of
+1 ETH), `OrderMode` and `Quote` (1 000 snxUSD, 1 ETH), `Liquidation` (1 000 snxUSD, 10 ETH).
+`PhantomEscrow` sets its own skew scale of 1 000 in `setUp`, so under the table its ±500 ETH
+churn would need 500 / 1 000 × 2 + 1 % = 101 % of notional; it opts out by this spec's own rule
+— `setLiquidationParameters(marketIdUnderTest, 0, 0, 0, 0, 0)` in its `setUp` — which restores
+the base's conditions for that market exactly. What is not named:
 `endorsedLiquidator` (an address, set by the test that needs one), `lockedOiRatio` and
 `maxMarketValue` (zero on both stands today, equal by omission), `maxLiquidationPd` is named as
 zero so that the `setMaxLiquidationParameters` call is complete.
@@ -280,8 +283,10 @@ struct LiquidationTable {
 }
 ```
 
-- `createPerpsMarket(..., LiquidationTable memory table, uint256 maxBookPriceDeviation)` adds,
-  under the owner's prank, `setLiquidationParameters(marketId, table.initialMarginRatio,
+- `configureLiquidation(marketId, table, maxBookPriceDeviation)`, called right after
+  `createPerpsMarket` in `setUp`'s market loop (the market function already carries eight
+  arguments and a struct literal; a tenth argument would not fit the stack), adds under the
+  owner's prank `setLiquidationParameters(marketId, table.initialMarginRatio,
 table.minimumInitialMarginRatio, table.maintenanceMarginScalar, table.flagRewardRatio,
 table.minimumPositionMargin)`, `setMaxLiquidationParameters(marketId,
 table.maxLiquidationLimitAccumulationMultiplier, table.maxSecondsInLiquidationWindow,
@@ -427,10 +432,13 @@ becomes "needs a narrower window than the description's — a test's own
 
 **`tests/Quote.t.sol`**: the natspec says the fee case fires first (`PerpsAccount.sol:846-851`:
 a negative margin after fees is refused before the requirement is compared), not that the
-requirement is zero; `test_sufficientMargin_settles_andZeroIsNow` adds
-`assertGt(requiredInitialMargin, 0)` — the table is in force through a quote.
+requirement is zero; `test_sufficientMargin_settles_andZeroIsNow` asserts the held 1 ETH's
+requirement exactly — `10.02e18` initial, `5.01e18` maintenance, the 1 ETH column of the
+numbers table — so a transposition among the table's ratios reddens the Foundry stand before
+`Stand.t.sol` reads the fields back.
 
-`Orderbook.t.sol`, `OrderMode.t.sol`, `PhantomEscrow.t.sol`: no change expected; the run says.
+`Orderbook.t.sol`, `OrderMode.t.sol`: no change expected; the run says. `PhantomEscrow.t.sol`
+opts out of the table in its own `setUp` (the admissibility note above).
 
 ### Hardhat — the reward test on the description
 

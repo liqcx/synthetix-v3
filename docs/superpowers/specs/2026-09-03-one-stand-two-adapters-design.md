@@ -3,6 +3,11 @@
 **Date:** 2026-09-03
 **Status:** Design approved (variant C1); PR 1 (`feat-cld/foundry-stand-regenerated`) implements the
 Foundry half, PR 2 (`feat-cld/book-stand-shared`) the shared description.
+
+**Amended 2026-09-06** (review card 2): the description gains the liquidation table, the book's
+price bound, the keeper costs, the keeper reward guards and the account rule —
+`2026-09-06-stand-parameters-design.md`; the "other 56 files" of Out of scope stay where they are.
+
 **Context:** `markets/perps-market/{foundry.toml,cannonfile.test.toml,cannonfile.test.foundry.toml,
 script/Deploy.sol,tests/**,test/bootstrap/**,test/helpers/**}`. Candidate 5 of the 2026-09-02
 architecture review.

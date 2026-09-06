@@ -625,7 +625,7 @@ describe('Liquidation - the reward the account must hold is the reward the keepe
 });
 ```
 
-- [ ] **Step 3: Lint the fourteen files**
+- [ ] **Step 3: Lint the thirteen files**
 
 `prettier --write` from the package and `eslint --max-warnings=0` from the worktree root over the eleven idiom files, the flag test and the reward test (paths as in Step 1). Expected rc=0.
 
@@ -675,6 +675,7 @@ EOF
 - Modify: `tests/Bootstrap.t.sol` (imports, natspec, state, `setUp` loop, `_readStand`, `_configurePerps`, a new `configureLiquidation`, a new `crash`, the two-argument `bookTrader` deleted)
 - Modify: `tests/Liquidation.t.sol` (natspec; `crash`)
 - Modify: `tests/Quote.t.sol` (natspec; one assertion)
+- Modify: `tests/PhantomEscrow.t.sol` (opts out of the table in its `setUp`: its own skew scale of 1 000 makes ±500 ETH need 101 % of notional under the table — ruled during execution)
 
 **Interfaces:**
 
@@ -1004,12 +1005,22 @@ Replace the contract's natspec with:
  */
 ```
 
-In `test_sufficientMargin_settles_andZeroIsNow`, after
-`(uint256 requiredInitialMargin, , ) = perps.getRequiredMargins(SOUND);` add:
+In `test_sufficientMargin_settles_andZeroIsNow`, the `getRequiredMargins` line becomes the exact
+pin of the held 1 ETH (the review's fix round: `assertGt(…, 0)` let a transposition among the
+table's ratios pass every Foundry test):
 
 ```solidity
-        assertGt(requiredInitialMargin, 0); // the description's table is in force
+        // 1 ETH at 1,000 under the description's table: the initial margin ratio is
+        // 1 / 100,000 × 2 + 0.01 = 0.01002 of the 1,000 notional, maintenance is half of it,
+        // and the reward adds nothing under the zero guards.
+        (uint256 requiredInitialMargin, uint256 requiredMaintenanceMargin, ) = perps
+            .getRequiredMargins(SOUND);
+        assertEq(requiredInitialMargin, 10.02e18);
+        assertEq(requiredMaintenanceMargin, 5.01e18);
+        assertEq(held.requiredMargin, requiredInitialMargin);
 ```
+
+The natspec's third sentence names the same two numbers (see the file).
 
 - [ ] **Step 10: Lint and run**
 
@@ -1056,6 +1067,7 @@ EOF
 - Create: `tests/Stand.t.sol`
 - Create: `tests/LiquidationReward.t.sol`
 - Create: `tests/BookPriceDeviation.t.sol`
+- Modify: `tests/Bootstrap.t.sol:131` (`accountNft` bound to the perps market's own account token, `"AccountProxy"`, instead of the core's `"synthetix.AccountProxy"` — no test had read the field before `Stand.t.sol` asked who owns an account; ruled during execution)
 
 **Interfaces:**
 
