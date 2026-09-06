@@ -4,7 +4,6 @@ pragma solidity >=0.8.11 <0.9.0;
 /* solhint-disable */
 
 import {FeatureFlag} from "@synthetixio/core-modules/contracts/storage/FeatureFlag.sol";
-import {IERC721} from "@synthetixio/core-contracts/contracts/interfaces/IERC721.sol";
 import {BootstrapTest} from "./Bootstrap.t.sol";
 
 /**
@@ -72,11 +71,6 @@ contract StandTest is BootstrapTest {
 
         vm.prank(trader1);
         perps.createAccount(99);
-        // Not `accountNft`: that field is the core's own account NFT ("synthetix.AccountProxy",
-        // what `stake()` mints into). `perps.createAccount` mints into a second, separately
-        // deployed NFT the perps factory owns, registered under the plain cannon key
-        // "AccountProxy" ("Perpetual Futures Account" / snxPerpsAcct in script/Deploy.sol) — see
-        // the task report's Deviations for how this was found.
-        assertEq(IERC721(deployer.getAddress("AccountProxy")).ownerOf(99), trader1);
+        assertEq(accountNft.ownerOf(99), trader1);
     }
 }

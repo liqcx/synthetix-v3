@@ -128,7 +128,7 @@ contract BootstrapTest is Test, IERC721Receiver {
 
         perps = IPerpsMarketProxy(deployer.getAddress("PerpsMarketProxy"));
         core = ICoreProxy(deployer.getAddress("synthetix.CoreProxy"));
-        accountNft = IERC721(deployer.getAddress("synthetix.AccountProxy"));
+        accountNft = IERC721(deployer.getAddress("AccountProxy"));
         oracleManager = IOracleManagerProxy(deployer.getAddress("synthetix.oracle_manager.Proxy"));
         usdToken = IERC20(deployer.getAddress("synthetix.USDProxy"));
         collateralToken = CollateralMock(deployer.getAddress("synthetix.CollateralMock"));
