@@ -1,6 +1,6 @@
 import { BigNumber, ethers } from 'ethers';
 import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
-import { openPosition } from '../../helpers';
+import { crash, openPosition } from '../../helpers';
 import assertBn from '@synthetixio/core-utils/src/utils/assertions/assert-bignumber';
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
 
@@ -62,7 +62,7 @@ describe('Liquidation - max premium discount', () => {
     });
 
     // lower price to liquidation
-    await perpsMarket.aggregator().mockSetCurrentPrice(bn(1));
+    await crash(perpsMarket);
   });
 
   const getTrader1Position = () => systems().PerpsMarket.getOpenPosition(2, perpsMarket.marketId());

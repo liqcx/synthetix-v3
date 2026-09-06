@@ -1,7 +1,7 @@
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
 import assertEvent from '@synthetixio/core-utils/utils/assertions/assert-event';
 import { bn, bootstrapMarkets } from '../../bootstrap';
-import { OpenPositionData, openPosition } from '../../helpers';
+import { OpenPositionData, crash, openPosition } from '../../helpers';
 import { ethers } from 'ethers';
 import { wei } from '@synthetixio/wei';
 
@@ -78,7 +78,7 @@ describe('Large Size Position', () => {
       liquidationReward: ethers.BigNumber;
 
     before('lower price to liquidation', async () => {
-      await perpsMarkets()[0].aggregator().mockSetCurrentPrice(PRICE.div(100));
+      await crash(perpsMarkets()[0], PRICE.div(100));
     });
     before('call liquidate', async () => {
       availableMargin = await systems().PerpsMarket.getAvailableMargin(2);

@@ -22,9 +22,10 @@ import { bn } from './helpers';
  * otherwise.
  * A field the description sets to zero cannot be told from another zero by any test: a
  * transposition among `minimumPositionMargin`, `maxLiquidationPd`, the three `keeperCosts` or
- * the four `keeperRewardGuards` goes unseen until one of them is given a value — the
- * non-zero fields of the table are pinned by `Liquidation.reward.test.ts` on this stand and
- * `tests/Stand.t.sol` on Foundry.
+ * the four `keeperRewardGuards` goes unseen until one of them is given a value. The table's
+ * non-zero values are pinned on this stand by `Liquidation.reward.test.ts` (through the reward
+ * it pays) and on Foundry by `tests/Stand.t.sol` (which reads every field of the description
+ * back).
  */
 export { stand };
 

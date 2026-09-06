@@ -1,5 +1,5 @@
 import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
-import { openPosition } from '../../helpers';
+import { crash, openPosition } from '../../helpers';
 import assertRevert from '@synthetixio/core-utils/utils/assertions/assert-revert';
 import { ethers } from 'ethers';
 
@@ -58,7 +58,7 @@ describe('Liquidation - with correct staleness tolerance', async () => {
   });
 
   before('lower price to liquidation', async () => {
-    await perpsMarket.aggregator().mockSetCurrentPrice(bn(1));
+    await crash(perpsMarket);
   });
 
   before('change strict staleness tolerance', async () => {

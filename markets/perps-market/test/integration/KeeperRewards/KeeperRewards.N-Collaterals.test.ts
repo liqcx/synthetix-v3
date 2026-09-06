@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 import { bn, bootstrapMarkets } from '../../bootstrap';
-import { depositCollateral, openPosition } from '../../helpers';
+import { crash, depositCollateral, openPosition } from '../../helpers';
 import { SynthMarkets } from '@synthetixio/spot-market/test/common';
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
 import assertEvent from '@synthetixio/core-utils/utils/assertions/assert-event';
@@ -137,7 +137,7 @@ describe('Keeper Rewards - Multiple Collaterals', () => {
   });
 
   before('lower price to liquidation', async () => {
-    await perpsMarkets()[0].aggregator().mockSetCurrentPrice(bn(1));
+    await crash(perpsMarkets()[0]);
   });
 
   let initialKeeperBalance: ethers.BigNumber;

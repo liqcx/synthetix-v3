@@ -7,6 +7,7 @@ import { ethers } from 'ethers';
 import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
 import {
   bookOrder,
+  crash,
   depositCollateral,
   eventArgs,
   eventsOf,
@@ -248,7 +249,7 @@ describe('Liquidation - the flag', () => {
 
   describe('the price falls to 1,800', () => {
     before(async () => {
-      await market.aggregator().mockSetCurrentPrice(CRASH);
+      await crash(market, CRASH);
     });
 
     it('FLAGGED, PENDING and INDEBTED are liquidatable, and nobody has flagged them', async () => {

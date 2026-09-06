@@ -1,6 +1,6 @@
 import { fastForwardTo, getTxTime } from '@synthetixio/core-utils/utils/hardhat/rpc';
 import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
-import { openPosition } from '../../helpers';
+import { crash, openPosition } from '../../helpers';
 import assertBn from '@synthetixio/core-utils/src/utils/assertions/assert-bignumber';
 import { ethers } from 'ethers';
 
@@ -72,7 +72,7 @@ describe('Liquidation - max liquidatable amount with multiple continuing liquida
   });
 
   before('lower price to liquidation', async () => {
-    await perpsMarket.aggregator().mockSetCurrentPrice(bn(1));
+    await crash(perpsMarket);
   });
 
   /**
@@ -112,7 +112,7 @@ describe('Liquidation - max liquidatable amount with multiple continuing liquida
         settlementStrategyId: perpsMarket.strategyId(),
         price: bn(10),
       });
-      const tx = await perpsMarket.aggregator().mockSetCurrentPrice(bn(1));
+      const tx = await crash(perpsMarket);
       timeSetupCompletes = await getTxTime(provider(), tx);
     });
 
@@ -152,7 +152,7 @@ describe('Liquidation - max liquidatable amount with multiple continuing liquida
         settlementStrategyId: perpsMarket.strategyId(),
         price: bn(10),
       });
-      const tx = await perpsMarket.aggregator().mockSetCurrentPrice(bn(1));
+      const tx = await crash(perpsMarket);
       timeSetupCompletes = await getTxTime(provider(), tx);
     });
 
@@ -192,7 +192,7 @@ describe('Liquidation - max liquidatable amount with multiple continuing liquida
         settlementStrategyId: perpsMarket.strategyId(),
         price: bn(10),
       });
-      const tx = await perpsMarket.aggregator().mockSetCurrentPrice(bn(1));
+      const tx = await crash(perpsMarket);
       timeSetupCompletes = await getTxTime(provider(), tx);
     });
 
