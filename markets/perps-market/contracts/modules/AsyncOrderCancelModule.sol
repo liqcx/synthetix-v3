@@ -7,7 +7,6 @@ import {IAsyncOrderCancelModule} from "../interfaces/IAsyncOrderCancelModule.sol
 import {PerpsAccount} from "../storage/PerpsAccount.sol";
 import {Flags} from "../utils/Flags.sol";
 import {AsyncOrder} from "../storage/AsyncOrder.sol";
-import {GlobalPerpsMarket} from "../storage/GlobalPerpsMarket.sol";
 import {SettlementStrategy} from "../storage/SettlementStrategy.sol";
 import {PerpsMarketFactory} from "../storage/PerpsMarketFactory.sol";
 import {IMarketEvents} from "../interfaces/IMarketEvents.sol";
@@ -25,7 +24,6 @@ contract AsyncOrderCancelModule is IAsyncOrderCancelModule, IMarketEvents, IAcco
     using PerpsAccount for PerpsAccount.Data;
     using AsyncOrder for AsyncOrder.Data;
     using PerpsMarketFactory for PerpsMarketFactory.Data;
-    using GlobalPerpsMarket for GlobalPerpsMarket.Data;
 
     /**
      * @inheritdoc IAsyncOrderCancelModule
@@ -62,9 +60,6 @@ contract AsyncOrderCancelModule is IAsyncOrderCancelModule, IMarketEvents, IAcco
         runtime.acceptablePrice = asyncOrder.request.acceptablePrice;
         runtime.settlementReward = settlementStrategy.settlementReward;
         runtime.sizeDelta = asyncOrder.request.sizeDelta;
-
-        // check if account is flagged
-        GlobalPerpsMarket.load().checkLiquidation(runtime.accountId);
 
         runtime.fillPrice = asyncOrder.validateCancellation(settlementStrategy, price);
 

@@ -7,7 +7,7 @@ import {SetUtil} from "@synthetixio/core-contracts/contracts/utils/SetUtil.sol";
 import {MathUtil} from "../utils/MathUtil.sol";
 import {GlobalPerpsMarketConfiguration} from "./GlobalPerpsMarketConfiguration.sol";
 import {SafeCastU256, SafeCastI256, SafeCastU128} from "@synthetixio/core-contracts/contracts/utils/SafeCast.sol";
-import {PerpsAccount, SNX_USD_MARKET_ID} from "./PerpsAccount.sol";
+import {SNX_USD_MARKET_ID} from "./PerpsAccount.sol";
 import {PerpsMarket} from "./PerpsMarket.sol";
 import {PerpsPrice} from "./PerpsPrice.sol";
 import {PerpsMarketFactory} from "./PerpsMarketFactory.sol";
@@ -58,7 +58,9 @@ library GlobalPerpsMarket {
 
     struct Data {
         /**
-         * @dev Set of liquidatable account ids.
+         * @dev The flagged accounts, owned by `LiquidationFlag`: nothing else reads or writes it.
+         * The flag is raised by `liquidate`/`liquidateMarginOnly` and lowered with the last
+         * position; `liquidateFlagged*` walk it.
          */
         SetUtil.UintSet liquidatableAccounts;
         /**
@@ -204,15 +206,6 @@ library GlobalPerpsMarket {
     function updateDebt(Data storage self, int256 debtDelta) internal {
         int256 newTotalAccountsDebt = self.totalAccountsDebt.toInt() + debtDelta;
         self.totalAccountsDebt = newTotalAccountsDebt < 0 ? 0 : newTotalAccountsDebt.toUint();
-    }
-
-    /**
-     * @notice Check if the account is set as liquidatable.
-     */
-    function checkLiquidation(Data storage self, uint128 accountId) internal view {
-        if (self.liquidatableAccounts.contains(accountId)) {
-            revert PerpsAccount.AccountLiquidatable(accountId);
-        }
     }
 
     /**

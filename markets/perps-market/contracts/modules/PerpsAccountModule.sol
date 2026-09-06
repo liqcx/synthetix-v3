@@ -16,6 +16,7 @@ import {Position} from "../storage/Position.sol";
 import {AsyncOrder} from "../storage/AsyncOrder.sol";
 import {PerpsMarket} from "../storage/PerpsMarket.sol";
 import {GlobalPerpsMarket} from "../storage/GlobalPerpsMarket.sol";
+import {LiquidationFlag} from "../storage/LiquidationFlag.sol";
 import {InterestRate} from "../storage/InterestRate.sol";
 import {PerpsPrice} from "../storage/PerpsPrice.sol";
 import {MathUtil} from "../utils/MathUtil.sol";
@@ -66,7 +67,7 @@ contract PerpsAccountModule is IPerpsAccountModule {
 
         GlobalPerpsMarket.Data storage globalPerpsMarket = GlobalPerpsMarket.load();
         globalPerpsMarket.validateCollateralAmount(collateralId, amountDelta);
-        globalPerpsMarket.checkLiquidation(accountId);
+        LiquidationFlag.admit(accountId);
 
         PerpsAccount.Data storage account = PerpsAccount.create(accountId);
         uint128 perpsMarketId = perpsMarketFactory.perpsMarketId;

@@ -14,10 +14,10 @@ import {PerpsPrice} from "./PerpsPrice.sol";
 import {MarketUpdate} from "./MarketUpdate.sol";
 import {PerpsMarketFactory} from "./PerpsMarketFactory.sol";
 import {GlobalPerpsMarket} from "./GlobalPerpsMarket.sol";
+import {LiquidationFlag} from "./LiquidationFlag.sol";
 import {GlobalPerpsMarketConfiguration} from "./GlobalPerpsMarketConfiguration.sol";
 import {PerpsMarketConfiguration} from "./PerpsMarketConfiguration.sol";
 import {KeeperCosts} from "../storage/KeeperCosts.sol";
-import {AsyncOrder} from "../storage/AsyncOrder.sol";
 import {PerpsCollateralConfiguration} from "./PerpsCollateralConfiguration.sol";
 
 uint128 constant SNX_USD_MARKET_ID = 0;
@@ -42,7 +42,6 @@ library PerpsAccount {
     using DecimalMath for int256;
     using DecimalMath for uint256;
     using KeeperCosts for KeeperCosts.Data;
-    using AsyncOrder for AsyncOrder.Data;
 
     struct Data {
         // @dev synth marketId => amount
@@ -251,26 +250,6 @@ library PerpsAccount {
             liquidationReward
         ) = getAccountRequiredMargins(v);
         isEligible = (requiredMaintenanceMargin + liquidationReward).toInt() > availableMargin;
-    }
-
-    function flagForLiquidation(
-        Data storage self
-    ) internal returns (uint256 flagKeeperCost, uint256 seizedMarginValue) {
-        SetUtil.UintSet storage liquidatableAccounts = GlobalPerpsMarket
-            .load()
-            .liquidatableAccounts;
-
-        if (!liquidatableAccounts.contains(self.id)) {
-            // the flag cost counts the feeds; the seizure below empties them, so it is asked first
-            flagKeeperCost = KeeperCosts.load().getFlagKeeperCosts(self);
-            liquidatableAccounts.add(self.id);
-            seizedMarginValue = seizeCollateral(self);
-
-            // clean pending orders
-            AsyncOrder.load(self.id).reset();
-
-            updateAccountDebt(self, -self.debt.toInt());
-        }
     }
 
     /**
@@ -729,6 +708,11 @@ library PerpsAccount {
         return liquidateAndFlagCost + liquidateWindowsCosts;
     }
 
+    /**
+     * @notice Takes every collateral the account holds: snxUSD as it is, a synth through the
+     * liquidation asset manager. Called by the flag only (`LiquidationFlag.flag`).
+     * @return seizedCollateralValue what was taken, valued in USD — the base of the reward's cap.
+     */
     function seizeCollateral(Data storage self) internal returns (uint256 seizedCollateralValue) {
         uint256[] memory activeCollateralTypes = self.activeCollateralTypes.values();
 
@@ -779,7 +763,7 @@ library PerpsAccount {
         uint256 fees
     ) internal view returns (Assessment memory a, PerpsMarket.Data storage market) {
         Account.exists(accountId);
-        GlobalPerpsMarket.load().checkLiquidation(accountId);
+        LiquidationFlag.admit(accountId);
 
         Data storage self = load(accountId);
         a.valuation = valuation(self, PerpsPrice.Tolerance.DEFAULT);
