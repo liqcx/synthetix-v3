@@ -21,8 +21,9 @@ import {Settlement} from "../storage/Settlement.sol";
 
 /**
  * @title Module for liquidating accounts.
- * @dev See ILiquidationModule. Every entry is "flag, then liquidate the rest": the flag is
- * `LiquidationFlag`'s; the rest is what the liquidation windows admit of each position.
+ * @dev See ILiquidationModule. Every liquidation entry raises the flag or finds it raised, then
+ * liquidates the rest: the flag is `LiquidationFlag`'s; the rest is what the liquidation windows
+ * admit of each position.
  */
 contract LiquidationModule is ILiquidationModule, IMarketEvents {
     using SafeCastU256 for uint256;

@@ -152,7 +152,7 @@ library LiquidationFlag {
     using KeeperCosts for KeeperCosts.Data;
     using AsyncOrder for AsyncOrder.Data;
 
-    function _set() private pure returns (SetUtil.UintSet storage) {
+    function _set() private view returns (SetUtil.UintSet storage) {
         return GlobalPerpsMarket.load().liquidatableAccounts;
     }
 
