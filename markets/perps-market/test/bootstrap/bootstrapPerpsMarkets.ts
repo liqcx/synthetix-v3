@@ -202,8 +202,9 @@ export const bootstrapPerpsMarkets = (
         await contracts.PerpsMarket.connect(r.owner()).setLockedOiRatio(marketId, lockedOiRatioD18);
       }
 
-      if (maxBookPriceDeviation) {
-        // bound how far a book fill may sit from the oracle price; unset means no bound
+      if (maxBookPriceDeviation !== undefined) {
+        // bound how far a book fill may sit from the oracle price; zero — the description's
+        // default — is no bound, and a market that gives none keeps the protocol's zero
         await contracts.PerpsMarket.connect(r.owner()).setMaxBookPriceDeviation(
           marketId,
           maxBookPriceDeviation

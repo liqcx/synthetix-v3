@@ -65,14 +65,16 @@ export function bootstrapTraders(data: Data) {
     }
   });
 
-  before('provide access to create account', async () => {
-    for (const trader of [trader1, trader2, trader3]) {
-      await systems()
-        .PerpsMarket.connect(owner())
-        .addToFeatureFlagAllowlist(
-          ethers.utils.formatBytes32String('createAccount'),
-          await trader.getAddress()
-        );
+  // Who may create an account, as the description says: its traders, or anyone.
+  before(`createAccount: ${stand.createAccount}`, async () => {
+    const perps = systems().PerpsMarket.connect(owner());
+    const flag = ethers.utils.formatBytes32String('createAccount');
+    if (stand.createAccount === 'traders') {
+      for (const trader of [trader1, trader2, trader3]) {
+        await perps.addToFeatureFlagAllowlist(flag, await trader.getAddress());
+      }
+    } else {
+      await perps.setFeatureFlagAllowAll(flag, true);
     }
   });
 
