@@ -41,6 +41,13 @@ Two things the code shows that the card did not say:
   (`commitOrder → validateRequest → validatePositionChange → assess → checkLiquidation`). A
   flagged account never holds a valid order, so `cancelOrder` on one reverts `OrderNotValid`
   before the check is reached.
+  That holds for every non-reentrant path. Inside `flag` the account is in the set before the
+  seizure's external calls (the core's `withdrawMarketCollateral`, the liquidation asset
+  manager's `distributeCollateral`) and the order is reset after them; a callee reentering
+  `cancelOrder` in that window holds a still-valid order on a flagged account, and the deleted
+  check was the one guard that refused it. Those callees are governance-configured — the trust
+  the base already extended to a reentrant `liquidate`, which was added to the set before the same
+  calls — and a pin needs a reentrant asset-manager mock; the exposure is named, not guarded.
 - **A flagged account holds no collateral and gains none.** It is seized at the flag;
   `modifyCollateral` refuses the account; `liquidatePosition → applyPositionChange` never calls
   `charge`; `payDebt` reverts `NonexistentDebt` (the debt was forgiven). The strict valuation of
@@ -355,7 +362,9 @@ LiquidationFlag.admit(accountId);   // was globalPerpsMarket.checkLiquidation(ac
   `withdrawMarketUsd` (`MarketManagerModule.sol:303-342`) checks the stored `creditCapacityD18`,
   not the market's reported debt at the moment of the call — so the order is not observable.
   `liquidate` on a flagged account liquidates the same rest without valuing collateral the
-  account cannot hold. `cancelOrder` on a flagged account reverts `OrderNotValid` before and after.
+  account cannot hold. `cancelOrder` on a flagged account reverts `OrderNotValid` before and after,
+  for every non-reentrant caller; the one exception, a governance-configured callee reentering from
+  inside the seizure, is stated under "Two things the code shows".
 - **Gas.** A margin-only liquidation now adds the account to the set and removes it within the
   same call (two writes, with the refund of the zeroing); `liquidate` on a flagged account saves
   the empty walk over the collateral. Both are measured in the PR from the receipts' `gasUsed`.

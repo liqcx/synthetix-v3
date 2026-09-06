@@ -1389,7 +1389,7 @@ git push -u origin feat-cld/liquidation-flag
 git log --oneline origin/main..HEAD
 ```
 
-Expected: the five commits (spec, test, refactor, Foundry test, docs). Then, with the counts from Task 0, Task 2 Step 7, Task 3 and Task 4 Step 3 and the gas numbers from Task 2 Step 8 and Task 3 Step 3 filled in:
+Expected: the branch's commits — the five this plan names (spec, test, refactor, Foundry test, docs) and the fix-round and ruling commits between them. Then, with the counts from Task 0, Task 2 Step 7, Task 3 and Task 4 Step 3 and the gas numbers from Task 2 Step 8 and Task 3 Step 3 filled in:
 
 ```bash
 gh pr create --repo liqcx/synthetix-v3 --draft --base main --head feat-cld/liquidation-flag \

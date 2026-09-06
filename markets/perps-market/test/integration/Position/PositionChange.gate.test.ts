@@ -6,6 +6,7 @@ import {
   eventArgs,
   openBookAccount,
   openPosition,
+  receiptOf,
   settleBook,
   settleOrder,
   BookOrder,
@@ -445,7 +446,7 @@ describe('Position change gate', () => {
       before('settle one more OP', async () => {
         const tx = await settle([order(FUNDED, bn(1))]);
         fundingAtOracle = eventArgs(
-          await tx.wait(),
+          await receiptOf(provider(), tx),
           systems().PerpsMarket,
           'OrderSettled'
         ).accruedFunding;
@@ -462,8 +463,9 @@ describe('Position change gate', () => {
       before(restoreAfterDay);
       before('settle one more OP at 20', async () => {
         const tx = await settle([order(FUNDED, bn(1), _PRICE.mul(2))]);
-        settled = eventArgs(await tx.wait(), systems().PerpsMarket, 'OrderSettled');
-        marketUpdate = eventArgs(await tx.wait(), systems().PerpsMarket, 'MarketUpdated');
+        const receipt = await receiptOf(provider(), tx);
+        settled = eventArgs(receipt, systems().PerpsMarket, 'OrderSettled');
+        marketUpdate = eventArgs(receipt, systems().PerpsMarket, 'MarketUpdated');
       });
 
       it('realises the same funding as the batch at the oracle price', async () => {

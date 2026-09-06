@@ -60,7 +60,8 @@ library GlobalPerpsMarket {
         /**
          * @dev The flagged accounts, owned by `LiquidationFlag`: nothing else reads or writes it.
          * The flag is raised by `liquidate`/`liquidateMarginOnly` and lowered with the last
-         * position; `liquidateFlagged*` walk it.
+         * position; `liquidateFlagged` and `flaggedAccounts` walk it, `liquidateFlaggedAccounts`
+         * and `canLiquidate` ask it per id.
          */
         SetUtil.UintSet liquidatableAccounts;
         /**
