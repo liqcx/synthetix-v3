@@ -26,6 +26,7 @@ describe('Market Debt - with funding', () => {
     trader2,
     trader3,
     keeper,
+    liquidate,
   } = bootstrapMarkets({
     interestRateParams,
     synthMarkets: [
@@ -306,7 +307,7 @@ describe('Market Debt - with funding', () => {
   describe('trader 2 gets liquidated', () => {
     before('change price', async () => {
       await perpsMarket.aggregator().mockSetCurrentPrice(bn(1135));
-      await systems().PerpsMarket.connect(keeper()).liquidate(3);
+      await liquidate(3);
     });
 
     it('resets trader debt to 0', async () => {
@@ -354,7 +355,7 @@ describe('Market Debt - with funding', () => {
     });
 
     before('liquidate trader 1 again', async () => {
-      await systems().PerpsMarket.connect(keeper()).liquidate(2);
+      await liquidate(2);
     });
 
     it('resets trader debt to 0', async () => {

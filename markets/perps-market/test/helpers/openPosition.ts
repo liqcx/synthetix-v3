@@ -1,15 +1,22 @@
 import { ethers } from 'ethers';
-import { Systems } from '../bootstrap';
+import type { Systems } from '../bootstrap';
 import { fastForwardTo } from '@synthetixio/core-utils/utils/hardhat/rpc';
-import { settleOrder } from '.';
+import { settleOrder } from './settleHelper';
 import { getTxTime } from '@synthetixio/core-utils/src/utils/hardhat/rpc';
 
+/**
+ * The async door in one call: commit, wait out the strategy's delay, set the benchmark and
+ * settle by the keeper; returns after the settlement is mined. This twelve-field form stays for
+ * its callers; the verb `openOnchainPosition(trader, accountId, market, sizeDelta, price, opts?)`
+ * of `bootstrapMarkets()`'s return (`test/bootstrap/verbs.ts`) builds it from the market and the
+ * adapter.
+ */
 export type OpenPositionData = {
   trader: ethers.Signer;
   marketId: ethers.BigNumber;
   accountId: number;
   sizeDelta: ethers.BigNumber;
-  settlementStrategyId: ethers.BigNumber;
+  settlementStrategyId: ethers.BigNumberish;
   price: ethers.BigNumber;
   trackingCode?: string;
   keeper: ethers.Signer;

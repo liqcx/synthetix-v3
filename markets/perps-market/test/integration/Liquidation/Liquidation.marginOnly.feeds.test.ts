@@ -34,6 +34,7 @@ describe('Liquidation margin only - the flag cost counts feeds, not the account 
     trader2,
     synthMarkets,
     keeper,
+    liquidateMarginOnly,
     keeperCostOracleNode,
     perpsMarkets,
   } = bootstrapMarkets({
@@ -181,10 +182,7 @@ describe('Liquidation margin only - the flag cost counts feeds, not the account 
         keeperBalanceBefore = await systems().USD.balanceOf(await keeper().getAddress());
         for (const accountId of accounts) {
           seized[accountId] = await systems().PerpsMarket.totalCollateralValue(accountId);
-          liquidations[accountId] = await systems()
-            .PerpsMarket.connect(keeper())
-            .liquidateMarginOnly(accountId);
-          await liquidations[accountId].wait();
+          liquidations[accountId] = await liquidateMarginOnly(accountId);
         }
       });
 

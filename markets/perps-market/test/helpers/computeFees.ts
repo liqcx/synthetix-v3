@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
-import { DEFAULT_SETTLEMENT_STRATEGY } from '../bootstrap';
+import { bn } from '../bootstrap/helpers';
+import { stand } from '../bootstrap/stand';
 import Wei, { wei } from '@synthetixio/wei';
 
 type OrderFees = {
@@ -39,7 +40,7 @@ export const computeFees: (
     .mul(orderFees.makerFee)
     .add(notionalTaker.mul(orderFees.takerFee));
 
-  const keeperFee = DEFAULT_SETTLEMENT_STRATEGY.settlementReward;
+  const keeperFee = bn(stand.marketDefaults.settlementStrategy.settlementReward);
 
   return {
     totalFees: perpsMarketFee.add(keeperFee).toBN(),

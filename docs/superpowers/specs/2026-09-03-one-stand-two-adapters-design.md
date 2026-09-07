@@ -8,6 +8,14 @@ Foundry half, PR 2 (`feat-cld/book-stand-shared`) the shared description.
 price bound, the keeper costs, the keeper reward guards and the account rule —
 `2026-09-06-stand-parameters-design.md`; the "other 56 files" of Out of scope stay where they are.
 
+**Amended 2026-09-07** (review card 1): the helpers are the adapter's verbs — fields of
+`bootstrapMarkets()`'s return, bound over `systems`, `keeper` and `provider` — and every one that
+sends a transaction returns after mining, the transaction with its receipt (`Mined`); `bookOrder`
+only builds an order and `openOnchainPosition` returns its `Mined` as `settleTx`
+(`2026-09-07-stand-vocabulary-design.md`). The free forms stay for their callers. The cycle that
+placed them as free functions ended with the description's settlement strategy (card 2 of 05.09):
+`computeFees` reads the reward from `bootstrap/stand.ts`.
+
 **Context:** `markets/perps-market/{foundry.toml,cannonfile.test.toml,cannonfile.test.foundry.toml,
 script/Deploy.sol,tests/**,test/bootstrap/**,test/helpers/**}`. Candidate 5 of the 2026-09-02
 architecture review.

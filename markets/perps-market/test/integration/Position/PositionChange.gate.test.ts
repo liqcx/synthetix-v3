@@ -56,41 +56,42 @@ const marketParams = {
 // Each rejection fixture is built so the named check is the one that fires: the flagged
 // account has recovered its margin, the liquidatable account is not flagged.
 describe('Position change gate', () => {
-  const { systems, perpsMarkets, provider, trader2, trader3, keeper, owner } = bootstrapMarkets({
-    liquidationGuards: {
-      minLiquidationReward: bn(5),
-      minKeeperProfitRatioD18: bn(0),
-      maxLiquidationReward: bn(1000),
-      maxKeeperScalingRatioD18: bn(0),
-    },
-    synthMarkets: [],
-    perpsMarkets: [
-      {
-        requestedMarketId: 50,
-        name: 'Optimism',
-        token: 'OP',
-        lockedOiRatioD18: bn(1),
-        maxMarketSize: bn(1_000),
-        ...marketParams,
+  const { systems, perpsMarkets, provider, trader2, trader3, keeper, owner, liquidate } =
+    bootstrapMarkets({
+      liquidationGuards: {
+        minLiquidationReward: bn(5),
+        minKeeperProfitRatioD18: bn(0),
+        maxLiquidationReward: bn(1000),
+        maxKeeperScalingRatioD18: bn(0),
       },
-      {
-        requestedMarketId: 51,
-        name: 'Arbitrum',
-        token: 'ARB',
-        lockedOiRatioD18: bn(1),
-        ...marketParams,
-      },
-      {
-        // Every 1 OP of open interest here locks 100,000 snxUSD of pool credit.
-        requestedMarketId: 52,
-        name: 'Capacity',
-        token: 'CAP',
-        lockedOiRatioD18: bn(10_000),
-        ...marketParams,
-      },
-    ],
-    traderAccountIds: [],
-  });
+      synthMarkets: [],
+      perpsMarkets: [
+        {
+          requestedMarketId: 50,
+          name: 'Optimism',
+          token: 'OP',
+          lockedOiRatioD18: bn(1),
+          maxMarketSize: bn(1_000),
+          ...marketParams,
+        },
+        {
+          requestedMarketId: 51,
+          name: 'Arbitrum',
+          token: 'ARB',
+          lockedOiRatioD18: bn(1),
+          ...marketParams,
+        },
+        {
+          // Every 1 OP of open interest here locks 100,000 snxUSD of pool credit.
+          requestedMarketId: 52,
+          name: 'Capacity',
+          token: 'CAP',
+          lockedOiRatioD18: bn(10_000),
+          ...marketParams,
+        },
+      ],
+      traderAccountIds: [],
+    });
 
   const NO_SUCH_ACCOUNT = 999;
   // [BOOK subject, ONCHAIN subject, collateral]
@@ -178,11 +179,6 @@ describe('Position change gate', () => {
 
   const positionSize = async (accountId: number, market: PerpsMarket = op) =>
     (await systems().PerpsMarket.getOpenPosition(accountId, market.marketId())).positionSize;
-
-  const liquidate = async (accountId: number) => {
-    const tx = await systems().PerpsMarket.connect(keeper()).liquidate(accountId);
-    await tx.wait();
-  };
 
   describe('an account that does not exist', () => {
     before(restore);
@@ -489,7 +485,7 @@ describe('Position change gate', () => {
       async () => {
         await openAsync(LATE, bn(100));
         const tx = await commitAsync(LATE, bn(-1));
-        await tx.wait();
+        await receiptOf(provider(), tx);
         const strategy = await systems().PerpsMarket.getSettlementStrategy(
           op.marketId(),
           op.strategyId()

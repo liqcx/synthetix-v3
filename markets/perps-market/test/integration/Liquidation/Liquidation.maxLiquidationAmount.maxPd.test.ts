@@ -1,40 +1,41 @@
 import { BigNumber, ethers } from 'ethers';
 import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
-import { crash, openPosition } from '../../helpers';
+import { crash, openPosition, receiptOf } from '../../helpers';
 import assertBn from '@synthetixio/core-utils/src/utils/assertions/assert-bignumber';
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
 
 describe('Liquidation - max premium discount', () => {
-  const { systems, provider, owner, trader1, trader2, keeper, perpsMarkets } = bootstrapMarkets({
-    synthMarkets: [],
-    perpsMarkets: [
-      {
-        requestedMarketId: 50,
-        name: 'Optimism',
-        token: 'OP',
-        price: bn(10),
-        orderFees: {
-          makerFee: bn(0.007),
-          takerFee: bn(0.003),
+  const { systems, provider, owner, trader1, trader2, keeper, perpsMarkets, liquidate } =
+    bootstrapMarkets({
+      synthMarkets: [],
+      perpsMarkets: [
+        {
+          requestedMarketId: 50,
+          name: 'Optimism',
+          token: 'OP',
+          price: bn(10),
+          orderFees: {
+            makerFee: bn(0.007),
+            takerFee: bn(0.003),
+          },
+          fundingParams: { skewScale: bn(1000), maxFundingVelocity: bn(0) },
+          liquidationParams: {
+            initialMarginFraction: bn(3),
+            minimumInitialMarginRatio: bn(0),
+            maintenanceMarginScalar: bn(0.66),
+            maxLiquidationLimitAccumulationMultiplier: bn(0.25),
+            liquidationRewardRatio: bn(0.05),
+            // time window 10 seconds
+            maxSecondsInLiquidationWindow: BigNumber.from(10),
+            minimumPositionMargin: bn(0),
+          },
+          settlementStrategy: {
+            settlementReward: bn(0),
+          },
         },
-        fundingParams: { skewScale: bn(1000), maxFundingVelocity: bn(0) },
-        liquidationParams: {
-          initialMarginFraction: bn(3),
-          minimumInitialMarginRatio: bn(0),
-          maintenanceMarginScalar: bn(0.66),
-          maxLiquidationLimitAccumulationMultiplier: bn(0.25),
-          liquidationRewardRatio: bn(0.05),
-          // time window 10 seconds
-          maxSecondsInLiquidationWindow: BigNumber.from(10),
-          minimumPositionMargin: bn(0),
-        },
-        settlementStrategy: {
-          settlementReward: bn(0),
-        },
-      },
-    ],
-    traderAccountIds: [2, 3],
-  });
+      ],
+      traderAccountIds: [2, 3],
+    });
 
   const restore = snapshotCheckpoint(provider);
 
@@ -77,14 +78,14 @@ describe('Liquidation - max premium discount', () => {
     assertBn.equal(initialSize, bn(90));
 
     // liquidate
-    await (await systems().PerpsMarket.connect(keeper()).liquidate(2)).wait();
+    await liquidate(2);
 
     // liquidated 25 OP
     const [, , sizeAfterLiquidation] = await getTrader1Position();
     assertBn.equal(sizeAfterLiquidation, bn(65));
 
     // call liquidate again
-    await (await systems().PerpsMarket.connect(keeper()).liquidate(2)).wait();
+    await liquidate(2);
 
     // liquidates no more OP
     const [, , sizeAfterSecondLiquidation] = await getTrader1Position();
@@ -124,7 +125,7 @@ describe('Liquidation - max premium discount', () => {
       price: bn(1),
     });
 
-    await systems().PerpsMarket.connect(keeper()).liquidate(2);
+    await liquidate(2);
 
     // liquidated 25 OP more
     const [, , sizeAfterArbLiquidation] = await getTrader1Position();
@@ -133,20 +134,28 @@ describe('Liquidation - max premium discount', () => {
 
   it('should liquidate more of trader 1 since under max premium discount', async () => {
     // call liquidate twice more since under max premium discount
-    await provider().send('evm_setAutomine', [false]);
-    // Same block multiple liquidations are ignored and only one is effective
-    const tx1 = await systems().PerpsMarket.connect(keeper()).liquidate(2);
-    const tx2 = await systems().PerpsMarket.connect(keeper()).liquidate(2);
-    const tx3 = await systems().PerpsMarket.connect(keeper()).liquidate(2);
-    const tx4 = await systems().PerpsMarket.connect(keeper()).liquidate(2);
-    await provider().send('evm_setAutomine', [true]);
-    await provider().send('evm_mine', []);
-    await provider().send('evm_mine', []);
-    await provider().send('evm_mine', []);
-    await provider().send('evm_mine', []);
+    // Everything that stops the node lives inside the try: automine must come back on even if a
+    // send throws, or every later test — in this file and in every file after it, the node being
+    // shared — runs against a chain that will not mine. The four sends stay raw: a verb that
+    // waits for its receipt would hang here, which is the point of the block.
+    const txs: ethers.ContractTransaction[] = [];
+    try {
+      await provider().send('evm_setAutomine', [false]);
+      // Same block multiple liquidations are ignored and only one is effective
+      txs.push(await systems().PerpsMarket.connect(keeper()).liquidate(2));
+      txs.push(await systems().PerpsMarket.connect(keeper()).liquidate(2));
+      txs.push(await systems().PerpsMarket.connect(keeper()).liquidate(2));
+      txs.push(await systems().PerpsMarket.connect(keeper()).liquidate(2));
+    } finally {
+      await provider().send('evm_setAutomine', [true]);
+      await provider().send('evm_mine', []);
+      await provider().send('evm_mine', []);
+      await provider().send('evm_mine', []);
+      await provider().send('evm_mine', []);
+    }
 
     // Make sure all the liquidation txns are finalised
-    await Promise.all([tx1.wait(), tx2.wait(), tx3.wait(), tx4.wait()]);
+    await Promise.all(txs.map((tx) => receiptOf(provider(), tx)));
 
     // liquidated 25 OP more in the same block (only one liquidation on the same block was actually effective)
     const [, , sizeOnSameBlock] = await getTrader1Position();
@@ -156,7 +165,7 @@ describe('Liquidation - max premium discount', () => {
     // assertBn.equal(sizeOnNextBlock, bn(15));
 
     // liquidated 25 OP more in the next block
-    await (await systems().PerpsMarket.connect(keeper()).liquidate(2)).wait();
+    await liquidate(2);
 
     // await systems().PerpsMarket.connect(keeper()).liquidate(2);
     const [, , sizeOnNextBlock] = await getTrader1Position();
@@ -166,7 +175,7 @@ describe('Liquidation - max premium discount', () => {
   it('should liquidate trader 2', async () => {
     // change price of OP
     await perpsMarket.aggregator().mockSetCurrentPrice(bn(30));
-    await systems().PerpsMarket.connect(keeper()).liquidate(3);
+    await liquidate(3);
     // because the previous liquidation of trader 1 was of 15 OP, the remaining amount that can be liquidated is 10 OP
     const [, , size] = await getTrader2Position();
     assertBn.equal(size, 0);

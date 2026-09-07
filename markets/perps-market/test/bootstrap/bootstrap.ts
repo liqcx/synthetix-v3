@@ -16,6 +16,7 @@ import { createRewardsDistributor } from './createRewardsDistributor';
 import { createKeeperCostNode } from './createKeeperCostNode';
 import { bn } from './helpers';
 import { standGuards } from './stand';
+import { standVerbs } from './verbs';
 import { MockGasPriceNode } from '../../../typechain-types/contracts/mocks/MockGasPriceNode';
 import { MockPythERC7412Wrapper } from '../../../typechain-types/contracts/mocks/MockPythERC7412Wrapper';
 
@@ -292,6 +293,8 @@ export function bootstrapMarkets(data: BootstrapArgs) {
     superMarketId,
     synthMarketOwner: marketOwner,
     poolId,
+    // the stand's verbs, bound over the adapter — see test/bootstrap/verbs.ts
+    ...standVerbs({ systems, provider, keeper }),
   };
 }
 

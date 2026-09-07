@@ -2,32 +2,34 @@ import { ethers } from 'ethers';
 import { DEFAULT_SETTLEMENT_STRATEGY, bn, bootstrapMarkets } from '../../bootstrap';
 import { fastForwardTo } from '@synthetixio/core-utils/utils/hardhat/rpc';
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
-import { depositCollateral, settleOrder } from '../../helpers';
+import { depositCollateral } from '../../helpers';
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
 import assertRevert from '@synthetixio/core-utils/utils/assertions/assert-revert';
 import { getTxTime } from '@synthetixio/core-utils/src/utils/hardhat/rpc';
 
 describe('Offchain Async Order - Prevent updates with pending order test', () => {
-  const { systems, perpsMarkets, provider, trader1, keeper } = bootstrapMarkets({
-    synthMarkets: [],
-    perpsMarkets: [
-      {
-        requestedMarketId: 25,
-        name: 'Ether',
-        token: 'snxETH',
-        price: bn(1000),
-        fundingParams: { skewScale: bn(100_000), maxFundingVelocity: bn(10) },
-      },
-      {
-        requestedMarketId: 30,
-        name: 'Bitcoin',
-        token: 'snxBTC',
-        price: bn(10_000),
-        fundingParams: { skewScale: bn(100_000), maxFundingVelocity: bn(10) },
-      },
-    ],
-    traderAccountIds: [2, 3],
-  });
+  const { systems, perpsMarkets, provider, trader1, settleOrder, depositMargin } = bootstrapMarkets(
+    {
+      synthMarkets: [],
+      perpsMarkets: [
+        {
+          requestedMarketId: 25,
+          name: 'Ether',
+          token: 'snxETH',
+          price: bn(1000),
+          fundingParams: { skewScale: bn(100_000), maxFundingVelocity: bn(10) },
+        },
+        {
+          requestedMarketId: 30,
+          name: 'Bitcoin',
+          token: 'snxBTC',
+          price: bn(10_000),
+          fundingParams: { skewScale: bn(100_000), maxFundingVelocity: bn(10) },
+        },
+      ],
+      traderAccountIds: [2, 3],
+    }
+  );
   let ethMarketId: ethers.BigNumber;
   let btcMarketId: ethers.BigNumber;
 
@@ -104,19 +106,13 @@ describe('Offchain Async Order - Prevent updates with pending order test', () =>
       before('settle the order', async () => {
         const settlementTime = startTime + DEFAULT_SETTLEMENT_STRATEGY.settlementDelay + 1;
         await fastForwardTo(settlementTime, provider());
-        await settleOrder({
-          systems,
-          keeper: keeper(),
-          accountId: 2,
-          commitmentTime: startTime,
-          offChainPrice: bn(1000),
-        });
+        await settleOrder(2, bn(1000));
       });
 
       it('can update the collateral', async () => {
         const collateralBalancBefore = await systems().PerpsMarket.getCollateralAmount(2, 0);
 
-        await systems().PerpsMarket.connect(trader1()).modifyCollateral(2, 0, bn(10));
+        await depositMargin(trader1(), 2, bn(10));
 
         const collateralBalancAfter = await systems().PerpsMarket.getCollateralAmount(2, 0);
         assertBn.equal(collateralBalancAfter, collateralBalancBefore.add(bn(10)));
@@ -159,7 +155,7 @@ describe('Offchain Async Order - Prevent updates with pending order test', () =>
       it('can update the collateral', async () => {
         const collateralBalancBefore = await systems().PerpsMarket.getCollateralAmount(2, 0);
 
-        await systems().PerpsMarket.connect(trader1()).modifyCollateral(2, 0, bn(10));
+        await depositMargin(trader1(), 2, bn(10));
 
         const collateralBalancAfter = await systems().PerpsMarket.getCollateralAmount(2, 0);
         assertBn.equal(collateralBalancAfter, collateralBalancBefore.add(bn(10)));

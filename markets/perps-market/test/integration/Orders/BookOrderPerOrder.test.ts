@@ -2,7 +2,7 @@ import { ethers } from 'ethers';
 import assert from 'assert/strict';
 import { bn, bootstrapMarkets } from '../../bootstrap';
 import { stand, standMarket } from '../../bootstrap/stand';
-import { bookOrder, settleBook, BookOrder } from '../../helpers';
+import { bookOrder, eventsOf, settleBook, BookOrder, Mined } from '../../helpers';
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
 
@@ -51,26 +51,15 @@ describe('Book orders settle one by one', () => {
     return { totalPnl, positionSize };
   };
 
-  // The arguments of every event of that name the transaction emitted, in order.
-  const eventsNamed = async (tx: ethers.ContractTransaction, name: string) => {
-    const receipt = await tx.wait();
-    const found = [];
-    for (const log of receipt.logs) {
-      try {
-        const parsed = systems().PerpsMarket.interface.parseLog(log);
-        if (parsed.name === name) found.push(parsed.args);
-      } catch {
-        // a log of another contract
-      }
-    }
-    return found;
-  };
+  // The arguments of every event of that name the batch emitted, in order.
+  const eventsNamed = (tx: Mined, name: string) =>
+    eventsOf(tx.receipt, systems().PerpsMarket, name);
 
   describe('two buys at two prices', () => {
     before(restore);
 
     let marginBefore: ethers.BigNumber;
-    let tx: ethers.ContractTransaction;
+    let tx: Mined;
 
     before('settle +1 at 1000 and +9 at 1100 in one batch', async () => {
       marginBefore = await systems().PerpsMarket.getAvailableMargin(ACCOUNT);

@@ -206,12 +206,32 @@ Hardhat-стенд: `build-testable` генерирует из `cannonfile.test.
 книги, стоимость кипера и guards награды, кто создаёт аккаунты, фондирование трейдеров,
 аккаунты в книге — описан один раз в `markets/perps-market/test/stand.json` (целые числа в
 человеческих единицах, доли и комиссии в bps; нули названы явно: награда на стенде — стоимость
-исполнения, а тест, которому нужно иное, ставит своё). Hardhat-адаптер (`test/bootstrap/`)
-импортирует его как модуль, Foundry (`tests/Bootstrap.t.sol`) читает через `stdJson`; пять
-BOOK-тестов, `Liquidation.reward.test.ts` и Foundry-тесты торгуют рынок и аккаунты, которые он
-называет, а `tests/Stand.t.sol` читает описание обратно через прокси. Словарь — `bookOrder`,
-`settleBook`, `openBookAccount`, `openBookPosition`, `crash` — есть в обоих адаптерах под одними
-именами (`test/helpers/{accounts,book,price}.ts` и `tests/Bootstrap.t.sol`).
+исполнения, а тест, которому нужно иное, ставит своё). Hardhat-адаптер (`test/bootstrap/` +
+`test/helpers/`) импортирует его как модуль, Foundry (`tests/Bootstrap.t.sol`) читает через
+`stdJson`; пять BOOK-тестов, `Liquidation.reward.test.ts` и Foundry-тесты торгуют рынок и
+аккаунты, которые он называет, а `tests/Stand.t.sol` читает описание обратно через прокси.
+
+Словарь стенда — его глаголы. На Hardhat это поля того, что возвращает `bootstrapMarkets()`
+(`test/bootstrap/verbs.ts`): `openBookAccount`, `openOnchainAccount`, `depositMargin`,
+`openOnchainPosition`, `settleOrder`, `openBookPosition`, `settleBook`, `liquidate`,
+`liquidateMarginOnly`, `crash`, `bookOrder`; тест деструктурирует их рядом с `trader1` и
+`perpsMarkets` и не передаёт `systems`/`keeper`/`provider` обратно глаголу — чтения остаются на
+прокси, через `systems()` (`test/bootstrap/verbs.ts:36-37`). Каждый глагол, который отправляет
+транзакцию, возвращает после майнинга — транзакцию с приложенным чеком (`Mined`,
+`test/helpers/events.ts`), так что чтение сразу за глаголом видит его состояние; `bookOrder`
+только строит заявку и ничего не отправляет (`test/helpers/book.ts:20-25`), а
+`openOnchainPosition` возвращает `{ commitmentTime, settleTime, settleTx }`, где `Mined` — это
+`settleTx`. Ни один тест не ждёт чек сам (`tx.wait()` в `test/integration` нет: после
+`evm_revert` он виснет, сырые отправки ждут через `receiptOf`).
+На Foundry те же слова даёт наследование от `BootstrapTest` там, где шаг есть у обоих стендов:
+`depositMargin`, `openBookPosition`, `settleBook`, `crash`, `bookOrder`
+(`tests/Bootstrap.t.sol:478`), `openBookAccount` (`:447` — там он только создаёт аккаунт, без
+фондирования) и `openOnchainAccount`; фондируют на Foundry `bookTrader` (`:461`) и `onchainTrader`
+(`:469`);
+`openOnchainPosition`, `settleOrder`, `liquidate`, `liquidateMarginOnly` — только Hardhat:
+Foundry-прокси не маршрутизирует асинхронную дверь, а `liquidate` там — сам вызов прокси.
+Пин словаря — `test/integration/Stand.vocabulary.test.ts`. Свободные формы с объектным
+параметром в `test/helpers/*` остаются для нынешних вызывающих и уходят с последним из них.
 
 ```bash
 cd markets/perps-market

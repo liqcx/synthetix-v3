@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { Systems } from '../bootstrap';
+import type { Systems } from '../bootstrap';
 import { SynthMarkets } from '@synthetixio/spot-market/test/common';
 import Wei, { wei } from '@synthetixio/wei';
 

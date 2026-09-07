@@ -7,20 +7,62 @@ import { ethers } from 'ethers';
  */
 
 /**
+ * How long `receiptOf` asks the node before it gives up, unless a caller names its own budget.
+ * Well under mocha's 30 s, so a transaction the node does not mine fails as itself — naming the
+ * hash — instead of as the test's timeout, and the poll stops issuing RPC instead of outliving
+ * the test that started it. Every verb takes this default; only the test of the deadline itself
+ * passes a shorter one, so proving the budget works costs milliseconds, not the budget.
+ */
+const RECEIPT_DEADLINE_MS = 10_000;
+
+/**
  * Not `tx.wait()`: after a snapshot restore (every `snapshotCheckpoint`/`evm_revert`) ethers
  * keeps its block-number cache at the pre-revert height and its poller sleeps until the chain
  * passes it again, so `wait` hangs for the test's timeout whenever the receipt is not there at
- * the first look. Ask the node for the receipt directly.
+ * the first look. Ask the node for the receipt directly, and stop asking at the deadline: a
+ * transaction the node never mines has no receipt to wait for, ever.
+ *
+ * @param deadlineMs - how long to keep asking; the stand's default unless a caller says otherwise.
+ * @throws Error when the node has no receipt for `tx.hash` within `deadlineMs`.
  */
 export const receiptOf = async (
   provider: ethers.providers.Provider,
-  tx: ethers.ContractTransaction
+  tx: ethers.ContractTransaction,
+  deadlineMs: number = RECEIPT_DEADLINE_MS
 ): Promise<ethers.providers.TransactionReceipt> => {
+  const deadline = Date.now() + deadlineMs;
   let receipt: ethers.providers.TransactionReceipt | null = null;
   while ((receipt = await provider.getTransactionReceipt(tx.hash)) === null) {
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `receiptOf: the node has no receipt for ${tx.hash} after ${deadlineMs} ms — it was never mined`
+      );
+    }
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
   return receipt;
+};
+
+/**
+ * A transaction the node has mined. Its `wait()` resolves the attached receipt at once, so
+ * `assertEvent(tx, …)` and `getTxTime(provider, tx)` take it as any transaction, and the events
+ * are on `tx.receipt` without a provider.
+ */
+export type Mined = ethers.ContractTransaction & { receipt: ethers.providers.TransactionReceipt };
+
+/**
+ * The transaction with its receipt: the node is asked until the receipt is there. Every verb of
+ * the stand returns through this — `test/bootstrap/verbs.ts` and the free forms of this
+ * directory — so the read that follows a verb sees the state the verb left instead of racing
+ * the node's miner for it: the first read after a bare send is served by the block before it.
+ */
+export const mined = async (
+  provider: ethers.providers.Provider,
+  tx: ethers.ContractTransaction,
+  deadlineMs?: number
+): Promise<Mined> => {
+  const receipt = await receiptOf(provider, tx, deadlineMs);
+  return Object.assign(tx, { receipt, wait: async () => receipt });
 };
 
 /** Every event of that name the receipt holds; logs of another contract are skipped. */
