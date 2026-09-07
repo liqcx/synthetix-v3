@@ -77,6 +77,7 @@ describe('liquidation margin only', () => {
     trader1,
     synthMarkets,
     keeper,
+    liquidateMarginOnly,
     keeperCostOracleNode,
     perpsMarkets,
     superMarketId,
@@ -237,8 +238,7 @@ describe('liquidation margin only', () => {
       seizedCollateralValue = await systems().PerpsMarket.totalCollateralValue(2);
 
       // liquidate margin only
-      liquidateTxn = await systems().PerpsMarket.connect(keeper()).liquidateMarginOnly(2);
-      await liquidateTxn.wait();
+      liquidateTxn = await liquidateMarginOnly(2);
     });
 
     const keeperReward = KeeperCosts.flagCost

@@ -69,31 +69,39 @@ describe('Liquidation - multi collateral', () => {
   ];
 
   const MAX_LIQ_REWARD = bn(1000);
-  const { systems, provider, trader1, synthMarkets, keeper, superMarketId, perpsMarkets } =
-    bootstrapMarkets({
-      liquidationGuards: {
-        minLiquidationReward: bn(10),
-        minKeeperProfitRatioD18: bn(0),
-        maxLiquidationReward: MAX_LIQ_REWARD,
-        maxKeeperScalingRatioD18: bn(0.5),
+  const {
+    systems,
+    provider,
+    trader1,
+    synthMarkets,
+    keeper,
+    superMarketId,
+    perpsMarkets,
+    liquidate,
+  } = bootstrapMarkets({
+    liquidationGuards: {
+      minLiquidationReward: bn(10),
+      minKeeperProfitRatioD18: bn(0),
+      maxLiquidationReward: MAX_LIQ_REWARD,
+      maxKeeperScalingRatioD18: bn(0.5),
+    },
+    synthMarkets: [
+      {
+        name: 'Bitcoin',
+        token: 'snxBTC',
+        buyPrice: bn(30_000),
+        sellPrice: bn(30_000),
       },
-      synthMarkets: [
-        {
-          name: 'Bitcoin',
-          token: 'snxBTC',
-          buyPrice: bn(30_000),
-          sellPrice: bn(30_000),
-        },
-        {
-          name: 'Ethereum',
-          token: 'snxETH',
-          buyPrice: bn(2000),
-          sellPrice: bn(2000),
-        },
-      ],
-      perpsMarkets: perpsMarketConfigs,
-      traderAccountIds: [2, 3],
-    });
+      {
+        name: 'Ethereum',
+        token: 'snxETH',
+        buyPrice: bn(2000),
+        sellPrice: bn(2000),
+      },
+    ],
+    perpsMarkets: perpsMarketConfigs,
+    traderAccountIds: [2, 3],
+  });
 
   let btcSynth: SynthMarkets[number],
     ethSynth: SynthMarkets[number],
@@ -237,8 +245,7 @@ describe('Liquidation - multi collateral', () => {
     describe('liquidate the account', () => {
       let liquidateTxn: ethers.providers.TransactionResponse;
       before('liquidate account', async () => {
-        liquidateTxn = await systems().PerpsMarket.connect(keeper()).liquidate(2);
-        await liquidateTxn.wait();
+        liquidateTxn = await liquidate(2);
       });
 
       it('empties account margin', async () => {

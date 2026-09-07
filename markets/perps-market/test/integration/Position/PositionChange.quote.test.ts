@@ -6,6 +6,7 @@ import {
   openBookAccount,
   openOnchainAccount,
   openPosition,
+  receiptOf,
   settleBook,
   BookOrder,
 } from '../../helpers';
@@ -49,33 +50,34 @@ const marketParams = {
 // carries exactly these two numbers. The market's caps are not the quote's question. A quote
 // of zero size is the account now.
 describe('Position change quote', () => {
-  const { systems, perpsMarkets, provider, trader2, trader3, keeper, owner } = bootstrapMarkets({
-    liquidationGuards: {
-      minLiquidationReward: bn(5),
-      minKeeperProfitRatioD18: bn(0),
-      maxLiquidationReward: bn(1000),
-      maxKeeperScalingRatioD18: bn(0),
-    },
-    synthMarkets: [],
-    perpsMarkets: [
-      {
-        requestedMarketId: 50,
-        name: 'Optimism',
-        token: 'OP',
-        lockedOiRatioD18: bn(1),
-        maxMarketSize: bn(1_000),
-        ...marketParams,
+  const { systems, perpsMarkets, provider, trader2, trader3, keeper, owner, liquidate } =
+    bootstrapMarkets({
+      liquidationGuards: {
+        minLiquidationReward: bn(5),
+        minKeeperProfitRatioD18: bn(0),
+        maxLiquidationReward: bn(1000),
+        maxKeeperScalingRatioD18: bn(0),
       },
-      {
-        requestedMarketId: 51,
-        name: 'Arbitrum',
-        token: 'ARB',
-        lockedOiRatioD18: bn(1),
-        ...marketParams,
-      },
-    ],
-    traderAccountIds: [],
-  });
+      synthMarkets: [],
+      perpsMarkets: [
+        {
+          requestedMarketId: 50,
+          name: 'Optimism',
+          token: 'OP',
+          lockedOiRatioD18: bn(1),
+          maxMarketSize: bn(1_000),
+          ...marketParams,
+        },
+        {
+          requestedMarketId: 51,
+          name: 'Arbitrum',
+          token: 'ARB',
+          lockedOiRatioD18: bn(1),
+          ...marketParams,
+        },
+      ],
+      traderAccountIds: [],
+    });
 
   const NO_SUCH_ACCOUNT = 999;
   const NO_SUCH_MARKET = 999;
@@ -149,11 +151,6 @@ describe('Position change quote', () => {
       price: _PRICE,
     });
 
-  const liquidate = async (accountId: number) => {
-    const tx = await systems().PerpsMarket.connect(keeper()).liquidate(accountId);
-    await tx.wait();
-  };
-
   // The account as the existing views report it: the numbers a zero quote must match.
   const now = async (accountId: number) => {
     const available = await systems().PerpsMarket.getAvailableMargin(accountId);
@@ -169,7 +166,12 @@ describe('Position change quote', () => {
     });
 
     it('a price outside the deviation bound is refused', async () => {
-      await systems().PerpsMarket.connect(owner()).setMaxBookPriceDeviation(op.marketId(), bn(0.1));
+      await receiptOf(
+        provider(),
+        await systems()
+          .PerpsMarket.connect(owner())
+          .setMaxBookPriceDeviation(op.marketId(), bn(0.1))
+      );
       await assertRevert(quote(SOUND, bn(1), bn(12)), 'BookPriceDeviationExceeded');
     });
 
