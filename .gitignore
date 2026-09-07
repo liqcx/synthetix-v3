@@ -4,7 +4,8 @@
 .vscode
 .idea
 .worktrees
-.claude
+.claude/*
+!.claude/skills/
 **/coverage*
 **/deployments
 /**/test/generated
