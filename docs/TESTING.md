@@ -225,8 +225,9 @@ Hardhat-стенд: `build-testable` генерирует из `cannonfile.test.
 `evm_revert` он виснет, сырые отправки ждут через `receiptOf`).
 На Foundry те же слова даёт наследование от `BootstrapTest` там, где шаг есть у обоих стендов:
 `depositMargin`, `openBookPosition`, `settleBook`, `crash`, `bookOrder`
-(`tests/Bootstrap.t.sol:478`) и `openBookAccount` (`:447` — там он только создаёт аккаунт, без
-фондирования; фондируют `bookTrader` и `onchainTrader`);
+(`tests/Bootstrap.t.sol:478`), `openBookAccount` (`:447` — там он только создаёт аккаунт, без
+фондирования) и `openOnchainAccount`; фондируют на Foundry `bookTrader` (`:461`) и `onchainTrader`
+(`:469`);
 `openOnchainPosition`, `settleOrder`, `liquidate`, `liquidateMarginOnly` — только Hardhat:
 Foundry-прокси не маршрутизирует асинхронную дверь, а `liquidate` там — сам вызов прокси.
 Пин словаря — `test/integration/Stand.vocabulary.test.ts`. Свободные формы с объектным

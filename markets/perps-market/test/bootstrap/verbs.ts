@@ -37,7 +37,9 @@ export type OnchainPositionOptions = {
  * interface, not the stand's.
  *
  * `tests/Bootstrap.t.sol` exposes the same words where both stands have the step
- * (`openBookAccount`, `depositMargin`, `openBookPosition`, `settleBook`, `crash`, `bookOrder`);
+ * (`openBookAccount` and `openOnchainAccount` — there the account creator `openBookAccount`
+ * (`:447`) does not fund, and the funded twins are `bookTrader` (`:461`) and `onchainTrader`
+ * (`:469`); `depositMargin`, `openBookPosition`, `settleBook`, `crash`, `bookOrder`);
  * `openOnchainPosition`, `settleOrder`, `liquidate` and `liquidateMarginOnly` are Hardhat's
  * alone — the Foundry proxy does not route the async door, and a Foundry `liquidate` would be
  * `perps.liquidate` with nothing hidden. The free forms in `test/helpers/*` are the same bodies

@@ -27,7 +27,10 @@ import { eventArgs, mined } from '../helpers';
 // serves them either way.
 //
 // tests/Bootstrap.t.sol exposes the same words to the Foundry tests where both stands have the
-// step; openOnchainPosition, settleOrder, liquidate and liquidateMarginOnly are Hardhat's alone.
+// step — openBookAccount and openOnchainAccount (there the creator openBookAccount does not fund;
+// the funded twins are bookTrader and onchainTrader), depositMargin, openBookPosition, settleBook,
+// crash, bookOrder; openOnchainPosition, settleOrder, liquidate and liquidateMarginOnly are
+// Hardhat's alone.
 describe('The vocabulary of the stand', () => {
   const BOOK = 2; // trader1, on the book
   const ONCHAIN = 3; // trader2, on the async path

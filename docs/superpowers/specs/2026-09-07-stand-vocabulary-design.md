@@ -30,14 +30,15 @@ words exist as free functions in `test/helpers/*`, and each takes the adapter ba
 - The adapter's own words return at the send, not the mine. `crash` (`test/helpers/price.ts`)
   returns `mockSetCurrentPrice`'s send; `settleOrder`, `openBookAccount`, `openOnchainAccount`
   return theirs. Only `openPosition` (through `getTxTime`) and `settleBook` (through its own
-  `mined`) wait. The raw proxy calls in tests never wait: 24 bare `liquidate` sends in twelve
-  files are followed by a read of the state the liquidation changed, 73 bare `modifyCollateral` sends
-  and 62 bare `mockSetCurrentPrice` sends likewise.
+  `mined`) wait. The raw proxy calls in tests never wait: 16 bare `liquidate` sends in seven files
+  are followed by a read of the state the liquidation changed; with the three local wrappers, four
+  `.wait()` and one `receiptOf` around the same call, 24 sends in twelve files take the verb. 73
+  bare `modifyCollateral` sends and 62 bare `mockSetCurrentPrice` sends are bare likewise.
 - Tests that know about the race write the verb themselves. Three files carry the same local
   `liquidate = async (id) => { const tx = await …liquidate(id); await tx.wait(); }`
   (`Liquidation.flag.test.ts:169`, `PositionChange.gate.test.ts:182`,
-  `PositionChange.quote.test.ts:152`); fifteen `.wait()` calls in eight files hand-wait a raw
-  send; `BookOrderPerOrder.test.ts:55` re-parses logs that `test/helpers/events.ts` already
+  `PositionChange.quote.test.ts:152`); fifteen `.wait()` lines in eight files hand-wait a raw send
+  (eighteen occurrences — `maxPd.test.ts:149` holds four on one line); `BookOrderPerOrder.test.ts:55` re-parses logs that `test/helpers/events.ts` already
   parses; `book.ts:44-55` holds a second copy of `events.ts`'s `receiptOf`.
 - Of the five known base flakes (four listed by PR #33, the fifth seen in PR #34's review), four
   are this race — the first read after a send served by the block before it, measured on
@@ -91,8 +92,9 @@ Measured on `main @ 37b51c6a`: 70 test files under `test/integration`; the count
    migration target. The doors' own entries (`commitOrder`, `cancelOrder`, `liquidateFlagged`,
    `modifyCollateral` as a withdrawal) stay raw: the tests that call them test the door.
 4. **What moves now is what proves the win** (the choice of 07.09): the four race sites, every
-   hand-wait (`.wait()` → a verb, or `receiptOf` where a raw send must stay raw), the 23 bare
-   `liquidate` sends, the three local `liquidate` wrappers. The 121 `openPosition` literals, the
+   hand-wait (`.wait()` → a verb, or `receiptOf` where a raw send must stay raw), the 16 bare
+   `liquidate` sends before a read — 24 sends in twelve files once the hand-waits around the same
+   call are counted — the three local `liquidate` wrappers. The 121 `openPosition` literals, the
    62 raw `mockSetCurrentPrice`, the 73 raw `modifyCollateral`, the object-form callers of
    `settleBook` (12) and `openBookAccount` (17) stay; a file moves as it is touched. After this
    card no test waits for a receipt itself: `grep -rn '\.wait()' test/integration` is empty.
@@ -240,7 +242,7 @@ it('closes the position and leaves no open market behind', () => assertPositionC
 
 | file | sites | after |
 | --- | --- | --- |
-| `Position/PositionChange.test.ts` | `:220`, `:235` bare `liquidate`; `:231` `mockSetCurrentPrice(bn(5))` | `liquidate(…)`; `crash(market, bn(5))` |
+| `Position/PositionChange.test.ts` | `:220`, `:235` bare `liquidate`; `:217` and `:232` `mockSetCurrentPrice(bn(5))` | `liquidate(…)`; `crash(market, bn(5))` twice |
 | `Liquidation/Liquidation.reward.test.ts` | `:96-99` `receiptOf(provider(), await …liquidate(ACCOUNT))` | `const tx = await liquidate(ACCOUNT)`, events from `tx.receipt`; `sink` unchanged — `crash` waits now |
 | `Account/ModifyCollateral.deposit.test.ts` | `:80` bare `modifyCollateral` | `depositMargin(trader1(), accountIds[0], oneBTC, synthBTCMarketId)`, and the snxETH deposit at `:139` likewise — the same word in the same file; the approve hook goes, the verb sets each allowance |
 | `Orders/OffchainAsyncOrder.pending.test.ts` | `:107` `settleOrder({…})`; `:119` bare `modifyCollateral`; `:162` the same bare `modifyCollateral` in the 'after expiration' describe | `settleOrder(2, bn(1000))`; `depositMargin(trader1(), 2, bn(10))` twice — the same word in the same file |
@@ -263,7 +265,7 @@ moved files stay as they are (rule 4).
 | what | before | after |
 | --- | --- | --- |
 | tests that wait for a receipt themselves | 15 `.wait()` in 8 files, 6 `receiptOf` | 0 `.wait()`; `receiptOf` only around raw sends that must stay raw |
-| the verb `liquidate` | written 3 times locally, 24 bare sends before a read | one field of the adapter |
+| the verb `liquidate` | written 3 times locally, 16 bare sends before a read (24 with the sends that waited by hand) | one field of the adapter |
 | `PositionChange.test.ts:239` full liquidation | red in about 1 of 3 directory runs on 02.09; 0 of 7 on this tree | green in 7 of 7 — measured, not asserted (Verification) |
 | `Liquidation.reward.test.ts` `sink` | `canLiquidate` false once in a directory run | the same |
 | one implementation of "wait for the receipt" | `events.ts`, `book.ts`, `getTxTime`, 15 hand-waits | `events.ts` (`getTxTime` is core-utils' and stays) |
