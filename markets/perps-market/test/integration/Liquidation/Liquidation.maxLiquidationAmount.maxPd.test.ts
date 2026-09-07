@@ -134,20 +134,28 @@ describe('Liquidation - max premium discount', () => {
 
   it('should liquidate more of trader 1 since under max premium discount', async () => {
     // call liquidate twice more since under max premium discount
-    await provider().send('evm_setAutomine', [false]);
-    // Same block multiple liquidations are ignored and only one is effective
-    const tx1 = await systems().PerpsMarket.connect(keeper()).liquidate(2);
-    const tx2 = await systems().PerpsMarket.connect(keeper()).liquidate(2);
-    const tx3 = await systems().PerpsMarket.connect(keeper()).liquidate(2);
-    const tx4 = await systems().PerpsMarket.connect(keeper()).liquidate(2);
-    await provider().send('evm_setAutomine', [true]);
-    await provider().send('evm_mine', []);
-    await provider().send('evm_mine', []);
-    await provider().send('evm_mine', []);
-    await provider().send('evm_mine', []);
+    // Everything that stops the node lives inside the try: automine must come back on even if a
+    // send throws, or every later test — in this file and in every file after it, the node being
+    // shared — runs against a chain that will not mine. The four sends stay raw: a verb that
+    // waits for its receipt would hang here, which is the point of the block.
+    const txs: ethers.ContractTransaction[] = [];
+    try {
+      await provider().send('evm_setAutomine', [false]);
+      // Same block multiple liquidations are ignored and only one is effective
+      txs.push(await systems().PerpsMarket.connect(keeper()).liquidate(2));
+      txs.push(await systems().PerpsMarket.connect(keeper()).liquidate(2));
+      txs.push(await systems().PerpsMarket.connect(keeper()).liquidate(2));
+      txs.push(await systems().PerpsMarket.connect(keeper()).liquidate(2));
+    } finally {
+      await provider().send('evm_setAutomine', [true]);
+      await provider().send('evm_mine', []);
+      await provider().send('evm_mine', []);
+      await provider().send('evm_mine', []);
+      await provider().send('evm_mine', []);
+    }
 
     // Make sure all the liquidation txns are finalised
-    await Promise.all([tx1, tx2, tx3, tx4].map((tx) => receiptOf(provider(), tx)));
+    await Promise.all(txs.map((tx) => receiptOf(provider(), tx)));
 
     // liquidated 25 OP more in the same block (only one liquidation on the same block was actually effective)
     const [, , sizeOnSameBlock] = await getTrader1Position();
