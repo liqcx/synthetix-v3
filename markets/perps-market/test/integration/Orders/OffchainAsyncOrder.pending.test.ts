@@ -155,7 +155,7 @@ describe('Offchain Async Order - Prevent updates with pending order test', () =>
       it('can update the collateral', async () => {
         const collateralBalancBefore = await systems().PerpsMarket.getCollateralAmount(2, 0);
 
-        await systems().PerpsMarket.connect(trader1()).modifyCollateral(2, 0, bn(10));
+        await depositMargin(trader1(), 2, bn(10));
 
         const collateralBalancAfter = await systems().PerpsMarket.getCollateralAmount(2, 0);
         assertBn.equal(collateralBalancAfter, collateralBalancBefore.add(bn(10)));
