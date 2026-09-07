@@ -992,13 +992,36 @@ Everything else stays: `alchemy:*`, `goldsky:*`, `auth`, `graph`, `create-local`
 In `markets/bfp-market` and `protocol/governance`, drop the `SKIP.` prefix keys entirely (all 19 and
 15 of them) — moon says "dormant" by carrying no tasks.
 
-- [ ] **Step 2: Replace `yarn` with `pnpm run` in every surviving script**
+- [ ] **Step 2: Fix every surviving script that calls a script this task deletes**
+
+`yarn` → `pnpm run` is the easy half. The trap is that **eight surviving scripts call a verb Step 1
+deletes**, so a blanket rewrite leaves them pointing at nothing. Each must reach the same behaviour
+without the deleted script: inline the underlying command where the verb was a single command, and
+call `moon run <project>:<task>` where it was a chain. The complete list, derived from the baseline:
+
+| Package | Script | Was | Becomes |
+| --- | --- | --- | --- |
+| `markets/perps-market` | `start` | `yarn build && yarn cannon-build` | `moon run perps-market:build && pnpm run cannon-build` |
+| `markets/spot-market` | `start` | `yarn build && yarn cannon-build` | `moon run spot-market:build && pnpm run cannon-build` |
+| `utils/core-utils` | `watch` | `yarn build --watch` | `bun x tsc --noEmit false --project src/tsconfig.json --watch` |
+| `utils/core-utils` | `test:watch` | `yarn test --watch` | `bun x mocha --require ts-node/register --watch` |
+| `utils/core-utils` | `prepublishOnly` | `yarn build` | `bun x tsc --noEmit false --project src/tsconfig.json` |
+| `utils/hardhat-storage` | `watch` | `yarn build --watch` | `bun x tsc --noEmit false --project src/tsconfig.json --watch` |
+| `utils/hardhat-storage` | `test:watch` | `yarn test --watch` | `jest --watch` |
+| `utils/hardhat-storage` | `prepublishOnly` | `yarn build` | `bun x tsc --noEmit false --project src/tsconfig.json` |
+
+One more script is orphaned rather than broken: `markets/perps-market/subgraph`'s
+`pretest: node generate.js` had no caller of its own — pnpm ran it as a lifecycle hook before `test`,
+and `test` is leaving. Task 3 replaced it with a `deps: ['subgraph-codegen']` edge on the moon task,
+so **delete `pretest`**; leaving it would be config nothing runs.
+
+Then confirm nothing points at a deleted script and no `yarn` survives:
 
 ```bash
 grep -rn '"[^"]*": *"[^"]*yarn ' --include=package.json utils protocol markets auxiliary | grep -v node_modules
 ```
 
-Expected after the edit: no output. (`yarn` survives only via a proto shim; nothing should rely on it.)
+Expected: no output. (`yarn` survives only via a proto shim; nothing should rely on it.)
 
 - [ ] **Step 3: Rewrite the root scripts as shims**
 
