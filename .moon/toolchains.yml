@@ -5,6 +5,14 @@ javascript:
   # Inferred tasks carry no inputs or outputs, so they buy neither caching nor
   # affected-detection. Every task in this repo is declared explicitly.
   inferTasksFromScripts: false
+  # `pnpm -r run X` never installed anything on its own — the developer runs
+  # `pnpm install` themselves. Auto-installing on a dirty package.json is
+  # behaviour moon adds, not behaviour this repo had, and the install-check
+  # path it takes without CI=true crashes (plugin::wasm::failed_function_call
+  # parsing node_modules/mocha's `engines.node: ">= 14.0.0"`) whenever any
+  # package.json differs from HEAD. Off restores the old, faithful behaviour
+  # and sidesteps the crash at the same time.
+  installDependencies: false
 
 node: {}
 pnpm: {}
