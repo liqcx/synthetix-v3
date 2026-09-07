@@ -69,7 +69,12 @@ is a wrapper around `moonrepo/setup-toolchain@v0` with `auto-install: true`, so 
 
 `.moon/workspace.yml` — globs `utils/*`, `protocol/*`, `markets/*`, `auxiliary/*`, plus three
 explicit sources for the third-level packages (`protocol/synthetix/subgraph`,
-`markets/spot-market/subgraph`, `markets/perps-market/subgraph`): 32 projects. `vcs.defaultBranch:
+`markets/spot-market/subgraph`, `markets/perps-market/subgraph`): 32 projects — but only after one exclusion. `auxiliary/*` also
+matches `auxiliary/TrustedMulticallForwarder`, which is a Cannon/Foundry package built from a
+`cannonfile.toml` and owns no `package.json`, so it is not a pnpm-workspace member and appears in no
+baseline pair. Left in, it would make moon report 33 projects against a package-derived inventory of
+32. It is excluded by glob, as is `auxiliary/README.md`, which moon otherwise warns about on every
+invocation ("Received a file path for a project root"). `vcs.defaultBranch:
 main`, `vcs.provider: github`, and **no** `hooks` block. Project ids are derived from directory
 names (`perps-market`, `Faucet`, …); the exact ids are read back with `moon query projects` and used
 verbatim wherever CI names a target.
