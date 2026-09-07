@@ -75,8 +75,10 @@ names (`perps-market`, `Faucet`, …); the exact ids are read back with `moon qu
 verbatim wherever CI names a target.
 
 `.moon/toolchains.yml` — `javascript: { packageManager: 'pnpm' }`, `node: {}`, `pnpm: {}`.
-`typescript.syncProjectReferences` stays **off** (this repo has no project references; moon would
-rewrite 29 tsconfigs). `javascript.inferTasksFromScripts` stays **off** — inferred tasks carry no
+`typescript.syncProjectReferences` stays **off**: no tsconfig in this repo declares a `references`
+array (measured — 9 tsconfig files, 7 of them under packages, zero with `references`; two set
+`composite` that nothing consumes), so switching it on would have moon start writing project
+references nothing reads. `javascript.inferTasksFromScripts` stays **off** — inferred tasks carry no
 inputs or outputs, so they buy neither caching nor affected-detection.
 
 ### Tasks and tags
