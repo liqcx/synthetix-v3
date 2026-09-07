@@ -18,44 +18,45 @@ const _PRICE = bn(10);
 //   - the position is re-anchored: only funding and interest accrued *after* the
 //     change are owed (the market's whole integral is not realised again).
 describe('Position change', () => {
-  const { systems, perpsMarkets, provider, trader1, trader2, trader3, keeper } = bootstrapMarkets({
-    liquidationGuards: {
-      minLiquidationReward: bn(5),
-      minKeeperProfitRatioD18: bn(0),
-      maxLiquidationReward: bn(1000),
-      maxKeeperScalingRatioD18: bn(0),
-    },
-    interestRateParams: {
-      lowUtilGradient: bn(0.0003),
-      gradientBreakpoint: bn(0.75),
-      highUtilGradient: bn(0.01),
-    },
-    synthMarkets: [],
-    perpsMarkets: [
-      {
-        requestedMarketId: 50,
-        name: 'Optimism',
-        token: 'OP',
-        price: _PRICE,
-        lockedOiRatioD18: bn(1),
-        orderFees: { makerFee: bn(0.007), takerFee: bn(0.003) },
-        fundingParams: { skewScale: bn(1000), maxFundingVelocity: bn(3) },
-        liquidationParams: {
-          initialMarginFraction: bn(1),
-          minimumInitialMarginRatio: bn(0),
-          maintenanceMarginScalar: bn(0.5),
-          // (maker + taker) * skewScale * window * multiplier = 100 OP per window
-          maxLiquidationLimitAccumulationMultiplier: bn(1),
-          liquidationRewardRatio: bn(0.05),
-          maxSecondsInLiquidationWindow: ethers.BigNumber.from(10),
-          minimumPositionMargin: bn(0),
-        },
-        settlementStrategy: { settlementReward: bn(0) },
+  const { systems, perpsMarkets, provider, trader1, trader2, trader3, keeper, liquidate, crash } =
+    bootstrapMarkets({
+      liquidationGuards: {
+        minLiquidationReward: bn(5),
+        minKeeperProfitRatioD18: bn(0),
+        maxLiquidationReward: bn(1000),
+        maxKeeperScalingRatioD18: bn(0),
       },
-    ],
-    traderAccountIds: [2, 3, 4],
-    bookAccountIds: [3],
-  });
+      interestRateParams: {
+        lowUtilGradient: bn(0.0003),
+        gradientBreakpoint: bn(0.75),
+        highUtilGradient: bn(0.01),
+      },
+      synthMarkets: [],
+      perpsMarkets: [
+        {
+          requestedMarketId: 50,
+          name: 'Optimism',
+          token: 'OP',
+          price: _PRICE,
+          lockedOiRatioD18: bn(1),
+          orderFees: { makerFee: bn(0.007), takerFee: bn(0.003) },
+          fundingParams: { skewScale: bn(1000), maxFundingVelocity: bn(3) },
+          liquidationParams: {
+            initialMarginFraction: bn(1),
+            minimumInitialMarginRatio: bn(0),
+            maintenanceMarginScalar: bn(0.5),
+            // (maker + taker) * skewScale * window * multiplier = 100 OP per window
+            maxLiquidationLimitAccumulationMultiplier: bn(1),
+            liquidationRewardRatio: bn(0.05),
+            maxSecondsInLiquidationWindow: ethers.BigNumber.from(10),
+            minimumPositionMargin: bn(0),
+          },
+          settlementStrategy: { settlementReward: bn(0) },
+        },
+      ],
+      traderAccountIds: [2, 3, 4],
+      bookAccountIds: [3],
+    });
 
   const SKEW_MOVER = 2; // ONCHAIN, pushes the funding integral away from zero
   const BOOK_SUBJECT = 3;
@@ -214,11 +215,11 @@ describe('Position change', () => {
     before(restore);
     before('open 150 OP through the book, then halve the price', async () => {
       await settle([order(LIQUIDATION_SUBJECT, bn(150))]);
-      await market.aggregator().mockSetCurrentPrice(bn(5));
+      await crash(market, bn(5));
     });
-    before('liquidate: the window caps the liquidation at 100 OP', async () => {
-      await systems().PerpsMarket.connect(keeper()).liquidate(LIQUIDATION_SUBJECT);
-    });
+    before('liquidate: the window caps the liquidation at 100 OP', () =>
+      liquidate(LIQUIDATION_SUBJECT)
+    );
 
     it('shrinks the position and re-anchors the remainder', async () => {
       await assertPositionChanged(LIQUIDATION_SUBJECT, bn(50));
@@ -229,11 +230,9 @@ describe('Position change', () => {
     before(restore);
     before('open 50 OP through the book, then halve the price', async () => {
       await settle([order(FULL_LIQUIDATION_SUBJECT, bn(50))]);
-      await market.aggregator().mockSetCurrentPrice(bn(5));
+      await crash(market, bn(5));
     });
-    before('liquidate: 50 OP fits inside the window', async () => {
-      await systems().PerpsMarket.connect(keeper()).liquidate(FULL_LIQUIDATION_SUBJECT);
-    });
+    before('liquidate: 50 OP fits inside the window', () => liquidate(FULL_LIQUIDATION_SUBJECT));
 
     it('closes the position and leaves no open market behind', async () => {
       await assertPositionChanged(FULL_LIQUIDATION_SUBJECT, bn(0));

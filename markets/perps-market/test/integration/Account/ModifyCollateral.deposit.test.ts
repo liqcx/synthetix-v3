@@ -9,7 +9,7 @@ describe('ModifyCollateral Deposit', () => {
   const oneBTC = bn(1);
   const marginAmount = bn(10_000);
 
-  const { systems, owner, superMarketId, synthMarkets, trader1 } = bootstrapMarkets({
+  const { systems, owner, superMarketId, synthMarkets, trader1, depositMargin } = bootstrapMarkets({
     synthMarkets: [
       {
         name: 'Bitcoin',
@@ -64,22 +64,8 @@ describe('ModifyCollateral Deposit', () => {
         .balanceOf(await trader1().getAddress());
     });
 
-    before('trader1 approves the perps market', async () => {
-      await synthMarkets()[0]
-        .synth()
-        .connect(trader1())
-        .approve(systems().PerpsMarket.address, oneBTC);
-
-      await synthMarkets()[1]
-        .synth()
-        .connect(trader1())
-        .approve(systems().PerpsMarket.address, oneBTC);
-    });
-
     before('trader1 adds collateral', async () => {
-      modifyCollateralTxn = await systems()
-        .PerpsMarket.connect(trader1())
-        .modifyCollateral(accountIds[0], synthBTCMarketId, oneBTC);
+      modifyCollateralTxn = await depositMargin(trader1(), accountIds[0], oneBTC, synthBTCMarketId);
     });
 
     it('properly reflects the total collateral value', async () => {
@@ -134,9 +120,7 @@ describe('ModifyCollateral Deposit', () => {
     });
 
     it('trader1 adds snxETH collateral', async () => {
-      await systems()
-        .PerpsMarket.connect(trader1())
-        .modifyCollateral(accountIds[0], synthETHMarketId, oneBTC);
+      await depositMargin(trader1(), accountIds[0], oneBTC, synthETHMarketId);
     });
 
     it('returns the correct list of active collaterals', async () => {

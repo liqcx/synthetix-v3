@@ -4,7 +4,7 @@ import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot
 import { ethers } from 'ethers';
 import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
 import { stand, standMarket } from '../../bootstrap/stand';
-import { crash, eventArgs, openBookPosition, receiptOf } from '../../helpers';
+import { crash, eventArgs, openBookPosition } from '../../helpers';
 
 const PRICE = bn(stand.markets[0].price);
 const COLLATERAL = bn(2_000);
@@ -26,23 +26,31 @@ const COSTS = KeeperCosts.flagCost.add(KeeperCosts.liquidateCost);
 // same account on the Foundry stand and reads the same numbers.
 describe('Liquidation - the reward the account must hold is the reward the keeper is paid', () => {
   const ACCOUNT = 2;
-  const { systems, owner, trader1, keeper, perpsMarkets, keeperCostOracleNode, provider } =
-    bootstrapMarkets({
-      // the guards do not bind: the floor is the costs alone, the cap is the collateral
-      liquidationGuards: {
-        minLiquidationReward: bn(0),
-        minKeeperProfitRatioD18: bn(0),
-        maxLiquidationReward: bn(10_000),
-        maxKeeperScalingRatioD18: bn(1),
-      },
-      synthMarkets: [],
-      // the description's window admits (maker + taker) × skewScale × multiplier × seconds =
-      // 0.0011 × 100,000 × 1 × 10 = 1,100 ETH: the whole position goes in one liquidation, so
-      // the expectation counts one window
-      perpsMarkets: [standMarket()],
-      traderAccountIds: [ACCOUNT],
-      bookAccountIds: [ACCOUNT],
-    });
+  const {
+    systems,
+    owner,
+    trader1,
+    keeper,
+    perpsMarkets,
+    keeperCostOracleNode,
+    provider,
+    liquidate,
+  } = bootstrapMarkets({
+    // the guards do not bind: the floor is the costs alone, the cap is the collateral
+    liquidationGuards: {
+      minLiquidationReward: bn(0),
+      minKeeperProfitRatioD18: bn(0),
+      maxLiquidationReward: bn(10_000),
+      maxKeeperScalingRatioD18: bn(1),
+    },
+    synthMarkets: [],
+    // the description's window admits (maker + taker) × skewScale × multiplier × seconds =
+    // 0.0011 × 100,000 × 1 × 10 = 1,100 ETH: the whole position goes in one liquidation, so
+    // the expectation counts one window
+    perpsMarkets: [standMarket()],
+    traderAccountIds: [ACCOUNT],
+    bookAccountIds: [ACCOUNT],
+  });
 
   let market: PerpsMarket;
 
@@ -93,10 +101,7 @@ describe('Liquidation - the reward the account must hold is the reward the keepe
     const { maxLiquidationReward: held } = await systems().PerpsMarket.getRequiredMargins(ACCOUNT);
     const collateral = await systems().PerpsMarket.totalCollateralValue(ACCOUNT);
     const before = await systems().USD.balanceOf(await keeper().getAddress());
-    const receipt = await receiptOf(
-      provider(),
-      await systems().PerpsMarket.connect(keeper()).liquidate(ACCOUNT)
-    );
+    const { receipt } = await liquidate(ACCOUNT);
     const flagged = eventArgs(receipt, systems().PerpsMarket, 'AccountFlaggedForLiquidation');
     const attempt = eventArgs(receipt, systems().PerpsMarket, 'AccountLiquidationAttempt');
     const gain = (await systems().USD.balanceOf(await keeper().getAddress())).sub(before);
