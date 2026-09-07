@@ -1,0 +1,22 @@
+---
+name: architecture-review-card3-batch-culprit
+description: "Карточка 3 обзора 05.09 — книжная дверь знает ёмкость и называет виновника: разбор card3-batch-culprit-20260906.html, восемь умолчаний, факты про self-call/роутер/_msgSender/сеттлер на staging, статус (ждёт «го»)"
+metadata: 
+  node_type: memory
+  type: project
+  originSessionId: 3ed5695a-2d3e-4423-a2aa-d5b9163efaa0
+  modified: 2026-09-06T20:04:42.490Z
+---
+
+Разбор карточки 3 обзора 05.09 («Книжная дверь знает свою ёмкость и называет виновника», Strong, была карточкой 4 обзора 04.09) сделан 2026-09-06 по `main @ b26f539b` (после #33 флаг ликвидации и #35 форк Cannon): HTML `card3-batch-culprit-20260906.html` в /var/folders/…/T/ рядом с обзорами (локальный файл, не Artifact). **Статус: ждёт «го» пользователя на умолчания; спека/план/ветка ещё не созданы.** Следующие шаги после «го»: спека `docs/superpowers/specs/2026-09-06-book-batch-culprit-design.md` → план → ветка `feat-cld/book-batch-culprit` от `main` (ребейз после слияния #34 — карточка 2, `feat-cld/stand-parameters`, пересечение только в стендах: `tests/Bootstrap.t.sol`, `tests/Quote.t.sol`, `BookOrderPriceDeviation.test.ts`, `test/helpers/index.ts`).
+
+Дизайн (вариант A, умолчания разбора): `settleBookOrders(uint128, BookOrder[] calldata)` — внешний фрейм (флаги, кап `MAX_BOOK_ORDERS = 200` константой + вьюха `maxBookOrders()`, `BookBatchTooLong(orders, maxOrders)`, оракул и `_msgSender()` один раз, порядок аккаунтов без обёртки), цикл `try this.settleBookOrder(marketId, orders[i], markPrice, maxDeviation, settler) returns (fee, collected)`; `catch`: пустая причина → голый `revert()` (OOG/без данных — не вина ордера), иначе `BookOrderRejected(uint256 index, bytes reason)`. Внутренний фрейм — только от прокси (`msg.sender == address(this)`, иначе `AccessError.Unauthorized`): граница цены, `OrderMode.admit`, комиссия по скью, `quoteFees`, `Settlement.settle`. `signedPriceData` уходит из `BookOrder` (селектор `settleBookOrders` меняется → lockstep выката роутера и сеттлера по контуру); `BookOrderSettled(marketId, orders: count, totalFees)` — `totalFees` остаётся третьим аргументом (deployments e2e читает `settled.args[2]`). Сеттлер передаётся явно (`quoteFees`, `OrderSettled.settler`; форма — компайл-проба стека), `payFees` — по `_msgSender()` во внешнем фрейме. Версия `3.11.6-orderbook`.
+
+Факты, проверенные при разборе: `_msgSender()` ниже двери на пути расчёта — ровно три места в `Settlement.sol` (:78, :90, :157); `PerpsAccount.payDebt:315` и `PerpsMarket.maxLiquidatableAmount:125` не на пути расчёта. Роутер (`contracts/generated/PerpsMarketRouter.sol`, 133 селектора, gitignored) — fallback без ограничения по отправителю, self-call через прокси работает. `ERC2771Context` доверяет одному константному форвардеру. MegaETH testnet gasLimit блока 2 000 000 000. Hardhat: 24 `assertRevert(settle…)` через книжную дверь (gate 12, quote 4, deviation 5, OrderMode 2, BookOrder 1) + 7 через `quoteBookOrder` (не меняются). Foundry: `Orderbook.t.sol` 1/10/25/100 матчей = 2/20/50/200 ордеров — таблица газа готова; `script/Deploy.sol` от 04.09 09:51 — регенерировать (`ANVIL_PORT=8555 pnpm build-testable:foundry`) до замера. Monorepo `main` (701952fb) отстаёт от `staging`: на staging `bookOrderModuleAbi` уже `outputs: []`, сеттлер — `fill-set.ts` (`NO_SIGNED_PRICE` :172), `signed-price.ts`, `settlement-run.ts` (исходы ADR-0058); реверт симуляции нигде не декодируется. ADR-0058/0060/0061 лежат в monorepo только на `staging` (`docs/adr/0058…0061`), в `main` их нет. Deployments: `e2e/contours/verify.js:299`, `verify.spec.js:39,265` — сигнатура с `signedPriceData` руками; `e2e/book/settlement.js:112`.
+
+Нарезка: PR A synthetix-v3 (эта спека); PR B monorepo от staging до апгрейда роутера (SDK-типы/ABI, нога без поля, декод `BookOrderRejected` в лог/исход, порог из вьюхи, `docs/protocols/synthetix-v3/book-order-module.md`); PR C monorepo после роутера (ноги виновника объявленным исходом ADR-0058, ADR-0060 §4 → ADR-0062); deployments — с карточкой 1 обзора 04.09.
+
+**Why:** карточки закрываются через разбор → «го» → спека → план → PR; без записи умолчаний и фактов новая сессия переисследует роутер, `_msgSender` и staging сеттлера.
+**How to apply:** после «го» — писать спеку по разбору; если пользователь заменил умолчание, обновить этот файл. Замер газа — только на регенерированном стенде, таблица до/после 2/20/50/200 в теле PR.
+
+Связано: [[architecture-review-2026-09-04]], [[architecture-review-2026-09-03]], [[foundry-stand-after-pnpm]], [[gh-repo-liqcx-synthetix-v3]]

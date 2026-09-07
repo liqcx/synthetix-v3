@@ -6,6 +6,7 @@
 .worktrees
 .claude/*
 !.claude/skills/
+!.claude/memory/
 **/coverage*
 **/deployments
 /**/test/generated

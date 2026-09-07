@@ -1,0 +1,24 @@
+---
+name: architecture-review-2026-09-04
+description: "Обзор архитектуры perps-market от 2026-09-04 (артефакт architecture-review-20260904-1327.html, main @ 821feed5) — пять карточек после закрытия 1–2 обзора 03.09; верхняя рекомендация «контур знает своего сеттлера, апгрейд роутера у одного владельца»; факты по deployments/monorepo, найденные при обзоре"
+metadata: 
+  node_type: memory
+  type: project
+  originSessionId: 05f4d585-0df4-4e92-ad8f-87d060dfd6fa
+  modified: 2026-09-04T10:36:49.676Z
+---
+
+Обзор 2026-09-04 (HTML `architecture-review-20260904-1327.html` в /var/folders/.../T/, рядом с прежними; локальный файл, не Artifact) перенумеровал карточки после закрытия 1 (OrderMode, #27/#28) и 2 (Settlement, #25/#26) обзора 03.09:
+
+1. **контур знает своего сеттлера; апгрейд роутера у одного владельца** (Strong, **верхняя рекомендация**; была карточкой 4). Факты: флаг `settleBookOrders` рождается закрытым (`Flags.sol:8`), ни один скрипт апгрейда не делает allowlist перед `upgradeTo`; `synthetix-deployments/scripts/upgrade-router-bookdefault.js` — `CHANGED` (:24) называет 3 модуля прошлого апгрейда, а #25–#28 сменили источники 5 модулей и библиотеки, импортируемые 10 из 14; зонд — `getOrderMode` (:180-182); пишет роутер и компилирует в чекауте sv3 (:146-150). Таблица контуров (`e2e/contours/table.js:14-52`) не знает сеттлера; омнибусы — только `perpsSystem allowAll`, пин `3.11.4-orderbook` не менялся с 05.06; e2e `Book_Order_Trading.e2e.js:66` расчитывает `fundedWallet` — после апгрейда получит `FeatureUnavailable`; спека книжного e2e-модуля (deployments PR #24 слит) отложила тест «чужой сеттлер» (design.md:404-407). Копии скриптов в sv3 (`scripts/upgrade-router-megaeth-testnet.js`, `patch-stuck-accounts…`) на месте, `PositionMarketIdPatcher.sol` по-прежнему только на диске. Открытый вопрос — адрес сеттлера прода.
+2. **ликвидационная арифметика берёт аккаунт** (Strong; дефект закрыт #25, форма осталась): 4 вызывающих считают число фидов; 10 прелюдий «контекст + две стоимости залога» в 4 файлах; `validateWithdrawableAmount` (PerpsAccount.sol:361-368) оценивает позиции STRICT, залог DEFAULT — апстрим держал обе STRICT, след того же рефакторинга 31d0b06c; награда за флаг считается дважды (PerpsAccount.sol:603-627 и LiquidationModule.sol:304-333).
+3. **ворота отвечают «сколько»** — **переоценена в Strong**: шлюз monorepo допускает ордер плоской формулой `size × price × bps` со ставкой из Postgres (`apps/order-gateway/src/margin/margin.service.ts:149-155`, `market.service.ts:46-65`) и уже платит один `eth_call getAvailableMargin` (:120); расхождение с кривой контракта записано в `admin-market-drift.ts:89-112`. Ссылка обзора 03.09 на ADR-0053 была неверной (тот ADR — про модуль маржи в SDK). У книжной двери вьюх нет (`IBookOrderModule.sol:87`).
+4. **батч называет виновника** (Worth exploring): шаг сеттлера из ADR-0060 §4 не реализован — реверт `simulateSettle` не разбирается, батч FAILED (`batch-collector.service.ts:242-265`), ордера FAILED_RETRYABLE → 3 попытки → FAILED все (`post-settlement.service.ts:132-186`, `order-worker.ts:41-59`); `decodeErrorResult` в monorepo нигде. Предложен зонд «фрейм на ордер» (self-call под try/catch), который заодно снимает квадратичный член памяти батча.
+5. **книжная дверь спрашивает согласие владельца** (Worth exploring, CRIT-3): `liq-core/src/eip712.ts:20-45` — домен `PerpExchange/1`, verifyingContract = PerpsMarketProxy, комментарий «must stay identical to the struct in BookOrderModule», которого нет; подпись проверяет только шлюз (`validation.service.ts:84-125`, пути владелец/сессионный ключ).
+
+Замечено: CI по-прежнему только `workflow_dispatch` (cannon-update.yml, node 20 + yarn), CircleCI-конфиг на месте; сабграф 15/17 обработчиков, ABI без дрейф-гарда; из аудита открыты CRIT-1 (подпись цены), CRIT-3, INFO-2. Порядок выката: роутер с #25–#28 (карточка 1) → сабграф с ресинком → monorepo#743; #745 после роутера. monorepo#743 и #745 — draft в staging (проверено 04.09).
+
+**Why:** карточки закрываются по одной через артефакт → выбор пользователя → PR; статус и найденные факты нужны, чтобы следующий обзор не переисследовал deployments и monorepo.
+**How to apply:** карточка 3 сделана 04.09 (synthetix-v3#30, слит в main 04.09 14:18Z = 8bbc3e71, см. [[architecture-review-card3-margin-quote]]); карточка 2 сделана 04.09 (synthetix-v3#31 draft, см. [[architecture-review-card2-account-valuation]]) — апгрейд роутера несёт и её; следующая арка — карточка 1 (deployments: сеттлер в таблице контуров, allowlist → upgradeTo, набор модулей из сборки; спросить адрес сеттлера прода) — теперь апгрейд несёт и #30; потом карточка 4 или PR B в monorepo. Скриншот-проверка HTML: `python3 -m http.server` из T/ + playwright (file:// заблокирован).
+
+Связано: [[architecture-review-2026-09-03]], [[architecture-review-card1-order-mode]], [[foundry-stand-after-pnpm]], [[gh-repo-liqcx-synthetix-v3]]

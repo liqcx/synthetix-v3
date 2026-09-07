@@ -81,3 +81,6 @@ markets/perps-market/script/
 protocol/governance/cannonfile.toml
 protocol/governance/cannonfile.satellite.toml
 auxiliary/SpotMarketOracle/cannonfile.toml
+
+# Claude auto-memory — written by the harness, not hand-formatted.
+.claude/memory/
