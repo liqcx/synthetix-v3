@@ -270,6 +270,10 @@ describe('CollateralChange - the door table', () => {
     });
 
     it('into the initial margin: InsufficientCollateralAvailableForWithdraw', async () => {
+      // HOLDER carries an open position, so `chargedInterest` (Position.interestAccrued, driven by
+      // block.timestamp) keeps drifting `withdrawable` between blocks; the revert below is simulated
+      // one block ahead (eth_estimateGas's virtual next block), so read at the same 'pending' block
+      // or this and the revert's first argument disagree by one block's worth of accrual.
       const withdrawable = await perps().getWithdrawableMargin(HOLDER, { blockTag: 'pending' });
       await refused(
         modify(trader2(), HOLDER, 0, bn(-99_000)),
