@@ -33,6 +33,12 @@ Foundry, GitHub Actions on self-hosted runners.
   `deploy`, `forge-test`, `subgraph:codegen`, `subgraph:build`. Every other package script stays.
 - **Ordering parity:** a verb whose root script is `pnpm -r run X` gets `deps: ['^:X']`; `clean` and
   `test` (root uses `--parallel`) get no `^` dependency.
+- **Two deliberate departures from parity, both to be stated in the commit, not hidden.**
+  (1) `CANNON_REGISTRY_PRIORITY=local` moves from the root script onto the task `env`, so a
+  per-project invocation now gets it too, where `pnpm --filter X run compile-contracts` did not.
+  This is the safer direction — it is why CI sets the variable job-wide — but it is a change.
+  (2) `pnpm -r run X` bails at the first failing package; moon runs every project's task and reports
+  all failures. Same outcome, more output.
 - **`cache: false`** on every hardhat/cannon/forge task. Only `build-ts` caches.
 - **Any project override of an inherited command MUST set `options.mergeArgs: 'replace'`** — moon 2.x
   otherwise appends the inherited args to the overriding command.
@@ -223,15 +229,16 @@ Append to `.gitignore`:
 - [ ] **Step 5: Verify the project graph**
 
 ```bash
-moon --version                 # must print 2.2.5
-moon query projects | wc -l    # must print 32
-moon query projects | sort
+moon --version   # must print 2.2.5
+# `moon query` prints JSON and takes no --json flag (passing one is an error).
+moon query projects | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const {projects}=JSON.parse(s);console.log(projects.length);for(const p of projects.sort((a,b)=>a.id.localeCompare(b.id)))console.log(p.id,'\t',p.source)})"
 ```
 
-Then check the edges moon derived:
+Then check an edge moon derived. (`moon project-graph --json` returns petgraph's internal
+`{graph:{nodes,edges},data}` — node ids are integers, so it is not the readable check it looks like;
+`moon project <id>` is.)
 
 ```bash
-moon project-graph --json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const g=JSON.parse(s);for(const n of g.nodes??[])console.log(n.id)})" | head
 moon project core-utils | sed -n '1,25p'
 ```
 
@@ -306,15 +313,16 @@ for (const line of readFileSync(baselinePath, 'utf8').trim().split('\n')) {
   wantBySource.get(script).add(dir);
 }
 
-// moon: project id -> source dir, and project id -> task ids
-const projects = JSON.parse(execSync('moon query projects --json').toString()).projects;
-const idToSource = new Map(projects.map((p) => [p.id, p.source]));
-const tasks = JSON.parse(execSync('moon query tasks --json').toString()).tasks;
+// `moon query` always prints JSON — there is no `--json` flag on 2.2.5, and
+// passing one makes `query projects` exit with "unexpected argument". A single
+// query carries id, source and the expanded task map; a project with no tasks
+// omits the `tasks` key entirely, hence the `?? {}`.
+const { projects } = JSON.parse(execSync('moon query projects').toString());
 const haveByTask = new Map(); // task id -> Set(source dir)
-for (const [projectId, taskMap] of Object.entries(tasks)) {
-  for (const taskId of Object.keys(taskMap)) {
+for (const project of projects) {
+  for (const taskId of Object.keys(project.tasks ?? {})) {
     if (!haveByTask.has(taskId)) haveByTask.set(taskId, new Set());
-    haveByTask.get(taskId).add(idToSource.get(projectId));
+    haveByTask.get(taskId).add(project.source);
   }
 }
 
@@ -568,7 +576,7 @@ for (const line of readFileSync('docs/superpowers/plans/2026-09-07-lerna-to-moon
   scripts.get(dir).add(RENAME[s] ?? s);
 }
 
-const projects = JSON.parse(execSync('moon query projects --json').toString()).projects;
+const { projects } = JSON.parse(execSync('moon query projects').toString());
 for (const p of projects) {
   const owned = scripts.get(p.source) ?? new Set();
   const tags = [];
@@ -772,8 +780,9 @@ tasks:
     options:
       mergeArgs: 'replace'
       cache: false
+  # `nyc yarn test` inlined: Task 4 deletes the `test` script this used to call.
   coverage:
-    script: 'nyc pnpm run test'
+    script: 'nyc bun x mocha --require ts-node/register'
     options:
       mergeArgs: 'replace'
       cache: false
@@ -818,12 +827,15 @@ tasks:
 
 `markets/spot-market/subgraph/moon.yml` and `protocol/synthetix/subgraph/moon.yml` keep the tag's
 `./codegen.sh` / `./build.sh`, and carry their `coverage` verbatim — including the sibling scripts it
-calls, which stay in `package.json` (spot-market shown; use `mainnet` for `protocol/synthetix`):
+calls, which stay in `package.json` (spot-market shown; use `mainnet` for `protocol/synthetix`). The
+trailing `yarn test --coverage` is inlined to `graph test --coverage` because Task 4 deletes that
+`test` script. Note that `deployments:*` / `codegen:*` do not exist in these packages — this body is
+already broken at the baseline, and is carried over unchanged rather than quietly repaired:
 
 ```yaml
 tasks:
   coverage:
-    script: 'pnpm run deployments:optimism-mainnet && pnpm run codegen:optimism-mainnet && git diff --exit-code && pnpm run test --coverage'
+    script: 'pnpm run deployments:optimism-mainnet && pnpm run codegen:optimism-mainnet && git diff --exit-code && graph test --coverage'
     options:
       mergeArgs: 'replace'
       cache: false
@@ -868,9 +880,11 @@ $schema: 'https://moonrepo.dev/schemas/project.json'
 node $SCRATCH/moon-parity.mjs
 ```
 
-Expected: `PARITY OK`. Any MISSING line means a package owns a script but not the task (usually a tag
-not applied); any EXTRA line means a task was handed to a package that never had the script (usually
-a missing `exclude`). Fix and re-run until clean. **Do not proceed with a broken gate.**
+Expected: `PARITY OK`. Any MISSING line means a package owns a script but not the task; any EXTRA
+line means a task was handed to a package that never had the script (usually a missing `exclude`).
+**MISSING on `Faucet` or on `RewardsDistributor*` means a Step 6 override was skipped, not a tag that
+failed to apply** — those projects get `build`/`clean`/`test` and `build` respectively only by hand,
+because no tag carries those bodies. Fix and re-run until clean. **Do not proceed with a broken gate.**
 
 - [ ] **Step 8: Prove two tasks actually run**
 
@@ -896,6 +910,11 @@ git commit -m "build(moon): put the orchestrated verbs behind four tag files
 
 deps mirror each root script's flags: pnpm -r is topological, and the two
 verbs the root runs with --parallel (clean, test) get no ^ dependency.
+
+One deliberate departure: CANNON_REGISTRY_PRIORITY=local moves from the root
+script onto the tasks that had it, so running one project directly now gets
+it too, where pnpm --filter did not. That is the direction CI already forces
+job-wide, and it removes a registry reach-out from the per-package path.
 Caching is off for every hardhat/cannon/forge task — Cannon's registry lives
 outside the repo, so a restored artifacts/ without it would be false green.
 
@@ -1000,6 +1019,11 @@ Expected: **fails**, with the P3b symptoms — `Cannot find module 'axios'` (11 
 `@usecannon/cli`) or `Cannot find module '@synthetixio/core-contracts/package.json'` (13 do not
 declare what their Solidity imports). This is the pre-existing failure, not a regression. Record the
 output in the task report. Do not "fix" it here.
+
+**The failure will be louder than on `main`, and that is expected:** `pnpm -r run` bails at the first
+failing package, while moon runs every project and reports all of them. Expect several
+`Cannot find module` blocks where `main` showed one. A differing *count* is not a regression; a
+differing *symptom* would be.
 
 - [ ] **Step 7: Commit — and watch the hook run**
 

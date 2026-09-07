@@ -128,7 +128,15 @@ Two consequences of taking the baseline seriously, both already checked against 
   (forge-std mocks) is pre-existing and equally true of `pnpm -r run forge-test` today. They are kept
   out of CI by naming targets explicitly, not by withholding the task.
 
-`CANNON_REGISTRY_PRIORITY: local` is set as task `env` wherever the script sets it today.
+`CANNON_REGISTRY_PRIORITY: local` becomes task `env` wherever the root script or the package script
+sets it today. This is the one deliberate departure from parity: the root set it for the whole
+`pnpm -r` run, so `pnpm --filter X run compile-contracts` went without it, while
+`moon run X:compile-contracts` will have it. That is the safer direction — it is why CI sets the
+variable job-wide — but it is a change, and it is recorded rather than smuggled in.
+
+One more difference is inherent to the runner: `pnpm -r run X` bails at the first failing package,
+moon runs every project and reports all failures. The known-red `storage:dump` will therefore print
+several failures where it printed one.
 
 Where a package's body differs from its tag's (perps-market's `test` ends in `; yarn anvil-clean`,
 its `build-testable` has a Foundry second half, mocha vs jest among the `ts-lib` three), the project
