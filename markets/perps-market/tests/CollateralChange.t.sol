@@ -17,7 +17,7 @@ import {IPerpsAccountModule} from "../contracts/interfaces/IPerpsAccountModule.s
 import {IGlobalPerpsMarketModule} from "../contracts/interfaces/IGlobalPerpsMarketModule.sol";
 import {AsyncOrder} from "../contracts/storage/AsyncOrder.sol";
 import {PerpsAccount} from "../contracts/storage/PerpsAccount.sol";
-import {GlobalPerpsMarket} from "../contracts/storage/GlobalPerpsMarket.sol";
+import {CollateralChange} from "../contracts/storage/CollateralChange.sol";
 import {PerpsCollateralConfiguration} from "../contracts/storage/PerpsCollateralConfiguration.sol";
 
 /**
@@ -153,7 +153,7 @@ contract CollateralChangeTest is BootstrapTest {
         perps.setCollateralConfiguration(collateralId, 0, 0, 0, 0);
         refused(
             abi.encodeWithSelector(
-                GlobalPerpsMarket.SynthNotEnabledForCollateral.selector,
+                CollateralChange.SynthNotEnabledForCollateral.selector,
                 collateralId
             )
         );
@@ -166,7 +166,7 @@ contract CollateralChangeTest is BootstrapTest {
         perps.setCollateralConfiguration(collateralId, held + 1e18, 0, 0, 0);
         refused(
             abi.encodeWithSelector(
-                GlobalPerpsMarket.MaxCollateralExceeded.selector,
+                CollateralChange.MaxCollateralExceeded.selector,
                 collateralId,
                 held + 1e18,
                 held,
@@ -181,7 +181,7 @@ contract CollateralChangeTest is BootstrapTest {
         uint256 held = perps.globalCollateralValue(collateralId);
         refused(
             abi.encodeWithSelector(
-                GlobalPerpsMarket.InsufficientCollateral.selector,
+                CollateralChange.InsufficientCollateral.selector,
                 collateralId,
                 held,
                 held + 1
@@ -195,7 +195,7 @@ contract CollateralChangeTest is BootstrapTest {
         perps.setPerAccountCaps(100_000, 0);
         refused(
             abi.encodeWithSelector(
-                PerpsAccount.MaxCollateralsPerAccountReached.selector,
+                CollateralChange.MaxCollateralsPerAccountReached.selector,
                 uint128(0)
             )
         );
@@ -213,7 +213,7 @@ contract CollateralChangeTest is BootstrapTest {
     function test_moreThanTheAccountHolds_lessThanTheMarket() public {
         refused(
             abi.encodeWithSelector(
-                PerpsAccount.InsufficientSynthCollateral.selector,
+                CollateralChange.InsufficientSynthCollateral.selector,
                 collateralId,
                 MARGIN,
                 MARGIN + 1
@@ -230,7 +230,7 @@ contract CollateralChangeTest is BootstrapTest {
         int256 withdrawable = perps.getWithdrawableMargin(HOLDER);
         refused(
             abi.encodeWithSelector(
-                PerpsAccount.InsufficientCollateralAvailableForWithdraw.selector,
+                CollateralChange.InsufficientCollateralAvailableForWithdraw.selector,
                 withdrawable,
                 uint256(915e18)
             )
@@ -269,9 +269,9 @@ contract CollateralChangeTest is BootstrapTest {
     }
 
     function test_payDebt_noDebt_namesTheAccountAskedAbout() public {
-        refused(abi.encodeWithSelector(PerpsAccount.NonexistentDebt.selector, FUNDED));
+        refused(abi.encodeWithSelector(CollateralChange.NonexistentDebt.selector, FUNDED));
         pay(trader1, FUNDED, 1e18);
-        refused(abi.encodeWithSelector(PerpsAccount.NonexistentDebt.selector, EMPTY));
+        refused(abi.encodeWithSelector(CollateralChange.NonexistentDebt.selector, EMPTY));
         pay(trader1, EMPTY, 1e18);
     }
 

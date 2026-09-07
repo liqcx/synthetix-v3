@@ -39,7 +39,14 @@ interface IPerpsAccountModule {
     error InvalidAmountDelta(int256 amountDelta);
 
     /**
-     * @notice Modify the collateral delegated to the account.
+     * @notice Modify the collateral delegated to the account: a deposit or a withdrawal.
+     * @dev What the account may change and what follows is written once in `CollateralChange`;
+     * the module keeps the feature flag, the account's existence and the permission. Refused,
+     * in order: an unknown collateral, a zero delta, a deposit past the collateral's cap or a
+     * withdrawal past the market's balance of it, a flagged account, a new collateral past the
+     * account's limit, a pending async order, a withdrawal past what the account holds or into
+     * its initial margin plus the liquidation reward. A deposit or withdrawal does not move
+     * the interest rate: it moves the market's credit and the trader's collateral together.
      * @param accountId Id of the account.
      * @param collateralId Id of the synth market used as collateral. Synth market id, 0 for snxUSD.
      * @param amountDelta requested change in amount of collateral delegated to the account.
@@ -202,7 +209,10 @@ interface IPerpsAccountModule {
         );
 
     /**
-     * @notice Allows anyone to pay an account's debt
+     * @notice Allows anyone to pay an account's debt with their snxUSD.
+     * @dev Refused while an async order is pending; nothing to pay reverts `NonexistentDebt`;
+     * the excess over the debt is ignored. The interest rate follows the payment: the paid USD
+     * joins the pool's credit and no trader collateral rises with it (`CollateralChange.payDebt`).
      * @param accountId Id of the account.
      * @param amount debt amount to pay off
      */

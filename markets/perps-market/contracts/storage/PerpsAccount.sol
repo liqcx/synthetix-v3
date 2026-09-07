@@ -1,7 +1,6 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.11 <0.9.0;
 
-import {ERC2771Context} from "@synthetixio/core-contracts/contracts/utils/ERC2771Context.sol";
 import {DecimalMath} from "@synthetixio/core-contracts/contracts/utils/DecimalMath.sol";
 import {SafeCastI128, SafeCastI256, SafeCastU256, SafeCastU128} from "@synthetixio/core-contracts/contracts/utils/SafeCast.sol";
 import {SetUtil} from "@synthetixio/core-contracts/contracts/utils/SetUtil.sol";
@@ -117,17 +116,6 @@ library PerpsAccount {
         uint256 requiredMargin;
     }
 
-    error InsufficientCollateralAvailableForWithdraw(
-        int256 withdrawableMarginUsd,
-        uint256 requestedMarginUsd
-    );
-
-    error InsufficientSynthCollateral(
-        uint128 collateralId,
-        uint256 collateralAmount,
-        uint256 withdrawAmount
-    );
-
     error InsufficientAccountMargin(uint256 leftover);
 
     error AccountLiquidatable(uint128 accountId);
@@ -142,10 +130,6 @@ library PerpsAccount {
      */
     error InsufficientMargin(int256 availableMargin, uint256 minMargin);
 
-    error MaxCollateralsPerAccountReached(uint128 maxCollateralsPerAccount);
-
-    error NonexistentDebt(uint128 accountId);
-
     function load(uint128 id) internal pure returns (Data storage account) {
         bytes32 s = keccak256(abi.encode("io.synthetix.perps-market.Account", id));
 
@@ -155,25 +139,13 @@ library PerpsAccount {
     }
 
     /**
-     * @notice allows us to update the account id in case it needs to be
+     * @notice Writes the account's id on first use. Two callers: the deposit door
+     * (`CollateralChange.make`) and the settlement (`settlePositionChange`).
      */
     function create(uint128 id) internal returns (Data storage account) {
         account = load(id);
         if (account.id == 0) {
             account.id = id;
-        }
-    }
-
-    function validateMaxCollaterals(uint128 accountId, uint128 collateralId) internal view {
-        Data storage account = load(accountId);
-
-        if (account.collateralAmounts[collateralId] == 0) {
-            uint128 maxCollateralsPerAccount = GlobalPerpsMarketConfiguration
-                .load()
-                .maxCollateralsPerAccount;
-            if (maxCollateralsPerAccount <= account.activeCollateralTypes.length()) {
-                revert MaxCollateralsPerAccountReached(maxCollateralsPerAccount);
-            }
         }
     }
 
@@ -292,74 +264,6 @@ library PerpsAccount {
 
         // always update global values when account collateral is changed
         GlobalPerpsMarket.load().updateCollateralAmount(collateralId, amountDelta);
-    }
-
-    function payDebt(Data storage self, uint256 amount) internal returns (uint256 debtPaid) {
-        if (self.debt == 0) {
-            revert NonexistentDebt(self.id);
-        }
-
-        /*
-            1. if the debt is less than the amount, set debt to 0 and only deposit debt amount
-            2. if the debt is more than the amount, subtract the amount from the debt
-            3. excess amount is ignored
-        */
-
-        PerpsMarketFactory.Data storage perpsMarketFactory = PerpsMarketFactory.load();
-
-        debtPaid = MathUtil.min(self.debt, amount);
-        updateAccountDebt(self, -debtPaid.toInt());
-
-        perpsMarketFactory.synthetix.depositMarketUsd(
-            perpsMarketFactory.perpsMarketId,
-            ERC2771Context._msgSender(),
-            debtPaid
-        );
-    }
-
-    /**
-     * @notice This function validates you have enough margin to withdraw without being liquidated.
-     * @dev    This is done by checking your collateral value against your initial maintenance value.
-     * @dev    It also checks the synth collateral for this account is enough to cover the withdrawal amount.
-     * @dev    The account is valued strictly, positions and collateral alike: a withdrawal is
-     *         judged at fresh prices, as a liquidation is.
-     */
-    function validateWithdrawableAmount(
-        Data storage self,
-        uint128 collateralId,
-        uint256 amountToWithdraw,
-        ISpotMarketSystem spotMarket
-    ) internal view {
-        uint256 collateralAmount = self.collateralAmounts[collateralId];
-        if (collateralAmount < amountToWithdraw) {
-            revert InsufficientSynthCollateral(collateralId, collateralAmount, amountToWithdraw);
-        }
-
-        // a withdrawal is judged at fresh prices, as a liquidation is: one tolerance, both halves
-        Valuation memory v = valuation(self, PerpsPrice.Tolerance.STRICT);
-        int256 withdrawableMarginUsd = getWithdrawableMargin(v);
-        // Note: this can only happen if account is liquidatable
-        if (withdrawableMarginUsd < 0) {
-            revert AccountLiquidatable(self.id);
-        }
-
-        uint256 amountToWithdrawUsd;
-        if (collateralId == SNX_USD_MARKET_ID) {
-            amountToWithdrawUsd = amountToWithdraw;
-        } else {
-            (amountToWithdrawUsd, ) = PerpsCollateralConfiguration.load(collateralId).valueInUsd(
-                amountToWithdraw,
-                spotMarket,
-                PerpsPrice.Tolerance.STRICT
-            );
-        }
-
-        if (amountToWithdrawUsd.toInt() > withdrawableMarginUsd) {
-            revert InsufficientCollateralAvailableForWithdraw(
-                withdrawableMarginUsd,
-                amountToWithdrawUsd
-            );
-        }
     }
 
     /**
