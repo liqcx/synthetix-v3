@@ -204,9 +204,11 @@ it('closes the position and leaves no open market behind', () => assertPositionC
 ### The implementation
 
 - **`test/helpers/events.ts`** gains `mined(provider, tx): Promise<Mined>` — `receiptOf`, then
-  the receipt attached (`Object.assign(tx, { receipt })`; ethers' `wait` stays on the object).
-  `book.ts`'s private `mined` is deleted in its favour; `receiptOf` stays for the raw sends that
-  remain (`Liquidation.maxLiquidationAmount.maxPd.test.ts:140-149` gathers four liquidations in
+  the receipt attached (`Object.assign(tx, { receipt, wait: async () => receipt })`: the attached
+  receipt is what `wait()` resolves, so nothing polls after an `evm_revert`). `receiptOf` polls
+  with a 10 s deadline and rejects naming the hash — a transaction the node will not mine fails
+  in seconds, not at mocha's 30 s. `book.ts`'s private `mined` is deleted in its favour;
+  `receiptOf` stays for the raw sends that remain (`Liquidation.maxLiquidationAmount.maxPd.test.ts:140-149` gathers four liquidations in
   one block with automine off — a verb that waits would hang there; the two commits of
   `Liquidation.flag.test.ts:166` and `PositionChange.gate.test.ts:492`).
 - **Each free form waits through its contract's provider** (`systems().PerpsMarket.provider`,
@@ -239,7 +241,7 @@ it('closes the position and leaves no open market behind', () => assertPositionC
 | --- | --- | --- |
 | `Position/PositionChange.test.ts` | `:220`, `:235` bare `liquidate`; `:231` `mockSetCurrentPrice(bn(5))` | `liquidate(…)`; `crash(market, bn(5))` |
 | `Liquidation/Liquidation.reward.test.ts` | `:96-99` `receiptOf(provider(), await …liquidate(ACCOUNT))` | `const tx = await liquidate(ACCOUNT)`, events from `tx.receipt`; `sink` unchanged — `crash` waits now |
-| `Account/ModifyCollateral.deposit.test.ts` | `:80` bare `modifyCollateral` | `depositMargin(trader1(), accountIds[0], oneBTC, synthBTCMarketId)` (the verb sets the allowance to the amount, as Foundry's does; the test's own approve hook before it is redundant and goes) |
+| `Account/ModifyCollateral.deposit.test.ts` | `:80` bare `modifyCollateral` | `depositMargin(trader1(), accountIds[0], oneBTC, synthBTCMarketId)`, and the snxETH deposit at `:139` likewise — the same word in the same file; the approve hook goes, the verb sets each allowance |
 | `Orders/OffchainAsyncOrder.pending.test.ts` | `:107` `settleOrder({…})`; `:117` bare `modifyCollateral` | `settleOrder(2, bn(1000))`; `depositMargin(trader1(), 2, bn(10))` |
 | `Liquidation/Liquidation.flag.test.ts` | `:169` local `liquidate`; `:166` commit's `tx.wait()`; `:358` `modifyCollateral(…).wait()`; `:369` `liquidateMarginOnly(…).wait()` | the verb; `receiptOf`; `depositMargin`; `liquidateMarginOnly` (gas from `tx.receipt.gasUsed`) |
 | `Position/PositionChange.gate.test.ts` | `:182` local `liquidate`; `:492` commit's `tx.wait()` | the verb; `receiptOf` |
@@ -261,9 +263,10 @@ moved files stay as they are (rule 4).
 | --- | --- | --- |
 | tests that wait for a receipt themselves | 15 `.wait()` in 8 files, 6 `receiptOf` | 0 `.wait()`; `receiptOf` only around raw sends that must stay raw |
 | the verb `liquidate` | written 3 times locally, 23 bare sends | one field of the adapter |
-| `PositionChange.test.ts:239` full liquidation | red in about 1 of 3 directory runs | green in N of N — measured, not asserted (Verification) |
+| `PositionChange.test.ts:239` full liquidation | red in about 1 of 3 directory runs on 02.09; 0 of 7 on this tree | green in 7 of 7 — measured, not asserted (Verification) |
 | `Liquidation.reward.test.ts` `sink` | `canLiquidate` false once in a directory run | the same |
 | one implementation of "wait for the receipt" | `events.ts`, `book.ts`, `getTxTime`, 15 hand-waits | `events.ts` (`getTxTime` is core-utils' and stays) |
+| the vocabulary, verb by verb | — | `Stand.vocabulary.test.ts`: the first read after each verb, a mined transaction after a restore, the revert at the send |
 | the Foundry stand | `forge test`, 8 suites | unchanged |
 
 ## Documents in this repo
@@ -282,16 +285,24 @@ moved files stay as they are (rule 4).
 ## Verification
 
 - **The flake's frequency, on the unchanged tree first.** From `markets/perps-market`,
-  `CANNON_REGISTRY_PRIORITY=local bun x hardhat test 'test/integration/Position/*.test.ts'`
+  `CANNON_REGISTRY_PRIORITY=local bun x hardhat test $(ls test/integration/Position/*.test.ts)`
   seven times, counting the runs in which `PositionChange.test.ts` "full liquidation" fails;
-  the same for the `'test/integration/Liquidation/*.test.ts'` glob, counting `sink`'s
-  `canLiquidate` failure by name (the directory's own before-all flake is noise here; the
-  reward file alone was 3 of 3 green). Then the same runs after the change. One run before and
-  one after proves nothing: the 02.09 measurement was 4 of 7 on the unchanged tree.
+  the `Liquidation/` glob three times, counting `sink`'s `canLiquidate` failure by name — the
+  reward `sink` was seen once and does not reproduce alone (3 of 3 green), so the `crash`
+  mutation probe is the evidence there. Then the same runs after the change. Measured on this
+  branch: `Position/` base 0 of 7 red at "full liquidation", after 0 of 7 — the 02.09 race did
+  not reproduce on either tree, so the `liquidate` mutation probe is the evidence for that site;
+  the after-runs found one red in seven at a fifth site of the same shape,
+  `PositionChange.quote` (`setMaxBookPriceDeviation` then a view read), wrapped in `receiptOf`
+  since. `Liquidation/` base 0 of 3, after 0 of 3.
 - **The whole Hardhat suite by directory** — the adapter changed under every file:
   `Liquidation/` and `Orders/` file by file, `KeeperRewards/`, `Position/`, `Account/`,
-  `Market/`, `Markets/`, and the three files at the root of `test/integration/`. Known base flakes: the four races are expected to go; the Cannon
-  registry one stays known.
+  `Market/`, `Markets/`, and the four files at the root of `test/integration/` (the pin among
+  them). The four races are expected to go. What this branch's runs actually left is
+  load-shaped, not a race: `"before all" hook` timeouts in `PositionChange.quote`,
+  `Liquidation.marginOnly` and `Liquidation.multi-collateral`, each in a run of two to three
+  times the normal wall time; the Cannon registry flake of `OffchainAsyncOrder.cancel` stays
+  known too.
 - **Foundry:** `PROTO_LOG=off pnpm build-testable:foundry`, then `forge test` — eight suites,
   unchanged; `git diff --stat origin/main -- markets/perps-market/tests` is empty.
 - **Mutation probes, restored after:** drop the wait from `liquidate` in `verbs.ts` → the
@@ -299,7 +310,10 @@ moved files stay as they are (rule 4).
   the reward test's `sink` reddens; make `depositMargin` skip the approve → the deposit test's
   synth deposit reverts.
 - **The pin:** `grep -rn '\.wait()' markets/perps-market/test/integration` prints nothing;
-  `grep -rn 'const liquidate = ' markets/perps-market/test/integration` prints nothing.
+  `grep -rn 'const liquidate = ' markets/perps-market/test/integration` prints nothing;
+  `grep -rn 'connect(keeper()).liquidate(' markets/perps-market/test/integration` prints only
+  sites inside an `assertRevert`, maxPd's automine block, and sends whose next consumer waits
+  for the receipt itself (`getTxTime`, `assertEvent`, `receiptOf`).
 - **No contract diff:** `git diff --stat origin/main -- markets/perps-market/contracts` is empty;
   no `storage:dump`.
 
@@ -313,5 +327,7 @@ moved files stay as they are (rule 4).
   `Liquidation.strictStaleness` tests.
 - Verbs for the doors' own entries — `commitOrder`, `cancelOrder`, `liquidateFlagged` (8 sites),
   withdrawals — and any addition to the Foundry adapter.
+- The 15 keeper `liquidate` sends whose consumer waits for the receipt (`getTxTime`,
+  `assertEvent`, `receiptOf`) — not races; the same word could take the verb in a follow-up.
 - Renaming the free `openPosition`; the review's card 6 (the Foundry proxy composition), which
   is why the async door has no Foundry twin.
