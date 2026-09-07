@@ -5,41 +5,43 @@ import { fastForwardTo, getTxTime } from '@synthetixio/core-utils/utils/hardhat/
 import { ethers } from 'ethers';
 
 describe('Liquidation - max liquidatable amount', () => {
-  const { systems, provider, trader1, trader2, keeper, perpsMarkets } = bootstrapMarkets({
-    liquidationGuards: {
-      minLiquidationReward: bn(5),
-      minKeeperProfitRatioD18: bn(0),
-      maxLiquidationReward: bn(1000),
-      maxKeeperScalingRatioD18: bn(0),
-    },
-    synthMarkets: [],
-    perpsMarkets: [
-      {
-        requestedMarketId: 50,
-        name: 'Optimism',
-        token: 'OP',
-        price: bn(10),
-        orderFees: {
-          makerFee: bn(0.007),
-          takerFee: bn(0.003),
-        },
-        fundingParams: { skewScale: bn(1000), maxFundingVelocity: bn(0) },
-        liquidationParams: {
-          initialMarginFraction: bn(3),
-          minimumInitialMarginRatio: bn(0),
-          maintenanceMarginScalar: bn(0.5),
-          maxLiquidationLimitAccumulationMultiplier: bn(1),
-          liquidationRewardRatio: bn(0.05),
-          maxSecondsInLiquidationWindow: ethers.BigNumber.from(10),
-          minimumPositionMargin: bn(0),
-        },
-        settlementStrategy: {
-          settlementReward: bn(0),
-        },
+  const { systems, provider, trader1, trader2, keeper, perpsMarkets, liquidate } = bootstrapMarkets(
+    {
+      liquidationGuards: {
+        minLiquidationReward: bn(5),
+        minKeeperProfitRatioD18: bn(0),
+        maxLiquidationReward: bn(1000),
+        maxKeeperScalingRatioD18: bn(0),
       },
-    ],
-    traderAccountIds: [2, 3],
-  });
+      synthMarkets: [],
+      perpsMarkets: [
+        {
+          requestedMarketId: 50,
+          name: 'Optimism',
+          token: 'OP',
+          price: bn(10),
+          orderFees: {
+            makerFee: bn(0.007),
+            takerFee: bn(0.003),
+          },
+          fundingParams: { skewScale: bn(1000), maxFundingVelocity: bn(0) },
+          liquidationParams: {
+            initialMarginFraction: bn(3),
+            minimumInitialMarginRatio: bn(0),
+            maintenanceMarginScalar: bn(0.5),
+            maxLiquidationLimitAccumulationMultiplier: bn(1),
+            liquidationRewardRatio: bn(0.05),
+            maxSecondsInLiquidationWindow: ethers.BigNumber.from(10),
+            minimumPositionMargin: bn(0),
+          },
+          settlementStrategy: {
+            settlementReward: bn(0),
+          },
+        },
+      ],
+      traderAccountIds: [2, 3],
+    }
+  );
 
   let perpsMarket: PerpsMarket;
   before('identify actors', () => {
@@ -102,7 +104,7 @@ describe('Liquidation - max liquidatable amount', () => {
       let initialKeeperBalance: ethers.BigNumber;
       before('call liquidate', async () => {
         initialKeeperBalance = await systems().USD.balanceOf(await keeper().getAddress());
-        await systems().PerpsMarket.connect(keeper()).liquidate(2);
+        await liquidate(2);
       });
 
       it('liquidated nothing', async () => {
@@ -125,7 +127,7 @@ describe('Liquidation - max liquidatable amount', () => {
     });
     // liquidate call does nothing
     before('call liquidate', async () => {
-      await systems().PerpsMarket.connect(keeper()).liquidate(2);
+      await liquidate(2);
     });
 
     it('liquidated nothing', async () => {
@@ -141,7 +143,7 @@ describe('Liquidation - max liquidatable amount', () => {
     });
     // liquidate call liquidate the rest
     before('call liquidate', async () => {
-      await systems().PerpsMarket.connect(keeper()).liquidate(2);
+      await liquidate(2);
     });
 
     it('liquidated the rest', async () => {
@@ -153,7 +155,7 @@ describe('Liquidation - max liquidatable amount', () => {
   // liquidated 50 OP of first trader, 50 more left
   describe('liquidate second trader', () => {
     before('call liquidate', async () => {
-      await systems().PerpsMarket.connect(keeper()).liquidate(3);
+      await liquidate(3);
     });
 
     it('liquidated only 50 OP, 100 OP left', async () => {
@@ -170,7 +172,7 @@ describe('Liquidation - max liquidatable amount', () => {
     });
     // liquidate call liquidate the rest
     before('call liquidate', async () => {
-      await systems().PerpsMarket.connect(keeper()).liquidate(3);
+      await liquidate(3);
     });
 
     it('liquidated the rest', async () => {

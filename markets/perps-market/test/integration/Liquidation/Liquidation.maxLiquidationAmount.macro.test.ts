@@ -5,36 +5,38 @@ import assertBn from '@synthetixio/core-utils/src/utils/assertions/assert-bignum
 import { ethers } from 'ethers';
 
 describe('Liquidation - max liquidatable amount with multiple continuing liquidations', () => {
-  const { systems, provider, trader1, trader2, keeper, perpsMarkets } = bootstrapMarkets({
-    synthMarkets: [],
-    perpsMarkets: [
-      {
-        requestedMarketId: 50,
-        name: 'Optimism',
-        token: 'OP',
-        price: bn(10),
-        orderFees: {
-          makerFee: bn(0.007),
-          takerFee: bn(0.003),
+  const { systems, provider, trader1, trader2, keeper, perpsMarkets, liquidate } = bootstrapMarkets(
+    {
+      synthMarkets: [],
+      perpsMarkets: [
+        {
+          requestedMarketId: 50,
+          name: 'Optimism',
+          token: 'OP',
+          price: bn(10),
+          orderFees: {
+            makerFee: bn(0.007),
+            takerFee: bn(0.003),
+          },
+          fundingParams: { skewScale: bn(1000), maxFundingVelocity: bn(0) },
+          liquidationParams: {
+            initialMarginFraction: bn(1),
+            minimumInitialMarginRatio: bn(0),
+            maintenanceMarginScalar: bn(0.66),
+            maxLiquidationLimitAccumulationMultiplier: bn(1),
+            liquidationRewardRatio: bn(0.01),
+            // time window 30 seconds
+            maxSecondsInLiquidationWindow: ethers.BigNumber.from(30),
+            minimumPositionMargin: bn(0),
+          },
+          settlementStrategy: {
+            settlementReward: bn(0),
+          },
         },
-        fundingParams: { skewScale: bn(1000), maxFundingVelocity: bn(0) },
-        liquidationParams: {
-          initialMarginFraction: bn(1),
-          minimumInitialMarginRatio: bn(0),
-          maintenanceMarginScalar: bn(0.66),
-          maxLiquidationLimitAccumulationMultiplier: bn(1),
-          liquidationRewardRatio: bn(0.01),
-          // time window 30 seconds
-          maxSecondsInLiquidationWindow: ethers.BigNumber.from(30),
-          minimumPositionMargin: bn(0),
-        },
-        settlementStrategy: {
-          settlementReward: bn(0),
-        },
-      },
-    ],
-    traderAccountIds: [2, 3],
-  });
+      ],
+      traderAccountIds: [2, 3],
+    }
+  );
 
   let perpsMarket: PerpsMarket;
   before('identify actors', () => {
@@ -216,7 +218,7 @@ describe('Liquidation - max liquidatable amount with multiple continuing liquida
 
   describe('liquidate second trader', () => {
     before('call liquidate', async () => {
-      await systems().PerpsMarket.connect(keeper()).liquidate(3);
+      await liquidate(3);
     });
 
     it('liquidated only 270, 20 left', async () => {

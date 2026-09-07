@@ -4,7 +4,7 @@ import { crash, openPosition } from '../../helpers';
 import assertBn from '@synthetixio/core-utils/src/utils/assertions/assert-bignumber';
 
 describe('Liquidation - endorsed liquidator', () => {
-  const { systems, provider, owner, trader1, keeper, perpsMarkets } = bootstrapMarkets({
+  const { systems, provider, owner, trader1, keeper, perpsMarkets, liquidate } = bootstrapMarkets({
     synthMarkets: [],
     perpsMarkets: [
       {
@@ -81,7 +81,7 @@ describe('Liquidation - endorsed liquidator', () => {
     });
 
     before('call liquidate', async () => {
-      await systems().PerpsMarket.connect(keeper()).liquidate(2);
+      await liquidate(2);
     });
 
     it('liquidated entire position', async () => {

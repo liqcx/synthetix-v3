@@ -7,7 +7,7 @@ import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot
 import { ethers } from 'ethers';
 
 describe('Liquidation - flaggedLiquidation', () => {
-  const { systems, provider, trader1, trader2, trader3, keeper, owner, perpsMarkets } =
+  const { systems, provider, trader1, trader2, trader3, keeper, owner, perpsMarkets, liquidate } =
     bootstrapMarkets({
       liquidationGuards: {
         minLiquidationReward: bn(5),
@@ -168,7 +168,7 @@ describe('Liquidation - flaggedLiquidation', () => {
       before('flag accounts by calling liquidate', async () => {
         for (let i = 0; i < trader2AccountIds.length; i++) {
           const id = trader2AccountIds[i];
-          await systems().PerpsMarket.connect(keeper()).liquidate(id);
+          await liquidate(id);
         }
       });
 
@@ -231,7 +231,7 @@ describe('Liquidation - flaggedLiquidation', () => {
         flaggedAccounts.push(2); // already flagged
         for (let i = 0; i < 10; i++) {
           const id = trader2AccountIds[i];
-          await systems().PerpsMarket.connect(keeper()).liquidate(id);
+          await liquidate(id);
           flaggedAccounts.push(id);
         }
       });
@@ -284,7 +284,7 @@ describe('Liquidation - flaggedLiquidation', () => {
         flaggedAccounts.push(2); // already flagged
         for (let i = 0; i < 10; i++) {
           const id = trader2AccountIds[i];
-          await systems().PerpsMarket.connect(keeper()).liquidate(id);
+          await liquidate(id);
           flaggedAccounts.push(id);
         }
         for (let i = 10; i < 20; i++) {
