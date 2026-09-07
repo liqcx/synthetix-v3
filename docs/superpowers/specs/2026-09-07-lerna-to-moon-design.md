@@ -159,10 +159,15 @@ trivially reviewable follow-up, not here.
 `pnpm -r run X` (topological), the task gets `deps: ['^:X']`. Where it is `pnpm -r --parallel run X`
 — `clean` and `test`, and only those — the task gets no `^` dependency.
 
-**Caching is off for every hardhat/cannon task in this change**, on for `build-ts`. Cannon writes to
-a registry outside the repository; restoring `artifacts/` from moon's cache without the matching
-registry state would manufacture false green. Ordering and `--affected` are computed from `inputs`,
-not from the cache, so neither is lost.
+**Caching is off for every task in this change, `build-ts` included.** For the hardhat/cannon verbs
+the reason is Cannon's registry: it lives outside the repository, so restoring `artifacts/` from
+moon's cache without the matching registry state would manufacture false green. `build-ts` was meant
+to be the one exception, and measurement removed it: a task that declares `inputs` but no `outputs`
+serves a cache hit that reports success while producing nothing (probed — build, delete `dist`, run
+again: `2 completed (2 cached)`, `dist` still gone). Declaring outputs would fix
+`utils/hardhat-storage` (`../dist`) but not `utils/core-utils`, whose `outDir: ".."` interleaves emit
+with sources, leaving no directory to name. The verb takes ~170ms; a false-success mode is not worth
+that. Ordering and `--affected` are computed from `inputs`, not from the cache, so neither is lost.
 
 ### package.json cleanup
 

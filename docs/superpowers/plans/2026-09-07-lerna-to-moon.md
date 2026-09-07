@@ -39,7 +39,11 @@ Foundry, GitHub Actions on self-hosted runners.
   This is the safer direction — it is why CI sets the variable job-wide — but it is a change.
   (2) `pnpm -r run X` bails at the first failing package; moon runs every project's task and reports
   all failures. Same outcome, more output.
-- **`cache: false`** on every hardhat/cannon/forge task. Only `build-ts` caches.
+- **`cache: false` on every task, `build-ts` included.** It was planned as the one cached verb;
+  measurement killed that: with `inputs` and no `outputs`, a cache hit reports success while
+  producing nothing (probed — delete `dist`, re-run, `2 completed (2 cached)`, `dist` still gone).
+  `utils/core-utils`'s `outDir: ".."` leaves no output directory to declare, so outputs are not the
+  fix here.
 - **Any project override of an inherited command MUST set `options.mergeArgs: 'replace'`** — moon 2.x
   otherwise appends the inherited args to the overriding command.
 - **`--affected` is out of scope.** CI uses `moon run`, never `moon ci`.
@@ -508,7 +512,10 @@ tasks:
       - 'src/tsconfig.json'
       - '/tsconfig.json'
     options:
-      cache: true
+      # NOT cached. `inputs` without `outputs` makes a cache hit report success
+      # having produced nothing — probed by deleting dist and re-running. Outputs
+      # cannot be declared for core-utils, whose outDir is the package root.
+      cache: false
 
   build:
     command: 'noop'
