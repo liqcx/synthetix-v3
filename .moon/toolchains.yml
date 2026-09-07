@@ -9,5 +9,7 @@ javascript:
 node: {}
 pnpm: {}
 
-# `typescript` is deliberately absent: this repo has no project references, and
-# syncProjectReferences would rewrite 29 tsconfigs.
+# `typescript` is deliberately absent. Measured, not assumed: this repo has 9
+# tsconfig files (7 under packages) and NOT ONE declares a `references` array;
+# two set `composite` that nothing consumes. Enabling syncProjectReferences
+# would have moon start writing references nothing reads.

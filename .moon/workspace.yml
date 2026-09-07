@@ -10,6 +10,10 @@ projects:
     # pnpm-workspace.yaml's own resolution) — the auxiliary/* glob still
     # matches the directory, so it is excluded explicitly.
     - "!auxiliary/TrustedMulticallForwarder"
+    # A file, not a project root — auxiliary/* matches it too and moon warns
+    # on every query. A directory-only glob (auxiliary/*/) does not suppress
+    # this; only the explicit negation does.
+    - "!auxiliary/README.md"
   sources:
     # Third-level packages the globs above cannot reach.
     core-subgraph: "protocol/synthetix/subgraph"
