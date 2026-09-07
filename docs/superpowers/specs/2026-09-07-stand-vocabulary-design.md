@@ -30,8 +30,8 @@ words exist as free functions in `test/helpers/*`, and each takes the adapter ba
 - The adapter's own words return at the send, not the mine. `crash` (`test/helpers/price.ts`)
   returns `mockSetCurrentPrice`'s send; `settleOrder`, `openBookAccount`, `openOnchainAccount`
   return theirs. Only `openPosition` (through `getTxTime`) and `settleBook` (through its own
-  `mined`) wait. The raw proxy calls in tests never wait: 23 bare `liquidate` sends in eight files
-  are followed by a read of the state the liquidation changed, 73 bare `modifyCollateral` sends
+  `mined`) wait. The raw proxy calls in tests never wait: 24 bare `liquidate` sends in twelve
+  files are followed by a read of the state the liquidation changed, 73 bare `modifyCollateral` sends
   and 62 bare `mockSetCurrentPrice` sends likewise.
 - Tests that know about the race write the verb themselves. Three files carry the same local
   `liquidate = async (id) => { const tx = await …liquidate(id); await tx.wait(); }`
@@ -157,7 +157,8 @@ Beside today's getters (`systems`, `signers`, `provider`, `owner`, `trader1..3`,
  *  before; the events are on `tx.receipt`. */
 type Mined = ethers.ContractTransaction & { receipt: ethers.providers.TransactionReceipt };
 
-/** The verbs of the stand. Every one returns after mining; a revert rejects at the send. */
+/** The verbs of the stand. Every one that sends a transaction returns after mining; a revert
+ *  rejects at the send. */
 type Verbs = {
   // accounts — `bookTrader` / `onchainTrader` / `depositMargin` on Foundry
   openBookAccount(trader: Signer, accountId: number, snxUsd?: BigNumber): Promise<void>;
@@ -242,7 +243,7 @@ it('closes the position and leaves no open market behind', () => assertPositionC
 | `Position/PositionChange.test.ts` | `:220`, `:235` bare `liquidate`; `:231` `mockSetCurrentPrice(bn(5))` | `liquidate(…)`; `crash(market, bn(5))` |
 | `Liquidation/Liquidation.reward.test.ts` | `:96-99` `receiptOf(provider(), await …liquidate(ACCOUNT))` | `const tx = await liquidate(ACCOUNT)`, events from `tx.receipt`; `sink` unchanged — `crash` waits now |
 | `Account/ModifyCollateral.deposit.test.ts` | `:80` bare `modifyCollateral` | `depositMargin(trader1(), accountIds[0], oneBTC, synthBTCMarketId)`, and the snxETH deposit at `:139` likewise — the same word in the same file; the approve hook goes, the verb sets each allowance |
-| `Orders/OffchainAsyncOrder.pending.test.ts` | `:107` `settleOrder({…})`; `:117` bare `modifyCollateral` | `settleOrder(2, bn(1000))`; `depositMargin(trader1(), 2, bn(10))` |
+| `Orders/OffchainAsyncOrder.pending.test.ts` | `:107` `settleOrder({…})`; `:119` bare `modifyCollateral`; `:162` the same bare `modifyCollateral` in the 'after expiration' describe | `settleOrder(2, bn(1000))`; `depositMargin(trader1(), 2, bn(10))` twice — the same word in the same file |
 | `Liquidation/Liquidation.flag.test.ts` | `:169` local `liquidate`; `:166` commit's `tx.wait()`; `:358` `modifyCollateral(…).wait()`; `:369` `liquidateMarginOnly(…).wait()` | the verb; `receiptOf`; `depositMargin`; `liquidateMarginOnly` (gas from `tx.receipt.gasUsed`) |
 | `Position/PositionChange.gate.test.ts` | `:182` local `liquidate`; `:492` commit's `tx.wait()` | the verb; `receiptOf` |
 | `Position/PositionChange.quote.test.ts` | `:152` local `liquidate` | the verb |
@@ -262,24 +263,31 @@ moved files stay as they are (rule 4).
 | what | before | after |
 | --- | --- | --- |
 | tests that wait for a receipt themselves | 15 `.wait()` in 8 files, 6 `receiptOf` | 0 `.wait()`; `receiptOf` only around raw sends that must stay raw |
-| the verb `liquidate` | written 3 times locally, 23 bare sends | one field of the adapter |
+| the verb `liquidate` | written 3 times locally, 24 bare sends before a read | one field of the adapter |
 | `PositionChange.test.ts:239` full liquidation | red in about 1 of 3 directory runs on 02.09; 0 of 7 on this tree | green in 7 of 7 — measured, not asserted (Verification) |
 | `Liquidation.reward.test.ts` `sink` | `canLiquidate` false once in a directory run | the same |
 | one implementation of "wait for the receipt" | `events.ts`, `book.ts`, `getTxTime`, 15 hand-waits | `events.ts` (`getTxTime` is core-utils' and stays) |
-| the vocabulary, verb by verb | — | `Stand.vocabulary.test.ts`: the first read after each verb, a mined transaction after a restore, the revert at the send |
+| the vocabulary, verb by verb | — | `Stand.vocabulary.test.ts`: `tx.receipt` on the synth deposit, the liquidation and the transaction after a restore; `receiptOf` giving up inside its budget; the revert at the send |
 | the Foundry stand | `forge test`, 8 suites | unchanged |
 
 ## Documents in this repo
 
 - `docs/superpowers/specs/2026-09-03-one-stand-two-adapters-design.md`: an amendment note after
-  `**Status:**` — "**Amended 2026-09-07** (review card 1): the helpers are the adapter's verbs,
-  fields of `bootstrapMarkets()`'s return, and every one returns after mining
-  (`2026-09-07-stand-vocabulary-design.md`); the free forms stay for their callers. The cycle
-  that placed them as free functions ended with the description's settlement strategy (card 2)."
+  the `**Amended 2026-09-06**` paragraph, as shipped:
+
+  > **Amended 2026-09-07** (review card 1): the helpers are the adapter's verbs — fields of
+  > `bootstrapMarkets()`'s return, bound over `systems`, `keeper` and `provider` — and every one
+  > that sends a transaction returns after mining, the transaction with its receipt (`Mined`);
+  > `bookOrder` only builds an order and `openOnchainPosition` returns its `Mined` as `settleTx`
+  > (`2026-09-07-stand-vocabulary-design.md`). The free forms stay for their callers. The cycle
+  > that placed them as free functions ended with the description's settlement strategy (card 2
+  > of 05.09): `computeFees` reads the reward from `bootstrap/stand.ts`.
 - `docs/TESTING.md`, the paragraph "Сценарий поверх протокола …": the vocabulary is the return
   of `bootstrapMarkets()` on Hardhat and `BootstrapTest` on Foundry; the names on both stands
   and the Hardhat-only `openOnchainPosition`, `settleOrder`, `liquidate`,
-  `liquidateMarginOnly`; every verb returns after mining, and no test waits for a receipt itself.
+  `liquidateMarginOnly`; every verb that sends a transaction returns after mining (`bookOrder`
+  builds an order, `openOnchainPosition`'s `Mined` is its `settleTx`), and no test waits for a
+  receipt itself.
 - This spec.
 
 ## Verification

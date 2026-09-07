@@ -215,12 +215,18 @@ Hardhat-стенд: `build-testable` генерирует из `cannonfile.test.
 (`test/bootstrap/verbs.ts`): `openBookAccount`, `openOnchainAccount`, `depositMargin`,
 `openOnchainPosition`, `settleOrder`, `openBookPosition`, `settleBook`, `liquidate`,
 `liquidateMarginOnly`, `crash`, `bookOrder`; тест деструктурирует их рядом с `trader1` и
-`perpsMarkets` и не носит `systems`/`keeper`/`provider` сам. Каждый глагол возвращает после
-майнинга — транзакцию с приложенным чеком (`Mined`, `test/helpers/events.ts`), так что чтение
-сразу за глаголом видит его состояние; ни один тест не ждёт чек сам (`tx.wait()` в
-`test/integration` нет: после `evm_revert` он виснет, сырые отправки ждут через `receiptOf`).
-На Foundry те же слова даёт наследование от `BootstrapTest` там, где шаг есть у обоих стендов
-(`bookTrader`/`onchainTrader`, `depositMargin`, `openBookPosition`, `settleBook`, `crash`);
+`perpsMarkets` и не передаёт `systems`/`keeper`/`provider` обратно глаголу — чтения остаются на
+прокси, через `systems()` (`test/bootstrap/verbs.ts:36-37`). Каждый глагол, который отправляет
+транзакцию, возвращает после майнинга — транзакцию с приложенным чеком (`Mined`,
+`test/helpers/events.ts`), так что чтение сразу за глаголом видит его состояние; `bookOrder`
+только строит заявку и ничего не отправляет (`test/helpers/book.ts:20-25`), а
+`openOnchainPosition` возвращает `{ commitmentTime, settleTime, settleTx }`, где `Mined` — это
+`settleTx`. Ни один тест не ждёт чек сам (`tx.wait()` в `test/integration` нет: после
+`evm_revert` он виснет, сырые отправки ждут через `receiptOf`).
+На Foundry те же слова даёт наследование от `BootstrapTest` там, где шаг есть у обоих стендов:
+`depositMargin`, `openBookPosition`, `settleBook`, `crash`, `bookOrder`
+(`tests/Bootstrap.t.sol:478`) и `openBookAccount` (`:447` — там он только создаёт аккаунт, без
+фондирования; фондируют `bookTrader` и `onchainTrader`);
 `openOnchainPosition`, `settleOrder`, `liquidate`, `liquidateMarginOnly` — только Hardhat:
 Foundry-прокси не маршрутизирует асинхронную дверь, а `liquidate` там — сам вызов прокси.
 Пин словаря — `test/integration/Stand.vocabulary.test.ts`. Свободные формы с объектным
