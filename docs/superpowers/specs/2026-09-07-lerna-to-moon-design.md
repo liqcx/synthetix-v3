@@ -222,8 +222,11 @@ available to this fork, versions are bumped by hand in a commit, and Cannon publ
 the merge-base block) and `size-contracts` become `moon run :<same name>`. The Foundry loop becomes
 explicit moon targets — this is precisely the case its comment describes ("Package scripts are
 inconsistent (forge-test / forge-coverage / test), so call forge directly"), and one inherited verb
-resolves it. `RewardsDistributor` and `RewardsDistributorExternal` are **not** tagged `foundry`:
-they do not compile (forge-std mocks), and a tag would pull them into `moon run :forge-test`.
+resolves it. `RewardsDistributor` and `RewardsDistributorExternal` **are** tagged `foundry` — they own a
+`forge-test` script, so parity requires they own the task — and CI keeps them out by naming its
+targets explicitly, never by withholding the task. `moon run :forge-test` therefore fans out to two
+packages that do not compile (forge-std ships no `src/mocks/` in any tagged release), exactly as
+`pnpm -r run forge-test` does today.
 
 `nightly-contracts.yml`: the three build steps become `moon run :…`. `run-suites.sh` is **not**
 touched — its batching exists because Anvil degrades after ~30 test files in one process, which moon

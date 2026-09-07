@@ -463,6 +463,11 @@ tasks:
       cache: false
 
   # Root runs clean with --parallel: no `^` dependency.
+  #
+  # Two bodies exist at the baseline, and the split matters: six packages
+  # (PythERC7412Wrapper, perps-market, spot-market, oracle-manager, synthetix,
+  # core-modules) also wipe generated Solidity. They override this task; the
+  # task-set gate cannot see a wrong body, which is why the body gate exists.
   clean:
     command: 'bun x hardhat clean'
     options:
@@ -889,6 +894,12 @@ $schema: 'https://moonrepo.dev/schemas/project.json'
 # removed in the package.json cleanup — this comment is the surviving record.
 ```
 
+Task-set parity is necessary but not sufficient: it compares WHICH projects own a verb, never what
+the verb runs. A second gate comparing each task's resolved body against the baseline script's body
+(modulo the `yarn`→`pnpm run` rewrite and the inlined dump) catches an override that silently
+changes behaviour. Write it, and mutation-probe it by deleting one `clean` override: the body gate
+must go red while the task-set gate stays green.
+
 - [ ] **Step 7: Run the parity gate until it passes**
 
 ```bash
@@ -911,11 +922,20 @@ moon run treasury-market:forge-test
 Expected: both pass — these are the two Foundry suites `ci.yml` runs today.
 
 ```bash
-moon run core-utils:test
 moon run hardhat-storage:test
 ```
 
-Expected: both pass (mocha and jest respectively).
+Expected: passes (jest).
+
+```bash
+moon run core-utils:test
+```
+
+Expected: **fails**, and must fail identically without moon — verified:
+`cd utils/core-utils && bun x mocha --require ts-node/register` dies with
+`ERR_IMPORT_ATTRIBUTE_MISSING` on `test/fixtures/dummy-abi.json` under Node 24. This is a second
+pre-existing red alongside `storage:dump`, not something this task introduced and not something to
+fix here. Record the identical failure of both invocations in the report.
 
 - [ ] **Step 9: Commit**
 
