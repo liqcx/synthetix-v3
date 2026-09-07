@@ -43,16 +43,13 @@
     "deps:fix": "deps --fix",
     "deps:mismatched": "deps-mismatched",
     "deps:circular": "deps-circular",
-    "publish:release": "lerna publish --force-publish",
-    "publish:dev": "lerna publish from-package --force-publish --dist-tag dev --no-git-reset",
-    "version:dev": "lerna version 0.0.0-dev.$(git rev-parse --short HEAD) --no-changelog --no-push --no-git-tag-version --force-publish --allow-branch $(git branch --show-current)",
     "publish-contracts": "pnpm -r run publish-contracts",
     "docgen:contracts": "pnpm clean && pnpm -r run docgen && pnpm --filter @synthetixio/docgen run docgen:contracts",
     "subgraph:codegen": "pnpm -r run subgraph:codegen",
     "subgraph:build": "pnpm -r run subgraph:build",
     "check-staged": "lint-staged",
     "copy-storage": "bash -c 'for f in $(find . -name 'storage.new.dump.json'); do cp $f $(dirname $f)/storage.dump.json; git add $(dirname $f)/storage.dump.json; done'",
-    "changed": "lerna changed --long",
+    "changed": "moon query projects --affected",
     "audit": "pnpm audit --audit-level high",
     "cannon:update": "pnpm up -r @usecannon/builder@npm:@alxwlw/cannon-builder@${CANNON_TAG:-nonce} @usecannon/cli@npm:@alxwlw/cannon-cli@${CANNON_TAG:-nonce} && pnpm dedupe"
   },
@@ -61,10 +58,6 @@
     "@eslint/js": "^9.9.1",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/providers": "^5.7.2",
-    "@lerna-lite/changed": "^3.3.0",
-    "@lerna-lite/cli": "^3.3.0",
-    "@lerna-lite/exec": "^3.3.0",
-    "@lerna-lite/publish": "^3.3.0",
     "@liqcx/tooling-sync": "^0.7.0",
     "@nomiclabs/hardhat-ethers": "^2.2.3",
     "@synthetixio/deps": "workspace:*",
@@ -119,14 +112,6 @@
     "*.json": "pnpm exec prettier --check",
     "*.md": "pnpm exec prettier --check"
   },
-  "workspaces": [
-    "utils/**",
-    "protocol/**",
-    "markets/**",
-    "auxiliary/**",
-    "!auxiliary/*/lib/**",
-    "!auxiliary/*/lib/openzeppelin-contracts/**"
-  ],
   "engines": {
     "node": ">=22.13.0"
   },
