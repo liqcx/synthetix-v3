@@ -105,7 +105,7 @@ Four inherited task files under `.moon/tasks/`, selected by `inheritedBy: tags:`
 
 | Tag | Projects | Dominant verbs |
 | --- | --- | --- |
-| `contracts` | 18 | `build`, `build-contracts`, `compile-contracts`, `storage-dump`, `storage-verify`, `check-storage`, `size-contracts`, `build-testable`, `generate-testable`, `test`, `coverage`, `docgen`, `clean`, `publish-contracts`, `deploy` |
+| `contracts` | 18 | `build`, `build-contracts`, `compile-contracts`, `storage-dump`, `storage-verify`, `check-storage`, `size-contracts`, `build-testable`, `generate-testable`, `test`, `coverage`, `docgen`, `clean`, `deploy` (`publish-contracts` is per-project — 17 distinct bodies) |
 | `ts-lib` | `utils/common-config`, `utils/core-utils`, `utils/hardhat-storage` | `build`, `build-ts`, `test` |
 | `foundry` | `markets/perps-market`, `markets/treasury-market`, `auxiliary/RewardsDistributor`, `auxiliary/RewardsDistributorExternal` | `forge-test` |
 | `subgraph` | the 3 subgraph packages | `subgraph-codegen`, `subgraph-build` |
@@ -151,9 +151,39 @@ not from the cache, so neither is lost.
 
 ### package.json cleanup
 
-A script is deleted **if and only if its body moved wholesale into a moon task**. Package-specific
-scripts that a task override calls (`build-testable:foundry`, `test:isolated`, `anvil-clean`) stay.
-Surviving scripts that still call `yarn` are changed to `pnpm`.
+**Only the orchestrated verbs move.** The migration covers the 19 verbs the root package.json
+orchestrates plus `forge-test` (which CI runs) and `deploy`: `build`, `build:contracts`, `build:ts`,
+`compile-contracts`, `storage:dump`, `storage:verify`, `check:storage`, `size-contracts`,
+`build-testable`, `generate-testable`, `test`, `coverage`, `clean`, `docgen`, `publish-contracts`,
+`deploy`, `forge-test`, `subgraph:codegen`, `subgraph:build`. Package-local scripts that no root
+script drives — the subgraph deploy helpers (`alchemy:*`, `goldsky:*`, `auth`, `graph`,
+`create-local`), `test:fork`, `coverage1`, `start`, `cannon-build`, `abis`, `watch`,
+`prepublishOnly`, `test:isolated`, `anvil-clean`, `build-testable:foundry`, `fmt`, `cov`,
+`forge-coverage` — **stay in package.json**. Putting `alchemy:base-sepolia-andromeda` behind a moon
+task would be churn with no orchestration behind it.
+
+A migrated script is deleted **if and only if its body moved wholesale into a moon task**. Surviving
+scripts that still call `yarn` are changed to `pnpm run`.
+
+Three bodies do not reduce to one tag-level command, and the plan states how each is expressed:
+
+- **`build:contracts` inlines the dump.** Its body is `compile --force && yarn storage:dump &&
+  cannon:build`; the middle step needs the freshly compiled artifacts, so it cannot become a moon
+  `deps` edge (deps run *before* the task). The tag task is a `script:` with the three commands in
+  order, the dump written out literally. `auxiliary/OwnedFeeCollector` overrides it — its body has
+  no dump step.
+- **`publish-contracts` is per-project.** All 17 bodies differ (each names its own Cannon package),
+  so there is nothing to hoist: each project's `moon.yml` carries its own one-line command, copied
+  verbatim.
+- **`deploy` is a `script:`** — `moon run $project:build && moon run $project:publish-contracts`,
+  a faithful translation of `yarn build && yarn publish-contracts` that keeps the ordering a `deps`
+  pair would not guarantee, and leaves what `publish-contracts` alone does unchanged.
+- **`build` is a `noop`** with `deps: ['build-contracts']` (or `['build-ts']` for `ts-lib`), which is
+  exactly what the 17 `yarn build:contracts` aliases mean. `RewardsDistributor*` (`cannon build`) and
+  `Faucet` (`forge build`) override it.
+
+`script:`, `env:`, `command: 'noop'`, same-project `deps` and the `$project` token were each
+exercised against moon 2.2.5 on a throwaway workspace before being written here.
 
 The `SKIP.` prefix convention disappears: `markets/bfp-market` (19 entries) and `protocol/governance`
 (15) use it to opt out of `pnpm -r`, and in moon the same thing is said by carrying no tasks. Both
@@ -200,8 +230,8 @@ Parity is measured, not asserted.
 
 1. `moon query projects` lists 32 projects; `moon project-graph` edges match the declared
    dependencies.
-2. **Task-set parity:** for every project, the set of moon tasks equals the set of package.json
-   scripts, under the rename map above. The oracle is regenerated from git, not from a scratch file,
+2. **Task-set parity:** for every migrated verb, the set of projects owning the moon task equals the
+   set of packages that owned the script, under the rename map above. The oracle is regenerated from git, not from a scratch file,
    so it survives any session: for each package, `git show 6835e6fa:<pkg>/package.json` and read its
    `scripts` keys, dropping the `SKIP.`-prefixed ones — 324 `(project, script)` pairs. The
    generated list is committed as `docs/superpowers/plans/2026-09-07-lerna-to-moon-baseline.txt`
