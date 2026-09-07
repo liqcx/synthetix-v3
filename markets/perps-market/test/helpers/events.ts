@@ -7,17 +7,34 @@ import { ethers } from 'ethers';
  */
 
 /**
+ * How long `receiptOf` asks the node before it gives up. Well under mocha's 30 s, so a
+ * transaction that will never be mined fails as itself — naming the hash — instead of as the
+ * test's timeout, and the poll stops issuing RPC instead of outliving the test that started it.
+ */
+const RECEIPT_DEADLINE_MS = 10_000;
+
+/**
  * Not `tx.wait()`: after a snapshot restore (every `snapshotCheckpoint`/`evm_revert`) ethers
  * keeps its block-number cache at the pre-revert height and its poller sleeps until the chain
  * passes it again, so `wait` hangs for the test's timeout whenever the receipt is not there at
- * the first look. Ask the node for the receipt directly.
+ * the first look. Ask the node for the receipt directly, and stop asking at the deadline: a
+ * transaction the node never mines has no receipt to wait for, ever.
+ *
+ * @throws Error when the node has no receipt for `tx.hash` within `RECEIPT_DEADLINE_MS`.
  */
 export const receiptOf = async (
   provider: ethers.providers.Provider,
   tx: ethers.ContractTransaction
 ): Promise<ethers.providers.TransactionReceipt> => {
+  const deadline = Date.now() + RECEIPT_DEADLINE_MS;
   let receipt: ethers.providers.TransactionReceipt | null = null;
   while ((receipt = await provider.getTransactionReceipt(tx.hash)) === null) {
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `receiptOf: the node has no receipt for ${tx.hash} after ${RECEIPT_DEADLINE_MS} ms — ` +
+          'it was never mined, or a snapshot restore discarded it'
+      );
+    }
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
   return receipt;
