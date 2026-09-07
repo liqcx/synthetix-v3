@@ -1085,9 +1085,10 @@ Expected: **fails**, with the P3b symptoms — `Cannot find module 'axios'` (11 
 declare what their Solidity imports). This is the pre-existing failure, not a regression. Record the
 output in the task report. Do not "fix" it here.
 
-**The failure will be louder than on `main`, and that is expected:** `pnpm -r run` bails at the first
-failing package, while moon runs every project and reports all of them. Expect several
-`Cannot find module` blocks where `main` showed one. A differing *count* is not a regression; a
+**The failure shape differs slightly from `main`, and that is expected:** `pnpm -r run` bails at the
+first failing package; moon's pipeline also aborts, but after the first few of the sixteen owners
+rather than the very first — measured from moon's `runReport.json`, not predicted. Expect a handful
+of `Cannot find module` blocks where `main` showed one. A differing *count* is not a regression; a
 differing *symptom* would be.
 
 - [ ] **Step 7: Commit — and watch the hook run**
@@ -1255,8 +1256,15 @@ scripts are shims keeping their colon names, and that moon task ids cannot conta
 - [ ] **Step 3: Update CLAUDE.md's build section**
 
 Under "Build & Test Commands", note that the workspace runs on moon: `moon run :<task>` for every
-project, `moon run <project>:<task>` for one, and that the root `pnpm` scripts are shims. Keep the
-existing per-package `pnpm build:contracts` / `pnpm test` lines — they still work.
+project, `moon run <project>:<task>` for one, and that the root `pnpm` scripts are shims.
+
+**The existing per-package lines are now wrong and must be rewritten, not kept.** `CLAUDE.md:16-17`
+tells the reader to `cd` into a package and run `pnpm build:contracts` / `pnpm test`; those scripts
+no longer exist there. The moon equivalents are `moon run <project>:build-contracts` and
+`moon run <project>:test`. The same stale instruction appears in `docs/TESTING.md` (around lines
+169-170 and 236-239) and `markets/perps-market/subgraph/README.md` (around lines 26-29), and
+`.claude/skills/testing-patterns/SKILL.md:9` points at the TESTING.md recipes — fix all of them in
+this task, and verify the line numbers before editing rather than trusting these.
 
 - [ ] **Step 4: Check the docs gates**
 

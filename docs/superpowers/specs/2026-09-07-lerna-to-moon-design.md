@@ -141,9 +141,10 @@ sets it today. This is the one deliberate departure from parity: the root set it
 `moon run X:compile-contracts` will have it. That is the safer direction — it is why CI sets the
 variable job-wide — but it is a change, and it is recorded rather than smuggled in.
 
-One more difference is inherent to the runner: `pnpm -r run X` bails at the first failing package,
-moon runs every project and reports all failures. The known-red `storage:dump` will therefore print
-several failures where it printed one.
+One more difference is inherent to the runner, and it is smaller than first predicted: `pnpm -r run X`
+bails at the first failing package, and moon aborts its pipeline too — measured on the known-red
+`storage:dump`, moon's own `runReport.json` shows it stopping after the first few of the sixteen
+owners rather than running all of them. Expect a handful of failure blocks, not one and not sixteen.
 
 Where a package's body differs from its tag's (perps-market's `test` ends in `; yarn anvil-clean`,
 its `build-testable` has a Foundry second half, mocha vs jest among the `ts-lib` three), the project
