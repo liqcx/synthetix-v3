@@ -23,6 +23,27 @@ export const receiptOf = async (
   return receipt;
 };
 
+/**
+ * A transaction the node has mined. Its `wait()` resolves the attached receipt at once, so
+ * `assertEvent(tx, …)` and `getTxTime(provider, tx)` take it as any transaction, and the events
+ * are on `tx.receipt` without a provider.
+ */
+export type Mined = ethers.ContractTransaction & { receipt: ethers.providers.TransactionReceipt };
+
+/**
+ * The transaction with its receipt: the node is asked until the receipt is there. Every verb of
+ * the stand returns through this — `test/bootstrap/verbs.ts` and the free forms of this
+ * directory — so the read that follows a verb sees the state the verb left instead of racing
+ * the node's miner for it: the first read after a bare send is served by the block before it.
+ */
+export const mined = async (
+  provider: ethers.providers.Provider,
+  tx: ethers.ContractTransaction
+): Promise<Mined> => {
+  const receipt = await receiptOf(provider, tx);
+  return Object.assign(tx, { receipt, wait: async () => receipt });
+};
+
 /** Every event of that name the receipt holds; logs of another contract are skipped. */
 export const eventsOf = (
   receipt: ethers.providers.TransactionReceipt,

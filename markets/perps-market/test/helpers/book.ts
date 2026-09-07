@@ -1,10 +1,13 @@
 import { ethers } from 'ethers';
-import { Systems } from '../bootstrap';
+import type { Systems } from '../bootstrap';
+import { Mined, mined } from './events';
 
 /**
  * The book vocabulary of the Hardhat stand: orders and batches (accounts are in `accounts.ts`).
  * `tests/Bootstrap.t.sol` exposes the same names to the Foundry tests; neither test suite spells
- * out an order literal or a settle call itself.
+ * out an order literal or a settle call itself. The bound forms — `settleBook(market, orders)`,
+ * `openBookPosition(accountId, market, sizeDelta, price)` — are fields of `bootstrapMarkets()`'s
+ * return (`test/bootstrap/verbs.ts`); the object forms here stay for their callers.
  */
 export type BookOrder = {
   accountId: number;
@@ -29,27 +32,13 @@ type Batch = {
 };
 
 /**
- * Settles a batch as the orderbook would, and waits until it is mined: the reads that follow
+ * Settles a batch as the orderbook would, and returns after it is mined: the reads that follow
  * must see the state the batch left, not race the node's miner for it. A batch that reverts
  * rejects at the send, so `assertRevert(settleBook(...))` reads the revert.
  */
-export const settleBook = async ({ systems, keeper, marketId, orders }: Batch) => {
+export const settleBook = async ({ systems, keeper, marketId, orders }: Batch): Promise<Mined> => {
   const perps = systems().PerpsMarket.connect(keeper);
-  const tx = await perps.settleBookOrders(marketId, orders);
-  await mined(perps.provider, tx.hash);
-  return tx;
-};
-
-/**
- * Not `tx.wait()`: after an `evm_revert` (every `snapshotCheckpoint` restore) ethers keeps its
- * block-number cache at the pre-revert height and its poller sleeps until the chain passes it
- * again, so `wait` hangs for the test's timeout whenever the receipt is not there at the first
- * look. Ask the node for the receipt directly.
- */
-const mined = async (provider: ethers.providers.Provider, hash: string) => {
-  while ((await provider.getTransactionReceipt(hash)) === null) {
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  }
+  return mined(perps.provider, await perps.settleBookOrders(marketId, orders));
 };
 
 /** One account's position change on the book: a batch of one order. */
