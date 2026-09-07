@@ -7,9 +7,11 @@ import { ethers } from 'ethers';
  */
 
 /**
- * How long `receiptOf` asks the node before it gives up. Well under mocha's 30 s, so a
- * transaction that will never be mined fails as itself — naming the hash — instead of as the
- * test's timeout, and the poll stops issuing RPC instead of outliving the test that started it.
+ * How long `receiptOf` asks the node before it gives up, unless a caller names its own budget.
+ * Well under mocha's 30 s, so a transaction the node does not mine fails as itself — naming the
+ * hash — instead of as the test's timeout, and the poll stops issuing RPC instead of outliving
+ * the test that started it. Every verb takes this default; only the test of the deadline itself
+ * passes a shorter one, so proving the budget works costs milliseconds, not the budget.
  */
 const RECEIPT_DEADLINE_MS = 10_000;
 
@@ -20,19 +22,20 @@ const RECEIPT_DEADLINE_MS = 10_000;
  * the first look. Ask the node for the receipt directly, and stop asking at the deadline: a
  * transaction the node never mines has no receipt to wait for, ever.
  *
- * @throws Error when the node has no receipt for `tx.hash` within `RECEIPT_DEADLINE_MS`.
+ * @param deadlineMs - how long to keep asking; the stand's default unless a caller says otherwise.
+ * @throws Error when the node has no receipt for `tx.hash` within `deadlineMs`.
  */
 export const receiptOf = async (
   provider: ethers.providers.Provider,
-  tx: ethers.ContractTransaction
+  tx: ethers.ContractTransaction,
+  deadlineMs: number = RECEIPT_DEADLINE_MS
 ): Promise<ethers.providers.TransactionReceipt> => {
-  const deadline = Date.now() + RECEIPT_DEADLINE_MS;
+  const deadline = Date.now() + deadlineMs;
   let receipt: ethers.providers.TransactionReceipt | null = null;
   while ((receipt = await provider.getTransactionReceipt(tx.hash)) === null) {
     if (Date.now() >= deadline) {
       throw new Error(
-        `receiptOf: the node has no receipt for ${tx.hash} after ${RECEIPT_DEADLINE_MS} ms — ` +
-          'it was never mined, or a snapshot restore discarded it'
+        `receiptOf: the node has no receipt for ${tx.hash} after ${deadlineMs} ms — it was never mined`
       );
     }
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -55,9 +58,10 @@ export type Mined = ethers.ContractTransaction & { receipt: ethers.providers.Tra
  */
 export const mined = async (
   provider: ethers.providers.Provider,
-  tx: ethers.ContractTransaction
+  tx: ethers.ContractTransaction,
+  deadlineMs?: number
 ): Promise<Mined> => {
-  const receipt = await receiptOf(provider, tx);
+  const receipt = await receiptOf(provider, tx, deadlineMs);
   return Object.assign(tx, { receipt, wait: async () => receipt });
 };
 

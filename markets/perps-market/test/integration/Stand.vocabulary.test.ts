@@ -13,20 +13,25 @@ import { eventArgs, mined } from '../helpers';
 // of the scenario — an account, a deposit, a position, a crash, a liquidation — and never hands
 // systems, keeper or provider back.
 //
-// What this file pins is that every verb returns *after mining*: the three reads of the returned
-// transaction — `tx.receipt`, `assertEvent(tx, …)` and `getTxTime(provider, tx)` — cannot pass
-// unless the node has already mined it, because a receipt cannot be attached before there is one.
-// Reduce `mined()` to `return tx` and those three go red (so does the deadline test below, which
-// stops reaching `receiptOf` at all). The `getCollateralAmount` / `getOpenPositionSize` /
-// `canLiquidate` reads that follow each verb are the scenario, not the pin: they say what the
-// step leaves behind, and on this tree the node serves them either way.
+// What this file pins is that every verb returns *after mining*, and `tx.receipt` is the single
+// read that proves it: a receipt cannot be attached before the node has one. Three tests below
+// read it — the synth deposit's `status`, the liquidation's events through `eventArgs`, and the
+// restored snapshot's `blockNumber` — and reducing `mined()` to `return tx` reddens exactly those
+// three, plus the deadline test, which then stops reaching `receiptOf` at all.
+// `assertEvent(tx, …)` and `getTxTime(provider, tx)` are not part of that pin. They are consumers
+// that a `Mined` satisfies cheaply, but each resolves a receipt on its own — `assertEvent` calls
+// `tx.wait()`, `getTxTime` runs its own poll — so both pass on a raw transaction too, and
+// `openOnchainPosition`, whose only such reads are those two, stays green under the same probe.
+// The `getCollateralAmount` / `getOpenPositionSize` / `canLiquidate` reads that follow each verb
+// are the scenario, not the pin: they say what the step leaves behind, and on this tree the node
+// serves them either way.
 //
 // tests/Bootstrap.t.sol exposes the same words to the Foundry tests where both stands have the
 // step; openOnchainPosition, settleOrder, liquidate and liquidateMarginOnly are Hardhat's alone.
 describe('The vocabulary of the stand', () => {
   const BOOK = 2; // trader1, on the book
   const ONCHAIN = 3; // trader2, on the async path
-  const UNMINED = 4; // the account of the transaction a snapshot restore takes away
+  const UNMINED = 4; // the account of the transaction the node is told not to mine
   const PRICE = bn(stand.markets[0].price);
   // 11 ETH on 10,000 snxUSD: admissible (a requirement of 112 under the description's table),
   // and under water at a price of 1 (a loss of 10,989); the description's window admits it whole.
@@ -68,7 +73,7 @@ describe('The vocabulary of the stand', () => {
     snxBTC = synthMarkets()[0].marketId();
   });
 
-  before('the accounts: each read is the first thing after its verb', async () => {
+  before('the accounts, opened and funded', async () => {
     await openBookAccount(trader1(), BOOK, COLLATERAL);
     assertBn.equal(await perps().getCollateralAmount(BOOK, 0), COLLATERAL);
     await openOnchainAccount(trader2(), ONCHAIN, COLLATERAL);
@@ -183,17 +188,25 @@ describe('The vocabulary of the stand', () => {
     // Automine off is how the node is made to hold a real transaction unmined; `evm_revert`
     // would not do it — this anvil keeps serving the receipt of a rolled-back transaction.
     it('receiptOf gives up inside its own budget, naming the transaction', async () => {
-      await provider().send('evm_setAutomine', [false]);
-      const tx = await perps().connect(trader1())['createAccount(uint128)'](UNMINED);
+      // Its own short budget, not the stand's 10 s: what is under test is that the poll stops at
+      // whatever deadline it was given, and the bound below is a tight multiple of *this* budget,
+      // so raising the default later cannot make the test pass by accident.
+      const budget = 300;
+      // Everything that disturbs the shared node lives inside the try: automine must come back
+      // on even if the send throws, or the rest of the mocha process runs against a stopped node.
       try {
+        await provider().send('evm_setAutomine', [false]);
+        const tx = await perps().connect(trader1())['createAccount(uint128)'](UNMINED);
         assert.equal(await provider().getTransactionReceipt(tx.hash), null);
 
         const startedAt = Date.now();
-        await assert.rejects(mined(provider(), tx), (e: Error) => e.message.includes(tx.hash));
+        await assert.rejects(mined(provider(), tx, budget), (e: Error) =>
+          e.message.includes(tx.hash)
+        );
         const elapsed = Date.now() - startedAt;
         assert.ok(
-          elapsed < 20_000,
-          `receiptOf ran ${elapsed} ms — it must give up on its own, not at the test's timeout`
+          elapsed < budget * 4,
+          `receiptOf ran ${elapsed} ms on a ${budget} ms budget — it must give up on its own`
         );
       } finally {
         await provider().send('evm_setAutomine', [true]);
