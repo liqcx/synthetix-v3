@@ -288,8 +288,10 @@ moved files stay as they are (rule 4).
   `CANNON_REGISTRY_PRIORITY=local bun x hardhat test $(ls test/integration/Position/*.test.ts)`
   seven times, counting the runs in which `PositionChange.test.ts` "full liquidation" fails;
   the `Liquidation/` glob three times, counting `sink`'s `canLiquidate` failure by name — the
-  reward `sink` was seen once and does not reproduce alone (3 of 3 green), so the `crash`
-  mutation probe is the evidence there. Then the same runs after the change. Measured on this
+  reward `sink` was seen once and reproduced neither in the measurement (3 of 3 green, before and
+  after) nor under the `crash` probe (0 of 4); the evidence for `crash` is its shape — the one
+  wait every verb shares — and probe A on `liquidate`, which reddens deterministically. Then the
+  same runs after the change. Measured on this
   branch: `Position/` base 0 of 7 red at "full liquidation", after 0 of 7 — the 02.09 race did
   not reproduce on either tree, so the `liquidate` mutation probe is the evidence for that site;
   the after-runs found one red in seven at a fifth site of the same shape,
@@ -311,8 +313,8 @@ moved files stay as they are (rule 4).
   getTxTime take what a verb returns`, `tx.receipt` being `undefined`); the probabilistic half —
   a `Position/` run red at "full liquidation" — was not sought under the mutation and did not
   appear unmutated either. Drop it from `crash` → **0 of 4 runs red** (the pin three times, the
-  `Liquidation/` glob once): the reward test's `sink` did not redden, so that site rests on the
-  shape and on the `liquidate` probe, not on an observed red. Make `depositMargin` skip the
+  `Liquidation/` glob once): the reward test's `sink` did not redden — what carries that site
+  instead is the first bullet of this section. Make `depositMargin` skip the
   approve → the deposit test's synth deposit reverts, `InsufficientAllowance("1000000000000000000", "0")`.
 - **The pin:** `grep -rn '\.wait()' markets/perps-market/test/integration` prints nothing;
   `grep -rn 'const liquidate = ' markets/perps-market/test/integration` prints nothing;
