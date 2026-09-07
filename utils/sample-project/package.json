@@ -3,16 +3,7 @@
   "version": "1.0.0",
   "description": "Sample project implementing Proxy architecture",
   "private": true,
-  "scripts": {
-    "clean": "bun x hardhat clean",
-    "build": "yarn build:contracts",
-    "build:contracts": "bun x hardhat compile --force && yarn storage:dump && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build",
-    "storage:dump": "bun x hardhat storage:dump --output storage.new.dump.json",
-    "check:storage": "diff -uw storage.dump.json storage.new.dump.json",
-    "storage:verify": " bun x hardhat storage:verify",
-    "test": "bun x hardhat test",
-    "coverage": "bun x hardhat coverage --network hardhat"
-  },
+  "scripts": {},
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.2.3",
     "@synthetixio/core-contracts": "workspace:*",

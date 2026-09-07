@@ -13,24 +13,10 @@
     "*.toml"
   ],
   "scripts": {
-    "clean": "bun x hardhat clean && rm -rf contracts/generated",
-    "build": "yarn build:contracts",
-    "build:contracts": "bun x hardhat compile --force && yarn storage:dump && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build",
-    "storage:dump": "bun x hardhat storage:dump --output storage.new.dump.json",
-    "storage:verify": " bun x hardhat storage:verify",
-    "build-testable": "CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build cannonfile.test.toml",
-    "check:storage": "diff -uw storage.dump.json storage.new.dump.json",
-    "start": "yarn build && yarn cannon-build",
+    "start": "moon run spot-market:build && pnpm run cannon-build",
     "cannon-build": "bun x hardhat cannon:build",
-    "test": "CANNON_REGISTRY_PRIORITY=local bun x hardhat test",
     "test:fork": "bun x hardhat test test-fork/AsyncOrdersModule.e2e.test.ts",
-    "coverage": "bun x hardhat test",
-    "coverage1": "bun x hardhat coverage --network hardhat",
-    "compile-contracts": "bun x hardhat compile",
-    "publish-contracts": "cannon publish synthetix-spot-market:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\\d+\\.\\d+\\.\\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')",
-    "deploy": "yarn build && yarn publish-contracts",
-    "size-contracts": "bun x hardhat compile && bun x hardhat size-contracts",
-    "docgen": "bun x hardhat docgen"
+    "coverage1": "bun x hardhat coverage --network hardhat"
   },
   "keywords": [],
   "author": "Synthetix",
