@@ -20,7 +20,7 @@ import { eventArgs, mined } from '../helpers';
 // three, plus the deadline test, which then stops reaching `receiptOf` at all.
 // `assertEvent(tx, …)` and `getTxTime(provider, tx)` are not part of that pin. They are consumers
 // that a `Mined` satisfies cheaply, but each resolves a receipt on its own — `assertEvent` calls
-// `tx.wait()`, `getTxTime` runs its own poll — so both pass on a raw transaction too, and
+// ethers' own `wait`, `getTxTime` runs its own poll — so both pass on a raw transaction too, and
 // `openOnchainPosition`, whose only such reads are those two, stays green under the same probe.
 // The `getCollateralAmount` / `getOpenPositionSize` / `canLiquidate` reads that follow each verb
 // are the scenario, not the pin: they say what the step leaves behind, and on this tree the node
@@ -182,7 +182,7 @@ describe('The vocabulary of the stand', () => {
   describe('a receipt the node will never have', () => {
     before(restore);
 
-    // The wait is a poll, never `tx.wait()` — but a poll without a deadline outlives the test
+    // The wait is a poll, never ethers' `wait` — but a poll without a deadline outlives the test
     // that started it: a transaction the node does not mine has no receipt to wait for, so the
     // loop would run to mocha's 30 s timeout and keep issuing RPC after mocha abandoned it.
     // Automine off is how the node is made to hold a real transaction unmined; `evm_revert`
