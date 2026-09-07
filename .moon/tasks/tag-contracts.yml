@@ -1,0 +1,111 @@
+$schema: "https://moonrepo.dev/schemas/tasks.json"
+
+# Inherited by every project tagged `contracts`. Bodies are copied from the
+# package scripts at 6835e6fa; `deps` mirror the root script's flags — `pnpm -r`
+# is topological (`^:`), `pnpm -r --parallel` is not.
+#
+# cache is off everywhere here: Cannon writes to a registry outside the repo, so
+# restoring artifacts/ from moon's cache without the matching registry state
+# would manufacture false green.
+
+inheritedBy:
+  tags: ["contracts"]
+
+tasks:
+  compile-contracts:
+    command: "bun x hardhat compile"
+    deps: ["^:compile-contracts"]
+    env:
+      CANNON_REGISTRY_PRIORITY: "local"
+    options:
+      cache: false
+
+  # The dump runs BETWEEN compile and cannon:build and needs the freshly compiled
+  # artifacts, so this cannot be a deps edge — deps run before the task. The dump
+  # body is inlined verbatim from the storage:dump script.
+  build-contracts:
+    script: "bun x hardhat compile --force && bun x hardhat storage:dump --output storage.new.dump.json && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build"
+    deps: ["^:build-contracts"]
+    options:
+      cache: false
+
+  build:
+    command: "noop"
+    deps: ["build-contracts"]
+    options:
+      cache: false
+
+  storage-dump:
+    command: "bun x hardhat storage:dump --output storage.new.dump.json"
+    deps: ["^:storage-dump"]
+    options:
+      cache: false
+
+  storage-verify:
+    command: "bun x hardhat storage:verify"
+    deps: ["^:storage-verify"]
+    options:
+      cache: false
+
+  check-storage:
+    script: "diff -uw storage.dump.json storage.new.dump.json"
+    deps: ["^:check-storage"]
+    options:
+      cache: false
+
+  size-contracts:
+    script: "bun x hardhat compile && bun x hardhat size-contracts"
+    deps: ["^:size-contracts"]
+    options:
+      cache: false
+
+  build-testable:
+    command: "bun x hardhat cannon:build cannonfile.test.toml"
+    deps: ["^:build-testable"]
+    env:
+      CANNON_REGISTRY_PRIORITY: "local"
+    options:
+      cache: false
+
+  generate-testable:
+    script: "rm -rf contracts/generated && bun x hardhat generate-testable"
+    deps: ["^:generate-testable"]
+    env:
+      CANNON_REGISTRY_PRIORITY: "local"
+    options:
+      cache: false
+
+  # Root runs test with --parallel: no `^` dependency.
+  test:
+    command: "bun x hardhat test"
+    env:
+      CANNON_REGISTRY_PRIORITY: "local"
+    options:
+      cache: false
+
+  coverage:
+    command: "bun x hardhat coverage --network hardhat"
+    deps: ["^:coverage"]
+    options:
+      cache: false
+
+  # Root runs clean with --parallel: no `^` dependency.
+  clean:
+    command: "bun x hardhat clean"
+    options:
+      cache: false
+
+  docgen:
+    command: "bun x hardhat docgen"
+    deps: ["^:docgen"]
+    options:
+      cache: false
+
+  # publish-contracts is per-project (all 17 bodies name a different Cannon
+  # package), so it is defined in each project's moon.yml, not here.
+  # deploy is `yarn build && yarn publish-contracts`: a script, so the order
+  # survives — a deps pair would not guarantee it.
+  deploy:
+    script: "moon run $project:build && moon run $project:publish-contracts"
+    options:
+      cache: false

@@ -1,0 +1,21 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+tags: ["contracts", "foundry"]
+
+# Narrower than its tag: these verbs have never existed here, and a task the
+# package never had would make `moon run :<verb>` touch more than `pnpm -r` does.
+workspace:
+  inheritedTasks:
+    exclude: ["check-storage", "generate-testable", "test"]
+
+tasks:
+  publish-contracts:
+    script: "cannon publish synthetix-treasury-market:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\\d+\\.\\d+\\.\\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')"
+    deps: ["^:publish-contracts"]
+    options:
+      cache: false
+  build-testable:
+    command: "cannon build cannonfile.test.toml --write-script script/Deploy.sol --write-script-format foundry --wipe"
+    options:
+      mergeArgs: "replace"
+      cache: false

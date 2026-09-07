@@ -1,0 +1,15 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+tags: ["subgraph"]
+
+tasks:
+  # Carried over verbatim, including the sibling scripts it calls, which stay in
+  # package.json. `deployments:*` / `codegen:*` do not exist in this package —
+  # the body is already broken at the baseline and is not quietly repaired here.
+  # The trailing `yarn test --coverage` is inlined to `graph test --coverage`
+  # because Task 4 deletes that `test` script.
+  coverage:
+    script: "pnpm run deployments:optimism-mainnet && pnpm run codegen:optimism-mainnet && git diff --exit-code && graph test --coverage"
+    options:
+      mergeArgs: "replace"
+      cache: false

@@ -1,0 +1,17 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+tags: ["contracts"]
+
+# Narrower than its tag: these verbs have never existed here, and a task the
+# package never had would make `moon run :<verb>` touch more than `pnpm -r` does.
+workspace:
+  inheritedTasks:
+    exclude:
+      [
+        "build-testable",
+        "compile-contracts",
+        "deploy",
+        "docgen",
+        "generate-testable",
+        "size-contracts",
+      ]

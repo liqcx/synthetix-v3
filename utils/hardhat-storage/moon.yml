@@ -1,0 +1,15 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+tags: ["ts-lib"]
+
+tasks:
+  test:
+    command: "jest"
+    options:
+      mergeArgs: "replace"
+      cache: false
+  coverage:
+    command: "jest --coverage"
+    options:
+      mergeArgs: "replace"
+      cache: false

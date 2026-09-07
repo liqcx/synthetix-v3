@@ -1,0 +1,18 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+# Untagged: its Foundry verbs are `build` / `clean` / `test`, not the
+# `forge-test` the foundry tag carries, so every task here is its own.
+
+tasks:
+  build:
+    command: "forge build"
+    options:
+      cache: false
+  clean:
+    command: "forge clean"
+    options:
+      cache: false
+  test:
+    command: "forge test -vv"
+    options:
+      cache: false

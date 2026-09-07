@@ -1,0 +1,20 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+tags: ["subgraph"]
+
+tasks:
+  subgraph-codegen:
+    command: "node generate.js"
+    options:
+      mergeArgs: "replace"
+      cache: false
+  subgraph-build:
+    command: "node generate.js --build"
+    options:
+      mergeArgs: "replace"
+      cache: false
+  coverage:
+    command: "graph test --coverage"
+    options:
+      mergeArgs: "replace"
+      cache: false

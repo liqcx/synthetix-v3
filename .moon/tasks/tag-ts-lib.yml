@@ -1,0 +1,21 @@
+$schema: "https://moonrepo.dev/schemas/tasks.json"
+
+inheritedBy:
+  tags: ["ts-lib"]
+
+tasks:
+  build-ts:
+    command: "bun x tsc --noEmit false --project src/tsconfig.json"
+    deps: ["^:build-ts"]
+    inputs:
+      - "src/**/*"
+      - "src/tsconfig.json"
+      - "/tsconfig.json"
+    options:
+      cache: true
+
+  build:
+    command: "noop"
+    deps: ["build-ts"]
+    options:
+      cache: false

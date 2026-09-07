@@ -1,0 +1,10 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+tags: ["ts-lib"]
+
+tasks:
+  build-ts:
+    command: "echo 'Needed because https://github.com/yarnpkg/berry/issues/3995'"
+    options:
+      mergeArgs: "replace"
+      cache: false

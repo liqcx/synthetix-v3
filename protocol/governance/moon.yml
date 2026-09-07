@@ -1,0 +1,5 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+# Dormant. Every script in this package was prefixed `SKIP.` to keep it out of
+# `pnpm -r`; carrying no tasks is how moon says the same thing. The prefixes are
+# removed in the package.json cleanup — this comment is the surviving record.
