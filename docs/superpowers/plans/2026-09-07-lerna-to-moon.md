@@ -157,6 +157,7 @@ pnpm list -r."
 - Create: `.moon/workspace.yml`
 - Create: `.moon/toolchains.yml`
 - Modify: `.gitignore`
+- Modify: `.prettierignore`
 
 **Interfaces:**
 
@@ -217,7 +218,7 @@ pnpm: {}
 # syncProjectReferences would rewrite 29 tsconfigs.
 ```
 
-- [ ] **Step 4: Ignore moon's caches**
+- [ ] **Step 4: Ignore moon's caches, and take the last two lerna lines with you**
 
 Append to `.gitignore`:
 
@@ -225,6 +226,18 @@ Append to `.gitignore`:
 .moon/cache
 .moon/docker
 ```
+
+Two ignore entries still name a tool that no longer exists — Task 1 deliberately left them alone as
+outside its blast radius, and this task owns them because it is already editing `.gitignore`.
+Neither file is canon-managed (checked against `liqcx/tooling`'s manifest), so both are repo-owned
+and safe to edit. Delete `lerna-debug.log` from `.gitignore:26` and `lerna.json` from
+`.prettierignore:19`, then confirm:
+
+```bash
+grep -c lerna .gitignore .prettierignore
+```
+
+Expected: `0` for both files.
 
 - [ ] **Step 5: Verify the project graph**
 
