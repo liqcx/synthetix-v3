@@ -10,6 +10,7 @@ tasks:
   # because Task 4 deletes that `test` script.
   coverage:
     script: "pnpm run deployments:mainnet && pnpm run codegen:mainnet && git diff --exit-code && graph test --coverage"
+    deps: ["^:coverage"]
     options:
       mergeArgs: "replace"
       cache: false

@@ -10,6 +10,7 @@ tasks:
       cache: false
   coverage:
     command: "jest --coverage"
+    deps: ["^:coverage"]
     options:
       mergeArgs: "replace"
       cache: false

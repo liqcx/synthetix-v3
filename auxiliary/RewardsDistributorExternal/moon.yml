@@ -10,6 +10,7 @@ tasks:
       cache: false
   build:
     command: "cannon build"
+    deps: ["^:build"]
     env:
       CANNON_REGISTRY_PRIORITY: "local"
     options:

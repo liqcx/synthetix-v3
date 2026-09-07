@@ -26,6 +26,13 @@ tasks:
   build-contracts:
     script: "bun x hardhat compile --force && bun x hardhat storage:dump --output storage.new.dump.json && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build"
     deps: ["^:build-contracts"]
+    # The root ran `pnpm build` with CANNON_REGISTRY_PRIORITY=local set for the
+    # whole chain, so compile and the dump had it too — the package script only
+    # spelled it on the third command. The inline prefix stays: it keeps the body
+    # byte-identical to the script it replaces, which is what the body-parity
+    # check compares, and setting the same value twice costs nothing.
+    env:
+      CANNON_REGISTRY_PRIORITY: "local"
     options:
       cache: false
 
