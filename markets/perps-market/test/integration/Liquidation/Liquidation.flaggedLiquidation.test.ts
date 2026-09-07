@@ -1,7 +1,7 @@
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
 import assert from 'assert';
 import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
-import { openOnchainAccount, openPosition } from '../../helpers';
+import { crash, openOnchainAccount, openPosition } from '../../helpers';
 import { fastForwardTo, getTxTime } from '@synthetixio/core-utils/utils/hardhat/rpc';
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
 import { ethers } from 'ethers';
@@ -115,7 +115,7 @@ describe('Liquidation - flaggedLiquidation', () => {
   });
 
   before('lower price to liquidation', async () => {
-    await perpsMarket.aggregator().mockSetCurrentPrice(bn(1));
+    await crash(perpsMarket);
   });
 
   /**

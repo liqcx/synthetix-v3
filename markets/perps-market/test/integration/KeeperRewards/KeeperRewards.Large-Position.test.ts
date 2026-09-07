@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 import { bn, bootstrapMarkets } from '../../bootstrap';
-import { depositCollateral, openPosition } from '../../helpers';
+import { crash, depositCollateral, openPosition } from '../../helpers';
 import assertEvent from '@synthetixio/core-utils/utils/assertions/assert-event';
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
 import { fastForwardTo, getTxTime } from '@synthetixio/core-utils/utils/hardhat/rpc';
@@ -138,7 +138,7 @@ describe('Keeper Rewards - Multiple Liquidation steps', () => {
   });
 
   before('lower price to liquidation', async () => {
-    await perpsMarkets()[0].aggregator().mockSetCurrentPrice(bn(1));
+    await crash(perpsMarkets()[0]);
   });
 
   it('liquidate account - 1st step (100 of 201)', async () => {

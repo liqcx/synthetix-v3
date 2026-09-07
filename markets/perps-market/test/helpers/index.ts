@@ -8,3 +8,4 @@ export * from './accounts';
 export * from './interestRate';
 export * from './book';
 export * from './events';
+export * from './price';

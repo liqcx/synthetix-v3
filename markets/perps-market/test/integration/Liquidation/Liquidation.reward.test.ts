@@ -3,11 +3,14 @@ import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber'
 import { snapshotCheckpoint } from '@synthetixio/core-utils/utils/mocha/snapshot';
 import { ethers } from 'ethers';
 import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
-import { eventArgs, openBookPosition, receiptOf } from '../../helpers';
+import { stand, standMarket } from '../../bootstrap/stand';
+import { crash, eventArgs, openBookPosition, receiptOf } from '../../helpers';
 
-const PRICE = bn(100);
-const COLLATERAL = bn(200);
+const PRICE = bn(stand.markets[0].price);
+const COLLATERAL = bn(2_000);
 const SIZE = bn(10);
+// A fifth off: the loss of 2,000 eats the collateral.
+const CRASH = bn(800);
 
 // What a keeper is paid per transaction, set on the gas oracle node. The flag cost is per feed
 // the keeper must update; this account has one (snxUSD needs none, the position one).
@@ -19,6 +22,8 @@ const COSTS = KeeperCosts.flagCost.add(KeeperCosts.liquidateCost);
 // reward of the positions or the reward on the collateral, whichever is more, plus the costs,
 // within the guards. Expectation and payout are one formula over one valuation; only a keeper
 // endorsed on the market is paid less, and the account's obligation does not know the keeper.
+// The market is the description's (`test/stand.json`); `tests/LiquidationReward.t.sol` runs the
+// same account on the Foundry stand and reads the same numbers.
 describe('Liquidation - the reward the account must hold is the reward the keeper is paid', () => {
   const ACCOUNT = 2;
   const { systems, owner, trader1, keeper, perpsMarkets, keeperCostOracleNode, provider } =
@@ -31,28 +36,10 @@ describe('Liquidation - the reward the account must hold is the reward the keepe
         maxKeeperScalingRatioD18: bn(1),
       },
       synthMarkets: [],
-      perpsMarkets: [
-        {
-          requestedMarketId: 50,
-          name: 'Optimism',
-          token: 'OP',
-          price: PRICE,
-          // the window admits (maker + taker) × skewScale × multiplier × seconds = 100 OP: the
-          // whole position goes in one liquidation, so the expectation counts one window
-          orderFees: { makerFee: bn(0.007), takerFee: bn(0.003) },
-          fundingParams: { skewScale: bn(1000), maxFundingVelocity: bn(0) },
-          liquidationParams: {
-            initialMarginFraction: bn(2),
-            minimumInitialMarginRatio: bn(0.01),
-            maintenanceMarginScalar: bn(0.5),
-            maxLiquidationLimitAccumulationMultiplier: bn(1),
-            liquidationRewardRatio: bn(0.05),
-            maxSecondsInLiquidationWindow: ethers.BigNumber.from(10),
-            minimumPositionMargin: bn(0),
-          },
-          settlementStrategy: { settlementReward: bn(0) },
-        },
-      ],
+      // the description's window admits (maker + taker) × skewScale × multiplier × seconds =
+      // 0.0011 × 100,000 × 1 × 10 = 1,100 ETH: the whole position goes in one liquidation, so
+      // the expectation counts one window
+      perpsMarkets: [standMarket()],
       traderAccountIds: [ACCOUNT],
       bookAccountIds: [ACCOUNT],
     });
@@ -69,7 +56,9 @@ describe('Liquidation - the reward the account must hold is the reward the keepe
       .setCosts(KeeperCosts.settlementCost, KeeperCosts.flagCost, KeeperCosts.liquidateCost);
   });
 
-  before('the account holds 200 snxUSD and 10 OP', async () => {
+  // The taker fee of the fill, 8 bps of 10,000, leaves 1,992 in the account; the gate asks 102
+  // of initial margin and 535 of reward (500 + the costs, under the cap of 1,992).
+  before('the account holds 2,000 snxUSD and 10 ETH', async () => {
     await systems().PerpsMarket.connect(trader1()).modifyCollateral(ACCOUNT, 0, COLLATERAL);
     await openBookPosition({
       systems,
@@ -79,14 +68,21 @@ describe('Liquidation - the reward the account must hold is the reward the keepe
       sizeDelta: SIZE,
       price: PRICE,
     });
+
+    // The requirement of 10 ETH at 1,000 under the description's table: 102 initial
+    // (1,000 × 10 × (10 / 100,000 × 2 + 0.01)), 51 maintenance (half of it). getRequiredMargins
+    // adds the reward the account must hold on top of both; it is taken off here.
+    const m = await systems().PerpsMarket.getRequiredMargins(ACCOUNT);
+    assertBn.equal(m.requiredInitialMargin.sub(m.maxLiquidationReward), bn(102));
+    assertBn.equal(m.requiredMaintenanceMargin.sub(m.maxLiquidationReward), bn(51));
   });
 
   const restore = snapshotCheckpoint(provider);
 
-  // The price falls to 80: the pnl eats the collateral, the account stands below its
+  // The price falls to 800: the pnl eats the collateral, the account stands below its
   // maintenance margin plus the reward, and nobody has flagged it yet.
   const sink = async () => {
-    await market.aggregator().mockSetCurrentPrice(bn(80));
+    await crash(market, CRASH);
     assert.equal(await systems().PerpsMarket.canLiquidate(ACCOUNT), true);
     assert.deepEqual(await systems().PerpsMarket.flaggedAccounts(), []);
   };
@@ -114,8 +110,8 @@ describe('Liquidation - the reward the account must hold is the reward the keepe
     };
   };
 
-  // 10 OP × 80 × 5 % = 40: the flag reward of the position at the price it is liquidated at.
-  const POSITION_REWARD = bn(40);
+  // 10 ETH × 800 × 5 % = 400: the flag reward of the position at the price it is liquidated at.
+  const POSITION_REWARD = bn(400);
 
   describe('when the flag reward of the position is the larger', () => {
     before(restore);
@@ -140,7 +136,7 @@ describe('Liquidation - the reward the account must hold is the reward the keepe
 
     it('pays the keeper what the account held: the collateral reward plus the costs', async () => {
       const r = await liquidateAndCompare();
-      // the collateral is the 200 less the fee of the opening fill; half of it beats 40
+      // the collateral is the 2,000 less the fee of the opening fill; half of it beats 400
       assertBn.gt(r.collateral.div(2), POSITION_REWARD);
       assertBn.equal(r.held, r.collateral.div(2).add(COSTS));
       assertBn.equal(r.promised, r.held);

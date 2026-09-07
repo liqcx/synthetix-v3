@@ -1,6 +1,6 @@
 import assertBn from '@synthetixio/core-utils/utils/assertions/assert-bignumber';
 import { PerpsMarket, bn, bootstrapMarkets } from '../../bootstrap';
-import { openPosition } from '../../helpers';
+import { crash, openPosition } from '../../helpers';
 import { fastForwardTo, getTxTime } from '@synthetixio/core-utils/utils/hardhat/rpc';
 import { ethers } from 'ethers';
 
@@ -77,7 +77,7 @@ describe('Liquidation - max liquidatable amount', () => {
   });
 
   before('lower price to liquidation', async () => {
-    await perpsMarket.aggregator().mockSetCurrentPrice(bn(1));
+    await crash(perpsMarket);
   });
 
   /**

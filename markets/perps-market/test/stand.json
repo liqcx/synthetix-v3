@@ -26,9 +26,28 @@
       "skewScale": 100000,
       "maxFundingVelocity": 10,
       "makerFeeBps": 3,
-      "takerFeeBps": 8
+      "takerFeeBps": 8,
+      "liquidation": {
+        "initialMarginRatioBps": 20000,
+        "minimumInitialMarginRatioBps": 100,
+        "maintenanceMarginScalarBps": 5000,
+        "flagRewardRatioBps": 500,
+        "minimumPositionMargin": 0,
+        "maxLiquidationLimitAccumulationMultiplierBps": 10000,
+        "maxSecondsInLiquidationWindow": 10,
+        "maxLiquidationPdBps": 0
+      },
+      "maxBookPriceDeviationBps": 0
     }
   ],
+  "keeperCosts": { "settlement": 0, "flag": 0, "liquidate": 0 },
+  "keeperRewardGuards": {
+    "minRewardUsd": 0,
+    "minProfitRatioBps": 0,
+    "maxRewardUsd": 0,
+    "maxScalingRatioBps": 0
+  },
+  "createAccount": "traders",
   "trader": { "stake": 100000, "pool": 2 },
   "bookAccounts": [2, 3]
 }

@@ -15,6 +15,7 @@ import { bootstrapTraders } from './bootstrapTraders';
 import { createRewardsDistributor } from './createRewardsDistributor';
 import { createKeeperCostNode } from './createKeeperCostNode';
 import { bn } from './helpers';
+import { standGuards } from './stand';
 import { MockGasPriceNode } from '../../../typechain-types/contracts/mocks/MockGasPriceNode';
 import { MockPythERC7412Wrapper } from '../../../typechain-types/contracts/mocks/MockPythERC7412Wrapper';
 
@@ -248,19 +249,19 @@ export function bootstrapMarkets(data: BootstrapArgs) {
     }
   });
 
-  const { liquidationGuards } = data;
-  if (liquidationGuards) {
-    before('set liquidation guards', async () => {
-      await systems()
-        .PerpsMarket.connect(owner())
-        .setKeeperRewardGuards(
-          liquidationGuards.minLiquidationReward,
-          liquidationGuards.minKeeperProfitRatioD18,
-          liquidationGuards.maxLiquidationReward,
-          liquidationGuards.maxKeeperScalingRatioD18
-        );
-    });
-  }
+  // The guards the test gives, or the description's (zeros: a reward on the stand is the cost
+  // of execution alone) — set either way, as the Foundry adapter sets them.
+  const liquidationGuards = data.liquidationGuards ?? standGuards();
+  before('set liquidation guards', async () => {
+    await systems()
+      .PerpsMarket.connect(owner())
+      .setKeeperRewardGuards(
+        liquidationGuards.minLiquidationReward,
+        liquidationGuards.minKeeperProfitRatioD18,
+        liquidationGuards.maxLiquidationReward,
+        liquidationGuards.maxKeeperScalingRatioD18
+      );
+  });
 
   const { interestRateParams } = data;
   if (interestRateParams) {

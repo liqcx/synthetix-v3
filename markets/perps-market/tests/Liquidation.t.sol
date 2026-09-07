@@ -8,10 +8,11 @@ import {ILiquidationModule} from "../contracts/interfaces/ILiquidationModule.sol
 
 /**
  * @title The liquidation flag on the Foundry stand
- * @notice What the stand admits without liquidation parameters: every margin requirement and
- *         reward is zero, and a window of zero admits the whole position. So an account whose
- *         losses exceed its collateral is flagged and fully liquidated in one `liquidate`, and
- *         the three refusals of the two entries are pinned by name:
+ * @notice The description (`test/stand.json`) gives the market a liquidation table and zero
+ *         reward guards: a requirement is real (102 snxUSD on the 10 ETH below), a reward is
+ *         the cost of execution alone, and a window of 1,100 ETH admits the whole position. So
+ *         an account whose losses exceed its collateral is flagged and fully liquidated in one
+ *         `liquidate`, and the three refusals of the two entries are pinned by name:
  *
  *           account                       liquidate                    liquidateMarginOnly
  *           healthy, with a position      NotEligibleForLiquidation    AccountHasOpenPositions
@@ -19,9 +20,11 @@ import {ILiquidationModule} from "../contracts/interfaces/ILiquidationModule.sol
  *           under water                   flag → PositionLiquidated → AccountLiquidationAttempt(…, true);
  *                                         nothing flagged after, a deposit passes again
  *
- *         The flagged state between calls needs liquidation windows in the stand's description
- *         (`test/stand.json`), and the margin-only path needs synth collateral: both stay on
- *         the Hardhat stand (`test/integration/Liquidation/Liquidation.flag.test.ts`).
+ *         The flagged state between calls needs a narrower window than the description's — a
+ *         test's own `setMaxLiquidationParameters` — and the margin-only path needs synth
+ *         collateral: both stay on the Hardhat stand
+ *         (`test/integration/Liquidation/Liquidation.flag.test.ts`). The reward's arithmetic is
+ *         `LiquidationReward.t.sol`.
  */
 contract LiquidationTest is BootstrapTest {
     uint256 constant MARGIN = 1_000e18;
@@ -62,9 +65,10 @@ contract LiquidationTest is BootstrapTest {
     }
 
     /// @dev 10 ETH bought at 1,000 on 1,000 snxUSD: at 850 the loss of 1,500 exceeds the
-    ///      collateral, and no maintenance margin or reward stands in the way.
+    ///      collateral; the reward is zero under zero guards and the window takes the whole
+    ///      position, so one call ends the account.
     function test_underwater_isFlaggedAndFullyLiquidatedInOneCall() public {
-        aggregators[0].mockSetCurrentPrice(850e18, 18);
+        crash(ethMarketId, 850e18);
         assertTrue(perps.canLiquidate(UNDERWATER));
         assertEq(perps.flaggedAccounts().length, 0);
 

@@ -75,6 +75,10 @@ contract PhantomEscrowTest is BootstrapTest {
         // Zero locked-OI ratio so the OI component of minimumCredit stays 0 and the escrow
         // component is the only thing that can move it.
         perps.setLockedOiRatio(marketIdUnderTest, 0);
+        // No margin requirement: the description's liquidation table would refuse the 500 ETH
+        // churn below on this test's skew scale of 1,000 (a 101 % requirement); the escrow, not
+        // the gate, is under test here — as it was before the description named the table.
+        perps.setLiquidationParameters(marketIdUnderTest, 0, 0, 0, 0, 0);
         vm.stopPrank();
 
         // The description's two book accounts: the first belongs to trader1, the second to trader2.
