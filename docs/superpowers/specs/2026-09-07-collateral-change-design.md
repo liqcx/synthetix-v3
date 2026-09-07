@@ -491,7 +491,7 @@ subject clear of its margins at 2 000 once the taker fee and the skew premium ar
 | `HOLDER`     | trader2, book       | 100 000 snxUSD, long 20 ETH: locked credit for the rate rule; a withdrawal into its initial margin               |
 | `DEBTOR`     | trader1, onchain    | 10 ETH of snxETH, long 5 ETH at 2 000 closed at 1 500, no snxUSD: a debt and no position; commits an order in its group |
 | `EMPTY`      | trader1, book       | created on the core, never funded: the collateral limit at a cap of 0; `NonexistentDebt` names it                |
-| `UNDERWATER` | trader2, book    | 1 000 snxUSD, long 3 ETH at 2 000, opened last; the price to 1 800 in its group: below its initial margin, not flagged |
+| `UNDERWATER` | trader2, book    | 1 000 snxUSD, long 2 ETH at 2 000, opened last; the price to 1 800 in its group: below its initial margin, not flagged |
 
 | row                                                                  | call                                                                | reverts                                                                   | new |
 | -------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------- | --- |
