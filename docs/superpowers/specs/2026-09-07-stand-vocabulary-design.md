@@ -305,10 +305,15 @@ moved files stay as they are (rule 4).
   known too.
 - **Foundry:** `PROTO_LOG=off pnpm build-testable:foundry`, then `forge test` — eight suites,
   unchanged; `git diff --stat origin/main -- markets/perps-market/tests` is empty.
-- **Mutation probes, restored after:** drop the wait from `liquidate` in `verbs.ts` → the
-  `Position/` runs redden at "full liquidation" at the old frequency; drop it from `crash` →
-  the reward test's `sink` reddens; make `depositMargin` skip the approve → the deposit test's
-  synth deposit reverts.
+- **Mutation probes, restored after** — what they did, not what they were expected to do. Drop
+  the wait from `liquidate` in `verbs.ts` → the pin reddens deterministically, 3 of 3 runs, at
+  both of its receipt readers (`liquidate: the position is gone at once…` and `assertEvent and
+  getTxTime take what a verb returns`, `tx.receipt` being `undefined`); the probabilistic half —
+  a `Position/` run red at "full liquidation" — was not sought under the mutation and did not
+  appear unmutated either. Drop it from `crash` → **0 of 4 runs red** (the pin three times, the
+  `Liquidation/` glob once): the reward test's `sink` did not redden, so that site rests on the
+  shape and on the `liquidate` probe, not on an observed red. Make `depositMargin` skip the
+  approve → the deposit test's synth deposit reverts, `InsufficientAllowance("1000000000000000000", "0")`.
 - **The pin:** `grep -rn '\.wait()' markets/perps-market/test/integration` prints nothing;
   `grep -rn 'const liquidate = ' markets/perps-market/test/integration` prints nothing;
   `grep -rn 'connect(keeper()).liquidate(' markets/perps-market/test/integration` prints only
