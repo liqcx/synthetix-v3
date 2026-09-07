@@ -246,8 +246,8 @@ contract PhantomEscrowTest is BootstrapTest {
         //
         // Deliberately NOT asserted: `escrow <= netDeposited`. Crediting realised PnL into
         // collateralAmounts[0] with no token movement is upstream's intended design (the escrow is
-        // redeemable on demand via CollateralChange.make -> withdrawMarketUsd, paid by the pool), so that
-        // assertion would stay red even against a fully fixed contract.
+        // redeemable on demand via CollateralChange.make -> withdrawMarketUsd, paid by the pool),
+        // so that assertion would stay red even against a fully fixed contract.
         uint256 genuineFundingCeiling = _genuineFundingCeiling();
         emit log_named_uint(
             "genuine funding ceiling for the time actually held",

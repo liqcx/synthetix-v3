@@ -258,8 +258,11 @@ describe('CollateralChange - the door table', () => {
 
     it("past the account's limit of kinds: MaxCollateralsPerAccountReached", async () => {
       await as(owner()).setPerAccountCaps(100_000, 0);
-      await refused(modify(trader1(), EMPTY, 0, bn(1)), 'MaxCollateralsPerAccountReached("0")');
-      await as(owner()).setPerAccountCaps(100_000, 100_000);
+      try {
+        await refused(modify(trader1(), EMPTY, 0, bn(1)), 'MaxCollateralsPerAccountReached("0")');
+      } finally {
+        await as(owner()).setPerAccountCaps(100_000, 100_000);
+      }
     });
 
     it('more than the account holds, less than the market: InsufficientSynthCollateral', async () => {
@@ -346,6 +349,20 @@ describe('CollateralChange - the door table', () => {
     it('no debt: NonexistentDebt names the account asked about', async () => {
       await refused(pay(trader1(), FUNDED, bn(1)), `NonexistentDebt("${FUNDED}")`);
       await refused(pay(trader1(), EMPTY, bn(1)), `NonexistentDebt("${EMPTY}")`);
+    });
+  });
+
+  describe('payDebt: anyone may pay', () => {
+    before(restore);
+
+    it("a stranger pays another owner's debt: DebtPaid names the stranger", async () => {
+      const debtBefore = await perps().debt(DEBTOR);
+      const receipt = await receiptOf(provider(), await pay(trader2(), DEBTOR, bn(100)));
+      const paid = eventArgs(receipt, perps(), 'DebtPaid');
+      assertBn.equal(paid.accountId, DEBTOR);
+      assertBn.equal(paid.amount, bn(100));
+      assert.equal(paid.sender, await address(trader2()));
+      assertBn.equal(await perps().debt(DEBTOR), debtBefore.sub(bn(100)));
     });
   });
 

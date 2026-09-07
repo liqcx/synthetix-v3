@@ -139,7 +139,7 @@ library PerpsAccount {
     }
 
     /**
-     * @notice Writes the account's id on first use. Two callers: the deposit door
+     * @notice Writes the account's id on first use. Two callers: the door
      * (`CollateralChange.make`) and the settlement (`settlePositionChange`).
      */
     function create(uint128 id) internal returns (Data storage account) {
