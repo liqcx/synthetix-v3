@@ -23,7 +23,6 @@ dist
 node_modules
 Router.sol
 typechain-types
-lerna-debug.log
 junit
 storage.new.dump.json
 
@@ -40,3 +39,6 @@ tsconfig.tsbuildinfo
 
 # Subagent-driven-development scratch: ledger, task briefs, review packages.
 .superpowers/
+
+.moon/cache
+.moon/docker

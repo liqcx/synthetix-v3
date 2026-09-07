@@ -1,0 +1,23 @@
+$schema: "https://moonrepo.dev/schemas/workspace.json"
+
+projects:
+  globs:
+    - "utils/*"
+    - "protocol/*"
+    - "markets/*"
+    - "auxiliary/*"
+    # No package.json (pure Foundry package, not a pnpm workspace member per
+    # pnpm-workspace.yaml's own resolution) — the auxiliary/* glob still
+    # matches the directory, so it is excluded explicitly.
+    - "!auxiliary/TrustedMulticallForwarder"
+  sources:
+    # Third-level packages the globs above cannot reach.
+    core-subgraph: "protocol/synthetix/subgraph"
+    spot-market-subgraph: "markets/spot-market/subgraph"
+    perps-market-subgraph: "markets/perps-market/subgraph"
+
+vcs:
+  defaultBranch: "main"
+  provider: "github"
+
+# No `hooks:` — pre-commit and lint-staged stay as they are.

@@ -1,0 +1,13 @@
+$schema: "https://moonrepo.dev/schemas/toolchain.json"
+
+javascript:
+  packageManager: "pnpm"
+  # Inferred tasks carry no inputs or outputs, so they buy neither caching nor
+  # affected-detection. Every task in this repo is declared explicitly.
+  inferTasksFromScripts: false
+
+node: {}
+pnpm: {}
+
+# `typescript` is deliberately absent: this repo has no project references, and
+# syncProjectReferences would rewrite 29 tsconfigs.
