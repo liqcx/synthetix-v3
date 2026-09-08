@@ -11,6 +11,9 @@ overrides:
   typescript: 5.5.4
   '@types/node': 20.11.17
 
+patchedDependencies:
+  ses@1.15.0: 4bca1f524998c74f57f3ae31d4dafe186f4b35ab762be82a3f8567ba075db42b
+
 importers:
 
   .:
@@ -9055,7 +9058,7 @@ snapshots:
       promise-events: 0.2.4
       promise-retry: 2.0.1
       rfdc: 1.4.1
-      ses: 1.15.0
+      ses: 1.15.0(patch_hash=4bca1f524998c74f57f3ae31d4dafe186f4b35ab762be82a3f8567ba075db42b)
       typestub-ipfs-only-hash: 4.0.0(encoding@0.1.13)
       viem: 2.51.3(bufferutil@4.1.0)(typescript@5.5.4)(utf-8-validate@5.0.10)(zod@3.25.76)
       zod: 3.25.76
@@ -17836,7 +17839,7 @@ snapshots:
       - supports-color
     optional: true
 
-  ses@1.15.0:
+  ses@1.15.0(patch_hash=4bca1f524998c74f57f3ae31d4dafe186f4b35ab762be82a3f8567ba075db42b):
     dependencies:
       '@endo/cache-map': 1.1.0
       '@endo/env-options': 1.1.11

@@ -77,3 +77,12 @@ overrides:
   # sanctioned exception; canon TS 6 is not in scope for the fork.)
   typescript: 5.5.4
   "@types/node": "20.11.17"
+
+# ses/dist/ses.cjs wraps its body in (function(){'use strict'; …})() and refuses
+# to initialise when a receiverless call sees a non-undefined `this`. Node honours
+# that directive; bun's transpiler drops it, so `bun test` cannot load anything
+# that reaches @usecannon/builder — which is every hardhat.config.ts here. One
+# top-level 'use strict' restores it. ses@2.3.0 fails the same way, so this is not
+# waiting on a version bump; drop the patch when bun preserves the directive.
+patchedDependencies:
+  ses@1.15.0: patches/ses@1.15.0.patch
