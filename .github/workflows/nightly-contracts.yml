@@ -67,12 +67,26 @@ jobs:
       #     to frame / 127.0.0.1:8545 and the build hangs on reconnect.
       #   * The version in cannonfile.toml must not exist on the on-chain
       #     registry, or the build refuses with "already published" — hence
-      #     0.0.4-liqcx.1 rather than upstream's 0.0.4.
+      #     0.0.4-liq.1 rather than upstream's 0.0.4.
       # The package is a pure Foundry one (no package.json, excluded from moon
       # in .moon/workspace.yml), so this is a plain step, not a moon task.
+      #
+      # `forge install` first: this package's lib/ is gitignored and there are
+      # no submodules (.gitmodules is empty), so a fresh checkout has neither
+      # dependency and `forge build` fails on `lib/forge-std/src/Test.sol` and
+      # `lib/openzeppelin-contracts/…/ERC2771Forwarder.sol`. Both are pinned by
+      # tag, not floated: openzeppelin v5.0.0 is the version whose ERC2771Forwarder
+      # src/TrustedMulticallForwarder.sol extends (it does not exist before 5.x),
+      # and forge-std v1.9.7 is the tag the rest of the repo pins in package.json.
+      # --no-git because a submodule inside this repo is not wanted; --shallow
+      # because only the tagged tree is used.
       - name: Register trusted-multicall-forwarder in the local cannon registry
         working-directory: auxiliary/TrustedMulticallForwarder
-        run: pnpm exec cannon build cannonfile.toml --quiet
+        run: |
+          forge install --shallow --no-git \
+            OpenZeppelin/openzeppelin-contracts@v5.0.0 \
+            foundry-rs/forge-std@v1.9.7
+          pnpm exec cannon build cannonfile.toml --quiet
 
       - run: moon run :build-testable
 
