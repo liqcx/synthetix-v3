@@ -238,19 +238,49 @@ The migration is judged against the current mocha results, not against green.
    is the single largest unknown in this design.
 4. Phase 5 is a real `nightly-contracts.yml` dispatch.
 
-## Known defects to resolve
+## Known defects
 
-Both were found by probe, both are reproducible in isolation:
+### A migration defect, to be fixed here
 
-- `utils/core-utils/test/utils/ethers/bignumber.test.ts` and
-  `test/utils/assertions/assert-bignumber.test.ts` fail with
-  `TypeError: Expected CommonJS module to have a function wrapper`. The trigger is importing the
-  **source** module `./src/utils/assertions/assert-bignumber`; the same module through the
-  compiled path `./utils/assertions/assert-bignumber` loads fine, and every other package already
-  imports the compiled path. Confined to core-utils' own tests.
-- Four `utils/core-utils` AST tests fail inside hardhat's solidity resolver
-  (`_resolveLibrarySourceName` cannot find `@synthetixio/core-contracts` from the fixture project
-  under bun's resolution).
+`utils/core-utils/test/utils/ethers/bignumber.test.ts` and
+`test/utils/assertions/assert-bignumber.test.ts` fail with
+`TypeError: Expected CommonJS module to have a function wrapper`.
+
+Bisected to a two-ingredient trigger in bun's transpiler: a TypeScript export assignment
+(`export = …`) in a module that also imports a Node builtin. Reduced to three lines:
+
+```ts
+import { AssertionError } from 'assert/strict';
+class E extends AssertionError {}
+export = { E };                    // fails; `export default { E }` passes
+```
+
+Neither ingredient alone reproduces it — `export =` with no builtin import is fine, and
+`export default` with the builtin is fine — and the `node:` prefix does not help.
+`utils/core-utils/src/utils/assertions/assert-bignumber.ts:26` is the **only** `export =` in the
+repository, so the fix is one line there plus the two plain-JS consumers that `require()` it
+(`utils/sample-project/test/contracts/SettingsModule.test.js:2` and `SomeModule.test.js:3`), which
+under `module: "Node16"` start receiving `{ default: … }`.
+
+### A pre-existing failure, recorded and out of scope
+
+Four `utils/core-utils` AST tests (`test/utils/ast/finders.test.ts`,
+`test/utils/ast/storage-struct.test.ts`) fail under bun — and **fail identically under
+mocha on node**, which the nightly never revealed because `utils/core-utils` dies at load before
+reaching them:
+
+```
+HardhatError: HH411: The library @synthetixio/core-contracts, imported from
+contracts/Token.sol, is not installed.
+  Caused by: Cannot find module '@synthetixio/core-contracts/package.json' from
+  utils/core-utils/test/fixtures/sample-project
+```
+
+This is the P3b family the `ci-pipeline` skill documents, landing in a test fixture rather than a
+package: `test/fixtures/sample-project` has no `node_modules` of its own, and pnpm's isolated
+linker does not put `@synthetixio/core-contracts` anywhere the walk-up from that directory can see
+it. Yarn's flat layout used to supply it. Not caused by this migration and not fixed by it — but
+recorded here so it is not mistaken for a regression when the counts are compared.
 
 ## Phases
 
@@ -260,7 +290,7 @@ Both were found by probe, both are reproducible in isolation:
 2. **Runner.** `run-tests.ts`, `run-suites.sh` modes. Proof: all seven suites locally, with the
    measured cost of `per-file` recorded (only a ~5–6 s per-file estimate exists today).
 3. **Manifests.** moon tasks, dependency removal, `.mocharc.json` deletion.
-4. **Known defects.** The two items above.
+4. **Known defect.** The `export =` fix and its two `require()` consumers.
 5. **CI.** A dispatched nightly run.
 
 ## Out of scope
@@ -272,3 +302,4 @@ Both were found by probe, both are reproducible in isolation:
 - The subgraph packages, which run `graph test`.
 - Raising the nightly's timeout as a standalone fix. This migration supersedes it: the hardcoded
   `--timeout 10000` disappears with `test-batch.js`.
+- HH411 in `utils/core-utils/test/fixtures/sample-project`, per the section above.
