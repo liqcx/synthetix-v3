@@ -1,11 +1,19 @@
-// Third gate: the `^:` edge rule. Where the root script at 6835e6fa is
-// `pnpm -r run X` (topological) the task must carry `deps: ['^:X']`; where it is
-// `pnpm -r --parallel run X` it must not. Tasks defined in a project's own
-// moon.yml inherit no deps unless one of its tags defines the SAME task id, so
-// those are the sites where the edge is silently absent. Neither the set gate
-// nor the body gate looks at deps.
+// Third gate: the resolved graph — ordering and caching. Where the root script
+// at 6835e6fa is `pnpm -r run X` the verb is topological, so every project that
+// owns X must be ordered after every workspace dependency that also owns X;
+// where it is `pnpm -r --parallel run X` (`clean` and `test`, and nothing else)
+// no such ordering may exist.
+//
+// This reads what moon RESOLVES, not the YAML that authors it. `moon query
+// projects` expands each `deps: ["^:X"]` into concrete `<dependency>:X`
+// targets, so an edge a tag file supplies is checked on every project that
+// inherits it — the previous version of this gate text-grepped each project's
+// own moon.yml and skipped every task id a tag defined, which is where most of
+// the graph lives. Same reason for the `cache: false` assertion below: caching
+// is behaviour moon would be adding (`pnpm -r run X` never skipped a script),
+// no task declares `outputs`, and a cache hit that restores nothing reports
+// success having produced nothing.
 import { execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -40,51 +48,77 @@ const TOPOLOGICAL = new Set([
 const PARALLEL = new Set(["clean", "test"]); // root uses `pnpm -r --parallel run X`
 const NO_ROOT_SCRIPT = new Set(["deploy", "forge-test"]);
 
-const taskIds = (text) =>
-	[...text.matchAll(/^ {2}([a-z][a-z0-9-]*):$/gm)].map((m) => m[1]);
-const tagTasks = new Map(); // tag -> Set(task id)
-for (const f of ["contracts", "ts-lib", "foundry", "subgraph"]) {
-	const t = readFileSync(join(ROOT, `.moon/tasks/tag-${f}.yml`), "utf8");
-	tagTasks.set(f, new Set(taskIds(t.slice(t.indexOf("\ntasks:")))));
-}
-
 const { projects } = JSON.parse(
 	execSync("moon query projects", {
 		cwd: ROOT,
 		maxBuffer: MOON_QUERY_MAX_BUFFER,
 	}).toString(),
 );
+const byId = new Map(projects.map((p) => [p.id, p]));
+
 let bad = 0;
+let tasks = 0; // every resolved task, for the cache assertion
+let edges = 0; // upstream orderings actually asserted
+let vacuous = 0; // topological instances with no dependency that owns the verb
+let noopBuilds = 0;
 for (const p of projects) {
-	const text = readFileSync(join(ROOT, `${p.source}/moon.yml`), "utf8");
-	const tags = [
-		...(text.match(/^tags: \[(.*)\]$/m)?.[1] ?? "").matchAll(/"([^"]+)"/g),
-	].map((m) => m[1]);
-	const idx = text.indexOf("\ntasks:");
-	if (idx === -1) continue;
-	const body = text.slice(idx);
-	for (const id of taskIds(body)) {
-		// A task id the tag also defines inherits that tag's deps (mergeDeps: append).
-		if (tags.some((t) => tagTasks.get(t)?.has(id))) continue;
-		// +1 skips the leading newline; without it split() returns '' as [0] and
-		// every declared edge reads as missing (caught by the publish-contracts control).
-		const block = body
-			.slice(body.indexOf(`\n  ${id}:`) + 1)
-			.split(/\n {2}(?=[a-z])/)[0];
-		const hasEdge = block.includes(`"^:${id}"`) || block.includes(`'^:${id}'`);
-		if (TOPOLOGICAL.has(id) && !hasEdge) {
+	for (const [id, task] of Object.entries(p.tasks ?? {})) {
+		tasks++;
+		if (task.options?.cache !== false) {
 			bad++;
 			console.log(
-				`MISSING ^: edge  ${p.source} :: ${id}  (root runs it topologically)`,
+				`CACHE ENABLED   ${p.source} :: ${id}  (no task declares outputs; a hit would restore nothing)`,
 			);
 		}
-		if ((PARALLEL.has(id) || NO_ROOT_SCRIPT.has(id)) && hasEdge) {
-			bad++;
-			console.log(
-				`SPURIOUS ^: edge ${p.source} :: ${id}  (root does not order it)`,
-			);
+		const deps = new Set((task.deps ?? []).map((d) => d.target));
+
+		if (TOPOLOGICAL.has(id)) {
+			// `build` is a noop whose real work — and therefore its ordering —
+			// rides on the same-project `build-contracts`/`build-ts` edge, so it
+			// carries no `^:build` of its own. Exempt it from the upstream rule,
+			// but require the edge the exemption is justified by; the three real
+			// `build` bodies (Faucet `forge build`, RewardsDistributor* `cannon
+			// build`) stay under the rule.
+			if (id === "build" && task.command === "noop") {
+				noopBuilds++;
+				if (![...deps].some((t) => t.startsWith(`${p.id}:`))) {
+					bad++;
+					console.log(
+						`NOOP build      ${p.source} :: build  (noop with no same-project edge: nothing builds)`,
+					);
+				}
+				continue;
+			}
+			let required = 0;
+			for (const dep of p.dependencies ?? []) {
+				if (!byId.get(dep.id)?.tasks?.[id]) continue;
+				required++;
+				edges++;
+				if (!deps.has(`${dep.id}:${id}`)) {
+					bad++;
+					console.log(
+						`MISSING edge    ${p.source} :: ${id}  (root runs it topologically; ${dep.id}:${id} must come first)`,
+					);
+				}
+			}
+			if (required === 0) vacuous++;
+		}
+
+		if (PARALLEL.has(id) || NO_ROOT_SCRIPT.has(id)) {
+			for (const target of deps) {
+				const [owner, verb] = target.split(":");
+				if (verb === id && owner !== p.id) {
+					bad++;
+					console.log(
+						`SPURIOUS edge   ${p.source} :: ${id}  (root does not order it; ${target})`,
+					);
+				}
+			}
 		}
 	}
 }
+console.log(
+	`checked ${tasks} resolved tasks, ${edges} upstream edges, ${noopBuilds} noop builds; ${vacuous} topological instance(s) had no dependency owning the verb (see README)`,
+);
 console.log(bad === 0 ? "DEPS PARITY OK" : `DEPS PARITY: ${bad} problem(s)`);
 process.exit(bad === 0 ? 0 : 1);

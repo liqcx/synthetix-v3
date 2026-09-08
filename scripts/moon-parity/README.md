@@ -25,16 +25,31 @@ clean checkout with no history to walk.
   missing its `rm -rf contracts/generated` would show up here). It is **blind to a step that
   exists outside any body it compares** — a task with the right name and right body that nothing
   ever calls, or a task this gate's `MIGRATED` set does not name, would not be caught.
-- **`deps.mjs`** — the `^:` topological-edge rule: where the root script used to be
-  `pnpm -r run X` (ordered by workspace dependency), the moon task must declare `deps: ["^:X"]`;
-  where it was `pnpm -r --parallel run X`, it must not. This is the one axis neither of the other
-  two gates looks at — a task can have the right id and the right body and still run before its
-  dependency has built, if the edge is missing. It is **blind to everything except that one
-  edge** — wrong bodies or a missing task entirely are not what it checks.
+- **`deps.mjs`** — the resolved graph: ordering, and caching. Where the root script used to be
+  `pnpm -r run X` (ordered by workspace dependency), every project that owns `X` must be ordered
+  after every workspace dependency that also owns `X`; where it was `pnpm -r --parallel run X`
+  (`clean` and `test`, and nothing else), no such ordering may exist. The gate reads what moon
+  _resolves_ — `moon query projects` expands each authored `deps: ["^:X"]` into concrete
+  `<dependency>:X` targets — rather than the YAML that authors it, so an edge a **tag file**
+  supplies is checked on every project that inherits it. That is the whole point: until this was
+  fixed the gate text-grepped each project's own `moon.yml` and skipped every task id one of its
+  tags defined, so deleting `deps: ["^:storage-dump"]` from `.moon/tasks/tag-contracts.yml` left
+  all three gates green; the same deletion now reports 20 missing edges. The second assertion is
+  there for the same reason: `options.cache` must be `false` on every resolved task, because
+  `pnpm -r run X` never skipped a script and no moon task declares `outputs`, so a cache hit would
+  restore nothing and still report success — and `cache: true` in a tag file was equally invisible
+  to a gate that only read the project files. Two blind spots worth naming: it is **blind to a
+  wrong body and to a missing task** (those are the other two gates), and its ordering half is
+  **vacuous for a topological instance whose project declares no workspace dependency that owns
+  the same verb** — 40 of them today, mostly the P3b dependency debt (`markets/legacy-market`
+  declares no dependency on `synthetix`, so nothing orders its `storage-dump`). That debt is also
+  why `pnpm -r` did not order them, which is the parity this gate checks, so the vacuity is
+  faithful rather than lax. The run prints both counts.
 
 That is why there are three: a task-set gate is blind to a wrong body, a body gate is blind to a
-step outside a body (or a missing edge), and the deps gate only ever looks at the edge. Passing
-all three is the closest this repo gets to a machine-checked "moon runs what Lerna used to run."
+step outside a body (or a missing edge), and the resolved-graph gate reads neither the names nor
+the bodies. Passing all three is the closest this repo gets to a machine-checked "moon runs what
+Lerna used to run."
 
 ## Running them
 
