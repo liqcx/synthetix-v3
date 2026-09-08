@@ -728,12 +728,15 @@ this task; a test that fails both ways is pre-existing and gets recorded.
 - [ ] **Step 7: Lint the new scripts**
 
 ```bash
-moon run :lint
+pnpm pretty
+pnpm lint:js
 ```
 
-Expected: green. The three new `.github/scripts/*.ts` files go through the same eslint and prettier
-gates as the rest of the tree; catching a rule violation here is cheaper than in Task 8, where the
-whole lint job is the acceptance gate.
+Expected: green. There is no `moon run :lint` task — `.github/workflows/ci.yml`'s `lint` job runs
+root `pnpm` scripts directly (`pretty`, `lint:js`, `lint:sol`, `dedupe --check`, `deps`,
+`deps:mismatched`, `deps:circular`, `liqcx-tooling-sync --check`). The three new
+`.github/scripts/*.ts` files go through the same eslint and prettier gates as the rest of the tree;
+catching a rule violation here is cheaper than in Task 8, where the whole lint job is the gate.
 
 - [ ] **Step 8: Delete the mocha batch runner**
 
@@ -1111,14 +1114,21 @@ and 24, and 45 and 47). `@types/mocha` is still covered by the `"*"` group.
 
 ```bash
 pnpm install
-moon run :lint
+pnpm pretty
+pnpm lint:js
+pnpm lint:sol
+pnpm dedupe --check
 pnpm deps
+pnpm deps:mismatched
+pnpm deps:circular
 ```
 
-Expected: green. `pnpm deps` is the step that went red for eight merges in PR #32's wake over an
-orphaned `@usecannon/router`; the root package is excluded from depcheck
-(`utils/deps/deps.js`'s `ignoredPackages`), so a types-only `@types/mocha` at the root does not
-trip it.
+Expected: green. These are the `lint` job's own steps in order, from
+`.github/workflows/ci.yml:41-48` — there is no `moon run :lint` task. `pnpm deps` is the step that
+went red for eight merges in PR #32's wake over an orphaned `@usecannon/router`; the root package is
+excluded from depcheck (`utils/deps/deps.js`'s `ignoredPackages`), so a types-only `@types/mocha` at
+the root does not trip it. The job aborts at its first failing step, so a green `deps` proves
+nothing about the steps after it — run them all.
 
 - [ ] **Step 5: Commit**
 
