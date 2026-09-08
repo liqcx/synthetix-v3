@@ -16,16 +16,27 @@ and the perps-market Foundry stand. Trigger it by hand with
 The runner pool is 4 x (2 CPU, 4 GB) shared org-wide on the production host — that budget, not
 taste, is why the heavy suites are nightly rather than per-PR.
 
-## Known red: the `contracts` job
+## Both jobs are green
 
-`lint` passes; `contracts` fails at `moon run :storage-dump`, and `size-contracts` would fail the
-same way. Neither runs under pnpm anywhere — CI or local — because this repo's hardhat packages
-still declare the dependency set Yarn's hoisting used to supply: 11 of the 16 packages with a
-`storage-dump` task do not declare `@usecannon/cli` (so `hardhat-cannon` fails to resolve,
-surfacing as `Cannot find module 'axios'`), and 13 import `@synthetixio/*` from Solidity without
-declaring it (`Cannot find module '@synthetixio/core-contracts/package.json'`).
-`markets/perps-market` and `protocol/synthetix` are the ones already correct — copy their
-`package.json` when fixing the rest. This is P3b debt the CI migration uncovered rather than caused;
-the fix is mechanical (add the missing `workspace:*` entries, then run
-`moon run <project>:storage-dump` per package until green) and deliberately left out of the
-migration PR.
+Both were red until 2026-09-08 and each had its own cause.
+
+**`lint`** stopped at `pnpm deps` from PR #32 (2026-09-05) to PR #41: `@usecannon/router` stayed in
+`markets/perps-market/package.json` after the script that required it was deleted. The job aborts at
+the first failing step, so `deps:mismatched`, `deps:circular`, `liqcx-tooling-sync`, actionlint,
+gitleaks, yamllint and markdownlint were **skipped, not passing**, for eight merges — worth
+remembering before reading a green `lint` badge on an old run.
+
+**`contracts`** never passed under pnpm at all (P3b debt the migration uncovered): 12 of the 16
+packages with a `storage-dump` task imported `@synthetixio/*` from Solidity without declaring the
+package, and Yarn's hoisting used to supply it. moon runs the graph leaves-first, so only two
+packages failed visibly at a time. Fixed by declaring one `workspace:*` entry per real import — plus
+the transitive ones hardhat resolves itself — and a matching `depcheck.ignoreMatches` entry, since a
+Solidity-only import reads as an unused dependency. `@usecannon/cli` turned out not to be needed
+anywhere for `storage-dump`.
+
+Two of the imports could not be declared: `oracle-manager` -> `main` and `spot-market` ->
+`perps-market` both point at a package that already depends on them, and moon rejects the task graph
+(`action_graph::would_cycle`). Both were mocks; each package now keeps its own copy.
+
+If a contracts package is added and `storage-dump` fails with HH411, that is this same class: add
+the `workspace:*` entry and the `depcheck.ignoreMatches` entry together, never one alone.

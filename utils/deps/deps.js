@@ -80,9 +80,20 @@ async function run() {
 
     const packageJson = JSON.parse(await fs.readFile(`${location}/package.json`, 'utf-8'));
 
+    // A package's own `depcheck` block extends the workspace defaults; it does
+    // not replace them. The two list options are the ones a package has any
+    // reason to add to — spreading `packageJson.depcheck` alone would drop the
+    // global entries (`typescript`, `@synthetixio/core-contracts`, ...) the
+    // moment a package names a single ignore of its own.
+    const packageOptions = { ...options, ...packageJson.depcheck };
+    for (const key of ['ignoreMatches', 'ignorePatterns']) {
+      if (packageJson.depcheck?.[key]) {
+        packageOptions[key] = [...new Set([...options[key], ...packageJson.depcheck[key]])];
+      }
+    }
+
     let { dependencies, devDependencies, missing } = await depcheck(location, {
-      ...options,
-      ...packageJson.depcheck,
+      ...packageOptions,
       package: packageJson,
     });
     dependencies = dependencies.filter((dep) => !isUsedByMoon(dep, location, moonCommands));

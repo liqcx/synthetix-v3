@@ -1,6 +1,6 @@
 ---
 name: ci-red-deps-router
-description: lint в ci.yml красный на main с 05.09 (PR #32) из-за осиротевшего @usecannon/router; contracts красная отдельно по долгу P3b
+description: обе джобы ci.yml починены 08.09 — lint (осиротевший @usecannon/router, PR #41) и contracts (долг P3b, PR #42)
 metadata:
   type: project
 ---
@@ -13,14 +13,24 @@ metadata:
 смотрели. Шаги 10–16 (`deps:mismatched`, `deps:circular`, `liqcx-tooling-sync`,
 actionlint, gitleaks, yamllint, markdownlint) при этом **skipped**, а не зелёные.
 
-Починка: ветка `feat-cld/deps-router-gate`, коммит `ce5a3c58` (08.09, запушен, PR не открыт) —
+Починка: PR #41 (`feat-cld/deps-router-gate`, коммит `ce5a3c58`) —
 `pnpm deps:fix` + обязательный
 `pnpm dedupe` следом — install без dedupe переписывает peer-суффикс
 `axios-retry@4.5.0(axios@1.16.1(debug@4.4.3))` и роняет `pnpm dedupe --check`.
 Пакет `@usecannon/router@4.1.3` остаётся в локе транзитивно через форк Cannon.
 
-**contracts.** Красная независимо и по другой причине — долг P3b: 11 из 16 пакетов со
-storage-dump не объявляют `@usecannon/cli`, 13 — `@synthetixio/*`. Эта карточка её не
-трогает, ран целиком зелёным от неё не станет. Подробности: [[ci-gha-migration-p3d]].
+**contracts.** Красная независимо, долг P3b, под pnpm не проходила ни разу: 12 из 16 пакетов со
+storage-dump импортируют `@synthetixio/*` из Solidity, не объявляя пакет (yarn подкладывал
+хойстингом). moon идёт по графу от листьев, поэтому падали по два пакета за прогон, остальные
+скрывались за ними. Починка — PR #42, ветка `feat-cld/p3b-contract-deps`:
+`workspace:*` на каждый реальный импорт (включая транзитивные — SpotMarketOracle нужен
+`@synthetixio/main` из-за ISpotMarketFactoryModule) **плюс** запись в `depcheck.ignoreMatches`,
+иначе солидити-импорт читается как неиспользуемая зависимость и валит `pnpm deps`.
+`@usecannon/cli` не понадобился нигде. Два импорта объявить нельзя — `oracle-manager` → `main`
+и `spot-market` → `perps-market` смотрят в пакет, который уже зависит от них; moon отвечает
+`action_graph::would_cycle`. Оба — моки, каждый пакет теперь держит свою копию (в
+`markets/spot-market/contracts/mocks/AggregatorV3Mock.sol` этот приём был и до того).
+Ещё в PR #42: `utils/deps/deps.js` сливал `depcheck` пакета с глобальным поверхностно, из-за чего
+`ignoreMatches` пакета молча отменял глобальный список. Подробности: [[ci-gha-migration-p3d]].
 
 Чтение логов джобов: [[gh-run-logs-self-hosted]].
