@@ -88,7 +88,19 @@ jobs:
             foundry-rs/forge-std@v1.9.7
           pnpm exec cannon build cannonfile.toml --quiet
 
+      # Serial on purpose. Every cannon build spawns its own anvil, and outside
+      # markets/perps-market — the one package whose hardhat.config.ts reads
+      # ANVIL_PORT — the port comes from utils/common-config/hardhat.config.ts,
+      # which hardcodes 8545. Run two build-testable tasks at once and the
+      # second anvil dies with "Address already in use (os error 98)"; the run
+      # before this one lost ArbitrumGasPriceOracle, OpGasPriceOracle and
+      # PythERC7412Wrapper that way while oracle-manager held the port. The
+      # alternative — a distinct port per package — needs a per-task index moon
+      # does not hand out, so serialise instead: 16 packages, tens of seconds
+      # each, against this job's 360-minute budget.
       - run: moon run :build-testable
+        env:
+          MOON_CONCURRENCY: "1"
 
       - name: Hardhat integration suites
         env:
