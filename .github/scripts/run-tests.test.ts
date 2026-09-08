@@ -1,7 +1,7 @@
 import assert from 'assert/strict';
 
 import { modeFor } from './suites';
-import { leakedPids, slugFor, unitsFor } from './run-tests';
+import { knob, parsePids, portFor, slugFor, unitsFor } from './run-tests';
 
 describe('.github/scripts/run-tests.ts', function () {
   const files = [
@@ -36,31 +36,60 @@ describe('.github/scripts/run-tests.ts', function () {
   });
 });
 
-describe('leakedPids', function () {
-  // `hardhat test` used to tear down the anvil instance(s) Cannon spawns;
-  // `bun test` does not, so the runner snapshots `pgrep -x anvil` before and
-  // after each unit and reaps only what leakedPids reports here.
-
-  it('reports nothing when nothing leaked', function () {
-    const before = new Set(['1', '2']);
-    const after = new Set(['1', '2']);
-    assert.deepEqual(leakedPids(before, after), []);
+describe('parsePids', function () {
+  it('splits a normal multi-line pid list', function () {
+    assert.deepEqual(parsePids('111\n222\n333'), ['111', '222', '333']);
   });
 
-  it('reports a pid that appeared after the unit ran', function () {
-    const before = new Set(['1', '2']);
-    const after = new Set(['1', '2', '3']);
-    assert.deepEqual(leakedPids(before, after), ['3']);
+  it('returns nothing for an empty string', function () {
+    assert.deepEqual(parsePids(''), []);
   });
 
-  it('does not report a pid present both before and after', function () {
-    // A developer's own anvil (or anyone else's), already running before the
-    // unit started, stays running after it too: it must never be reported as
-    // leaked, because the runner reaps exactly what leakedPids returns. '10'
-    // exits during the unit (present before, gone after) and is also not a
-    // leak; only '30', which is new, is reported.
-    const before = new Set(['10', '20']);
-    const after = new Set(['20', '30']);
-    assert.deepEqual(leakedPids(before, after), ['30']);
+  it('drops blank lines and surrounding whitespace', function () {
+    assert.deepEqual(parsePids('  111  \n\n222\n   \n333\n'), ['111', '222', '333']);
+  });
+});
+
+describe('knob', function () {
+  it('treats an empty string as unset and returns the fallback', function () {
+    assert.equal(knob('TEST_ATTEMPTS', '', 2), 2);
+  });
+
+  it('rejects a non-numeric value loudly, naming the variable and the value', function () {
+    assert.throws(() => knob('TEST_ATTEMPTS', 'abc', 2), /TEST_ATTEMPTS/);
+    assert.throws(() => knob('TEST_ATTEMPTS', 'abc', 2), /"abc"/);
+  });
+
+  it('rejects zero: not a positive integer', function () {
+    assert.throws(() => knob('TEST_ATTEMPTS', '0', 2), /TEST_ATTEMPTS/);
+  });
+
+  it('rejects a negative value', function () {
+    assert.throws(() => knob('TEST_ATTEMPTS', '-1', 2), /TEST_ATTEMPTS/);
+  });
+
+  it('accepts a valid positive integer', function () {
+    assert.equal(knob('TEST_ATTEMPTS', '2', 5), 2);
+  });
+
+  it('treats unset (undefined) as unset and returns the fallback', function () {
+    assert.equal(knob('TEST_ATTEMPTS', undefined, 2), 2);
+  });
+});
+
+describe('portFor', function () {
+  it('assigns the default base its own index-0 port unshifted', function () {
+    assert.equal(portFor(8600, 0), 8600);
+  });
+
+  it('never assigns 8545, even when the base is 8545', function () {
+    assert.notEqual(portFor(8545, 0), 8545);
+  });
+
+  it('does not re-collide once the shift kicks in', function () {
+    const a = portFor(8544, 1);
+    const b = portFor(8544, 2);
+    assert.notEqual(a, 8545);
+    assert.notEqual(a, b);
   });
 });
