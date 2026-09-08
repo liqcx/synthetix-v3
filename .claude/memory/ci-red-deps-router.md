@@ -13,7 +13,7 @@ metadata:
 смотрели. Шаги 10–16 (`deps:mismatched`, `deps:circular`, `liqcx-tooling-sync`,
 actionlint, gitleaks, yamllint, markdownlint) при этом **skipped**, а не зелёные.
 
-Починка (ветка `feat-cld/deps-router-gate`, 08.09; **в рабочем дереве, не закоммичена**):
+Починка: ветка `feat-cld/deps-router-gate`, коммит `ce5a3c58` (08.09, запушен, PR не открыт) —
 `pnpm deps:fix` + обязательный
 `pnpm dedupe` следом — install без dedupe переписывает peer-суффикс
 `axios-retry@4.5.0(axios@1.16.1(debug@4.4.3))` и роняет `pnpm dedupe --check`.
