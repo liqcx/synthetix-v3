@@ -1,6 +1,6 @@
 ---
 name: nightly-build-testable-ipfs
-description: Ночной прогон упирался в build-testable (cannon не мог забрать trusted-multicall-forwarder). Своя IPFS-нода НЕ чинит — провайдеров CID ноль. Починка: собирать in-repo пакет в локальный реестр, версия 0.0.4-liqcx.1
+description: Ночной прогон упирался в build-testable (cannon не мог забрать trusted-multicall-forwarder, затем mintable-token). Своя IPFS-нода НЕ чинит — провайдеров CID ноль. Починка: собирать пакеты в локальный реестр с бампом версии; исходники mintable-token восстановлены из блоба Package Code в кэше
 metadata:
   type: project
 ---
@@ -52,7 +52,7 @@ pinata) отвечают 504/404. Пакеты cannon в публичный DHT 
 `.moon/workspace.yml:12` — нет package.json). Если собрать его в локальный реестр до
 `build-testable`, provision резолвится локально и до IPFS дело не доходит.
 Гвард `cannon-cli/src/commands/build.ts:157` (при пустом локальном реестре и наличии пакета
-в ончейне — «already published … bump the `version`») снят бампом версии **0.0.4 → 0.0.4-liqcx.1**.
+в ончейне — «already published … bump the `version`») снят бампом версии **0.0.4 → 0.0.4-liq.1**.
 Версию никто не называет: oracle-manager провижнит по имени, governance берёт пресет
 `@with-synthetix` из `cannonfile.clone.toml`.
 
@@ -73,6 +73,50 @@ pinata) отвечают 504/404. Пакеты cannon в публичный DHT 
 
 Отдельная история — пин версии в provision (cannon сам предупреждает про `latest@main`):
 это чинит воспроизводимость, но не доступность — припиненный CID точно так же некому отдать.
+
+## Вторая стена: `mintable-token` (08.09, ран 34214717044)
+
+15 из 16 пакетов прошли, шестнадцатый — `OwnedFeeCollector` — упал на том же alert 40, но
+на `mintable-token:1.8@permissionless-mint`. Его провижнят `auxiliary/OwnedFeeCollector`
+и (дважды) `auxiliary/BuybackSnx`. **Исходника в репозитории не было.**
+
+**Блоб «Package Code» (`miscUrl`) несёт полный solc standard-json input, включая сорсы.**
+Это ключ ко всему: прежде чем что-то реконструировать по ABI, надо искать в
+`~/.local/share/cannon/ipfs_cache*` файл с CID из `miscUrl` — там нашлись и
+`src/MintableToken.sol` (solc 0.8.23, OZ 4.9), и определение пакета. То есть
+`auxiliary/MintableToken` — копия настоящего артефакта, а не догадка об интерфейсе
+(в частности, `mint(uint256 amount, address to)` — сумма первым аргументом).
+
+Пресета `permissionless-mint` в кэше нет, только `main`, где `mint` — `onlyOwner`. Снятие
+`onlyOwner` выводится из тестов: `OwnedFeeCollector` минтит от имперсонированного `0x48914229…`,
+`BuybackSnx` — от `getSigners()[0]`, и ни один cannonfile не передаёт `owner`.
+
+`<%= defaultSigner %>` в контексте настроек резолвится в **нулевой адрес** — OZ v5 `Ownable(0)`
+ревертит (`0x1e4fbdf7`). Дефолт `setting.owner` пришлось задать литералом.
+
+Прод-cannonfile `auxiliary/ERC4626ToAssetsRatioOracle/cannonfile.toml:7` клонирует тот же пакет
+и **не тронут**: `build-testable` читает не его.
+
+## Приём: обойти чужой anvil на 8545
+
+Одноразовый `hardhat.config.probe.ts` рядом с `hardhat.config.ts` пакета:
+
+```ts
+import config from './hardhat.config';
+const anvilPort = Number(process.env.ANVIL_PORT) || 8545;
+export default { ...config, networks: { ...(config as any).networks,
+  cannon: { port: anvilPort, url: `http://127.0.0.1:${anvilPort}` } } };
+```
+
+Дальше `ANVIL_PORT=8565 bun x hardhat --config hardhat.config.probe.ts cannon:build …` (или `test`).
+Так локально проверены обе сюиты (12 и 5 тестов) на пустом `CANNON_DIRECTORY`, включая цепочку
+`trusted-multicall-forwarder → oracle-manager → BuybackSnx`. Файл потом удалить.
+
+## Параллельность build-testable
+
+Тот же ран 34214717044 потерял `ArbitrumGasPriceOracle`, `OpGasPriceOracle` и `PythERC7412Wrapper`
+на `anvil: Address already in use (os error 98)` — все cannon-сборки лезут на 8545. Своего индекса
+задачи moon не даёт, поэтому шаг идёт с `MOON_CONCURRENCY: "1"`.
 
 Оба мока из PR #42 проверены **локально**, не в CI: `protocol/oracle-manager` — 54 теста,
 0 падений (в том числе `ChainlinkNode`, идущий в `getContractFactory('AggregatorV3Mock')`);
