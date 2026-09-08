@@ -46,7 +46,75 @@ jobs:
 
       - run: moon run :build-ts
       - run: moon run :generate-testable
+
+      # oracle-manager's cannonfile provisions `trusted-multicall-forwarder`
+      # with no version, i.e. the mutable `latest@main`. On a runner the local
+      # cannon registry is empty, so that resolves through the ON-CHAIN registry
+      # to a CID whose bytes live only on Cannon's own repo service — and the
+      # regional hostnames it uses (`us-east.repo.usecannon.com` and friends,
+      # picked by timezone in cannon-builder/src/constants.ts:54) fail the TLS
+      # handshake with alert 40 for everyone, not just from here. The apex
+      # `repo.usecannon.com` has a valid certificate; the second-level wildcard
+      # evidently is not covered. Nor is the content reachable another way:
+      # delegated routing reports zero providers for the CID and every public
+      # gateway times out, so cannon packages simply are not on the public DHT.
+      #
+      # The source of that package is in this repo, so build it into the local
+      # registry first: `latest@main` then resolves `via local` and the
+      # provision never touches the network. Two things this step depends on:
+      #   * NO --chain-id. cannon only spawns its own anvil when the flag is
+      #     absent (cannon-cli/src/util/build.ts:127); passing it sends cannon
+      #     to frame / 127.0.0.1:8545 and the build hangs on reconnect.
+      #   * The version in cannonfile.toml must not exist on the on-chain
+      #     registry, or the build refuses with "already published" — hence
+      #     0.0.4-liq.1 rather than upstream's 0.0.4.
+      # The package is a pure Foundry one (no package.json, excluded from moon
+      # in .moon/workspace.yml), so this is a plain step, not a moon task.
+      #
+      # `forge install` first: this package's lib/ is gitignored and there are
+      # no submodules (.gitmodules is empty), so a fresh checkout has neither
+      # dependency and `forge build` fails on `lib/forge-std/src/Test.sol` and
+      # `lib/openzeppelin-contracts/…/ERC2771Forwarder.sol`. Both are pinned by
+      # tag, not floated: openzeppelin v5.0.0 is the version whose ERC2771Forwarder
+      # src/TrustedMulticallForwarder.sol extends (it does not exist before 5.x),
+      # and forge-std v1.9.7 is the tag the rest of the repo pins in package.json.
+      # --no-git because a submodule inside this repo is not wanted; --shallow
+      # because only the tagged tree is used.
+      - name: Register trusted-multicall-forwarder in the local cannon registry
+        working-directory: auxiliary/TrustedMulticallForwarder
+        run: |
+          forge install --shallow --no-git \
+            OpenZeppelin/openzeppelin-contracts@v5.0.0 \
+            foundry-rs/forge-std@v1.9.7
+          pnpm exec cannon build cannonfile.toml --quiet
+
+      # Same wall, different package: BuybackSnx and OwnedFeeCollector provision
+      # `mintable-token:...@permissionless-mint`, whose bytes are just as
+      # unreachable. Unlike the forwarder this package had no source in the repo,
+      # so auxiliary/MintableToken is a vendored copy — see its README for what
+      # was recovered from the upstream artifact and what had to be decided.
+      # forge-std is not needed here (no Foundry tests), only OpenZeppelin, and
+      # at the same v5.0.0 tag the forwarder pins.
+      - name: Register mintable-token in the local cannon registry
+        working-directory: auxiliary/MintableToken
+        run: |
+          forge install --shallow --no-git \
+            OpenZeppelin/openzeppelin-contracts@v5.0.0
+          pnpm exec cannon build cannonfile.toml --quiet
+
+      # Serial on purpose. Every cannon build spawns its own anvil, and outside
+      # markets/perps-market — the one package whose hardhat.config.ts reads
+      # ANVIL_PORT — the port comes from utils/common-config/hardhat.config.ts,
+      # which hardcodes 8545. Run two build-testable tasks at once and the
+      # second anvil dies with "Address already in use (os error 98)"; the run
+      # before this one lost ArbitrumGasPriceOracle, OpGasPriceOracle and
+      # PythERC7412Wrapper that way while oracle-manager held the port. The
+      # alternative — a distinct port per package — needs a per-task index moon
+      # does not hand out, so serialise instead: 16 packages, tens of seconds
+      # each, against this job's 360-minute budget.
       - run: moon run :build-testable
+        env:
+          MOON_CONCURRENCY: "1"
 
       - name: Hardhat integration suites
         env:
