@@ -8,7 +8,9 @@ metadata:
 Разбор карточки 2 обзора 07.09 (`architecture-review-20260907-0454.html`, main @ 37b51c6a) сделан 2026-09-07
 по `main @ 9e21507f` (после #36): HTML `~/Documents/card2-collateral-change-20260907.html` — рядом с обзором,
 локальный файл (не Artifact), проверен скриншотом (playwright + `python3 -m http.server` из scratchpad;
-file:// заблокирован; скриншоты падают в `.playwright-mcp/` чекаута — удалять). **Сделана 07–08.09: PR liqcx/synthetix-v3#38 (draft, база main) — https://github.com/liqcx/synthetix-v3/pull/38 ; все четыре
+file:// заблокирован; скриншоты падают в `.playwright-mcp/` чекаута — удалять). **Слита 08.09 (merge 1fbb39dd): PR liqcx/synthetix-v3#38 — https://github.com/liqcx/synthetix-v3/pull/38 ; контракты на контурах
+ещё не обновлены (роутер: PerpsAccountModule и всё, что компилирует PerpsAccount/GlobalPerpsMarket — набор из сборки; едет с #30–#37).
+После слияния основной чекаут стоял на чужой ветке feat-cld/moon-migration — main туда не подтягивался, копии памяти оставлены как живые; все четыре
 задачи плана закрыты с чистыми ревью; финальное ревью ветки (opus): 0 BLOCKER, 3 SHOULD-FIX в тексте спеки — закрыты волной
 b7734bd6 (реревью чистое); «Ready to merge: with fixes» → готово, мержить руками пользователя.** Коммиты: 92920695 спека, 0797c07a план,
 5423fcc2+14f58d71 таблицы двери (красные на базе ровно на трёх изменившихся ответах), d521c5fa библиотека + двери + удаления
