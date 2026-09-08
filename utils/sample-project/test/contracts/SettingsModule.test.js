@@ -1,5 +1,5 @@
 const { default: assertRevert } = require('@synthetixio/core-utils/utils/assertions/assert-revert');
-const assertBn = require('@synthetixio/core-utils/utils/assertions/assert-bignumber');
+const assertBn = require('@synthetixio/core-utils/utils/assertions/assert-bignumber').default;
 const bootstrap = require('../bootstrap');
 
 describe('SettingsModule', () => {
