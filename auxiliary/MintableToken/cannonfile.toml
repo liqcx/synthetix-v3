@@ -4,11 +4,11 @@ preset = "permissionless-mint"
 description = "Token that allows anyone to mint as many tokens as desired"
 
 # Upstream's `main` preset leaves this required, but neither consumer passes an
-# owner, so it needs a default here. The first anvil account: it is the signer
-# cannon deploys with on a local node, and the one BuybackSnx's suite calls
-# `owner()`. `<%= defaultSigner %>` would say that more directly but resolves to
-# the zero address in the settings context, which OpenZeppelin v5's Ownable
-# rejects — and a literal keeps the CREATE2 address stable across environments.
+# owner, so it needs a default here. The first anvil account, because that is
+# what `r.getSigners()[0]` hands BuybackSnx's suite as `owner()`.
+# `<%= defaultSigner %>` was tried and resolves to the zero address in the
+# settings context, which OpenZeppelin v5's Ownable rejects; a literal also
+# keeps the CREATE2 address stable across environments.
 [setting.owner]
 defaultValue = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 

@@ -19,7 +19,10 @@ shape, as `auxiliary/TrustedMulticallForwarder`.
 
 `src/MintableToken.sol` is the upstream source, recovered from a cached copy of
 the package's own code blob (`solcVersion 0.8.23+commit.f704f362`,
-`sourceName src/MintableToken.sol`), with three deliberate differences:
+`sourceName src/MintableToken.sol`), and kept under upstream's `UNLICENSED`
+SPDX tag. It differs in three ways that matter, plus two that do not: the
+imports go through a remapping rather than `lib/…` paths, and it compiles with
+this repo's solc 0.8.34/prague instead of 0.8.23/paris.
 
 - **`mint` has no `onlyOwner`.** The cached blob is the `main` preset; the
   consumers ask for `permissionless-mint`, whose definition was not cached.
@@ -41,11 +44,13 @@ the package's own code blob (`solcVersion 0.8.23+commit.f704f362`,
 `cannonfile.toml` is the upstream definition verbatim — the same six settings,
 the same CREATE2 contract operation named `MintableToken`, which is what
 `imports.usd.contracts.MintableToken.address` and `getContract('usd.MintableToken')`
-read — except for two things:
+read — except that `preset` names `permissionless-mint` where the cached
+definition says `main`, `description` says "anyone" where it said "the owner",
+and:
 
 - **`version = "1.8-liq.1"`**, because `cannon build` refuses a package that
   already exists on the on-chain registry, and `1.8` does. The three
   `cannonfile.test.toml` provisions name the bumped version.
-- **`setting.owner` has a default** (the deploying signer). Upstream's `main`
+- **`setting.owner` has a default** (the first anvil account). Upstream's `main`
   preset makes it required; neither consumer passes one, so
   `permissionless-mint` must default it too.
