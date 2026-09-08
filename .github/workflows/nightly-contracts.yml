@@ -44,9 +44,9 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@v1
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm build:ts
-      - run: pnpm generate-testable
-      - run: pnpm build-testable
+      - run: moon run :build-ts
+      - run: moon run :generate-testable
+      - run: moon run :build-testable
 
       - name: Hardhat integration suites
         env:

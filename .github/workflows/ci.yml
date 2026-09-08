@@ -87,9 +87,9 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@v1
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm build:ts
-      - run: pnpm storage:dump
-      - run: pnpm check:storage
+      - run: moon run :build-ts
+      - run: moon run :storage-dump
+      - run: moon run :check-storage
 
       # Restore the committed dumps from the merge base and diff the freshly
       # generated ones against them — this is what catches a storage-layout
@@ -112,9 +112,9 @@ jobs:
               echo "::notice::no baseline for $f (new since $base)"
             fi
           done < <(find . -name 'storage.dump.json' -print0)
-          pnpm storage:verify
+          moon run :storage-verify
 
-      - run: pnpm size-contracts
+      - run: moon run :size-contracts
 
       # The Foundry stands that build straight from source. perps-market is NOT
       # here: its stand needs script/Deploy.sol, which build-testable generates.
@@ -131,17 +131,11 @@ jobs:
       # latest, v1.16.2 (github.com/foundry-rs/forge-std, checked
       # 2026-09-04) — none ship src/mocks/; only the floating #master ref
       # currently does, and that is exactly what deps:mismatched exists to
-      # forbid. Package scripts are inconsistent (forge-test / forge-coverage
-      # / test), so call forge directly and let each foundry.toml profile
-      # apply.
+      # forbid.
       - name: Foundry suites (no Cannon)
-        run: |
-          set -euo pipefail
-          for dir in \
-            markets/treasury-market \
-            auxiliary/Faucet
-          do
-            echo "::group::forge test $dir"
-            (cd "$dir" && forge test)
-            echo "::endgroup::"
-          done
+        # RewardsDistributor and RewardsDistributorExternal own a forge-test task
+        # (parity with their scripts) but are deliberately not named here: both
+        # fail to compile because their tests import forge-std/mocks/, which no
+        # tagged forge-std release ships. Naming targets, rather than withholding
+        # the task, is what keeps them out.
+        run: moon run treasury-market:forge-test Faucet:test
