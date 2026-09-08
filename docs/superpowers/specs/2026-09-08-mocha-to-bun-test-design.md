@@ -159,12 +159,14 @@ existing convention:
 
 | Variable | Meaning |
 | --- | --- |
-| `TEST_FILES` | whitespace-separated list, as today |
-| `TEST_MODE` | `per-file` or `per-package` |
+| `TEST_MODE_OVERRIDE` | forces `per-file` or `per-package`; empty keeps `suites.ts` |
 | `TEST_TIMEOUT` | per-test timeout, default 120 000 |
 | `TEST_ATTEMPTS` | re-runs of a failed unit, default 2 |
 | `TEST_WALL_CLOCK` | per-process kill, default 1 200 000 |
 | `JUNIT_DIR` | as today |
+
+The runner takes the package directory as its one argument and globs
+`test/**/*.test.{ts,js}` itself, so there is no `TEST_FILES` hand-off.
 
 Behaviour:
 
@@ -173,9 +175,11 @@ Behaviour:
   test directory. The `hardhat/register` preload is added when, and only when, the package has a
   `hardhat.config.ts` — orthogonal to the mode, and today that means every suite except
   `utils/core-utils`.
-- `<shim>` is resolved to an absolute path with `Bun.resolveSync` before spawning rather than
-  passed as the bare specifier `@synthetixio/core-utils/utils/bun/preload`, so preload resolution
-  does not depend on how bun treats bare specifiers in `--preload` from an arbitrary cwd.
+- `<shim>` is an absolute path to the preload **source**, computed from the runner's own location,
+  rather than the bare specifier `@synthetixio/core-utils/utils/bun/preload`. bun transpiles
+  TypeScript on the fly, so reading the source keeps `moon run <pkg>:test` working on a tree that
+  has not been built yet, and leaves nothing about preload resolution to how bun treats bare
+  specifiers from an arbitrary cwd.
 - A failed unit is re-run whole, up to `TEST_ATTEMPTS`. There is no per-test retry: bun has none,
   and mocha's `--retries 2` is what manufactured the `TokenAlreadyMinted("99")` /
   `AlreadyInitialized()` confusion in run `34219846229` by replaying tests whose transaction had
@@ -202,7 +206,8 @@ up-front `SUITE_FILTER` validation, the "zero test files is a failure" guard, an
   again — the failure this migration exists to remove.
 - `utils/core-utils/moon.yml`: `test` drops `--require ts-node/register`; `coverage` becomes
   `bun test --coverage`, and `nyc` goes.
-- Root `package.json` loses `mocha`, `mocha-junit-reporter` and `nyc`; keeps `@types/mocha`.
+- Root `package.json` loses `mocha` and `mocha-junit-reporter`; keeps `@types/mocha`. `nyc` is
+  declared only in `utils/core-utils` and goes with that package's switch, along with `.nycrc.json`.
 - `utils/core-utils/package.json` loses `mocha` and the `test:watch` script
   (`bun test --watch` covers it).
 - `utils/core-utils/.mocharc.json` is deleted. Its `spec` glob is why every core-utils batch loaded
