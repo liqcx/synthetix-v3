@@ -132,6 +132,9 @@ importers:
       '@synthetixio/docgen':
         specifier: workspace:*
         version: link:../../utils/docgen
+      '@synthetixio/oracle-manager':
+        specifier: workspace:*
+        version: link:../../protocol/oracle-manager
       hardhat:
         specifier: ^2.28.0
         version: 2.28.6(bufferutil@4.1.0)(ts-node@10.9.2(@types/node@20.11.17)(typescript@5.5.4))(typescript@5.5.4)(utf-8-validate@5.0.10)
@@ -159,6 +162,12 @@ importers:
       '@synthetixio/docgen':
         specifier: workspace:*
         version: link:../../utils/docgen
+      '@synthetixio/oracle-manager':
+        specifier: workspace:*
+        version: link:../../protocol/oracle-manager
+      '@synthetixio/perps-market':
+        specifier: workspace:*
+        version: link:../../markets/perps-market
       '@synthetixio/wei':
         specifier: ^2.74.4
         version: 2.74.4
@@ -192,6 +201,9 @@ importers:
       '@synthetixio/main':
         specifier: workspace:*
         version: link:../../protocol/synthetix
+      '@synthetixio/oracle-manager':
+        specifier: workspace:*
+        version: link:../../protocol/oracle-manager
       '@synthetixio/wei':
         specifier: ^2.74.4
         version: 2.74.4
@@ -224,6 +236,9 @@ importers:
       '@synthetixio/docgen':
         specifier: workspace:*
         version: link:../../utils/docgen
+      '@synthetixio/oracle-manager':
+        specifier: workspace:*
+        version: link:../../protocol/oracle-manager
       hardhat:
         specifier: ^2.28.0
         version: 2.28.6(bufferutil@4.1.0)(ts-node@10.9.2(@types/node@20.11.17)(typescript@5.5.4))(typescript@5.5.4)(utf-8-validate@5.0.10)
@@ -248,6 +263,9 @@ importers:
       '@synthetixio/docgen':
         specifier: workspace:*
         version: link:../../utils/docgen
+      '@synthetixio/oracle-manager':
+        specifier: workspace:*
+        version: link:../../protocol/oracle-manager
       hardhat:
         specifier: ^2.28.0
         version: 2.28.6(bufferutil@4.1.0)(ts-node@10.9.2(@types/node@20.11.17)(typescript@5.5.4))(typescript@5.5.4)(utf-8-validate@5.0.10)
@@ -275,6 +293,9 @@ importers:
       '@synthetixio/docgen':
         specifier: workspace:*
         version: link:../../utils/docgen
+      '@synthetixio/perps-market':
+        specifier: workspace:*
+        version: link:../../markets/perps-market
       '@synthetixio/wei':
         specifier: ^2.74.4
         version: 2.74.4
@@ -305,6 +326,9 @@ importers:
       '@synthetixio/docgen':
         specifier: workspace:*
         version: link:../../utils/docgen
+      '@synthetixio/oracle-manager':
+        specifier: workspace:*
+        version: link:../../protocol/oracle-manager
       hardhat:
         specifier: ^2.28.0
         version: 2.28.6(bufferutil@4.1.0)(ts-node@10.9.2(@types/node@20.11.17)(typescript@5.5.4))(typescript@5.5.4)(utf-8-validate@5.0.10)
@@ -365,6 +389,15 @@ importers:
       '@synthetixio/docgen':
         specifier: workspace:*
         version: link:../../utils/docgen
+      '@synthetixio/main':
+        specifier: workspace:*
+        version: link:../../protocol/synthetix
+      '@synthetixio/oracle-manager':
+        specifier: workspace:*
+        version: link:../../protocol/oracle-manager
+      '@synthetixio/spot-market':
+        specifier: workspace:*
+        version: link:../../markets/spot-market
       hardhat:
         specifier: ^2.28.0
         version: 2.28.6(bufferutil@4.1.0)(ts-node@10.9.2(@types/node@20.11.17)(typescript@5.5.4))(typescript@5.5.4)(utf-8-validate@5.0.10)
@@ -392,6 +425,9 @@ importers:
       '@synthetixio/main':
         specifier: workspace:*
         version: link:../../protocol/synthetix
+      '@synthetixio/oracle-manager':
+        specifier: workspace:*
+        version: link:../../protocol/oracle-manager
       '@synthetixio/wei':
         specifier: ^2.74.4
         version: 2.74.4
@@ -464,12 +500,21 @@ importers:
       '@synthetixio/common-config':
         specifier: workspace:*
         version: link:../../utils/common-config
+      '@synthetixio/core-contracts':
+        specifier: workspace:*
+        version: link:../../utils/core-contracts
+      '@synthetixio/core-modules':
+        specifier: workspace:*
+        version: link:../../utils/core-modules
       '@synthetixio/core-utils':
         specifier: workspace:*
         version: link:../../utils/core-utils
       '@synthetixio/docgen':
         specifier: workspace:*
         version: link:../../utils/docgen
+      '@synthetixio/main':
+        specifier: workspace:*
+        version: link:../../protocol/synthetix
       '@synthetixio/wei':
         specifier: ^2.74.4
         version: 2.74.4
@@ -626,12 +671,21 @@ importers:
       '@synthetixio/common-config':
         specifier: workspace:*
         version: link:../../utils/common-config
+      '@synthetixio/core-contracts':
+        specifier: workspace:*
+        version: link:../../utils/core-contracts
+      '@synthetixio/core-modules':
+        specifier: workspace:*
+        version: link:../../utils/core-modules
       '@synthetixio/docgen':
         specifier: workspace:*
         version: link:../../utils/docgen
       '@synthetixio/main':
         specifier: workspace:*
         version: link:../../protocol/synthetix
+      '@synthetixio/oracle-manager':
+        specifier: workspace:*
+        version: link:../../protocol/oracle-manager
       '@usecannon/cli':
         specifier: npm:@alxwlw/cannon-cli@2.26.1-nonce.1
         version: '@alxwlw/cannon-cli@2.26.1-nonce.1(bufferutil@4.1.0)(encoding@0.1.13)(typescript@5.5.4)(utf-8-validate@5.0.10)'
@@ -845,6 +899,9 @@ importers:
       '@synthetixio/common-config':
         specifier: workspace:*
         version: link:../common-config
+      '@synthetixio/core-contracts':
+        specifier: workspace:*
+        version: link:../core-contracts
       '@synthetixio/core-utils':
         specifier: workspace:*
         version: link:../core-utils
