@@ -41,10 +41,12 @@ clean checkout with no history to walk.
   to a gate that only read the project files. Two blind spots worth naming: it is **blind to a
   wrong body and to a missing task** (those are the other two gates), and its ordering half is
   **vacuous for a topological instance whose project declares no workspace dependency that owns
-  the same verb** — 40 of them today, mostly the P3b dependency debt (`markets/legacy-market`
-  declares no dependency on `synthetix`, so nothing orders its `storage-dump`). That debt is also
-  why `pnpm -r` did not order them, which is the parity this gate checks, so the vacuity is
-  faithful rather than lax. The run prints both counts.
+  the same verb** — 40 of them today, for two different reasons. Some are the P3b dependency debt:
+  `markets/legacy-market` declares only `common-config`, `core-utils` and `docgen`, so nothing
+  orders its `storage-dump` against `synthetix`. The rest are genuinely independent: the three
+  `subgraph` projects declare no workspace dependency at all. Either way it is also why `pnpm -r`
+  did not order them, which is the parity this gate checks, so the vacuity is faithful rather than
+  lax. The run prints both counts.
 
 That is why there are three: a task-set gate is blind to a wrong body, a body gate is blind to a
 step outside a body (or a missing edge), and the resolved-graph gate reads neither the names nor
