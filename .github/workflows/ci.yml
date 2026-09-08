@@ -133,9 +133,21 @@ jobs:
       # currently does, and that is exactly what deps:mismatched exists to
       # forbid.
       - name: Foundry suites (no Cannon)
-        # RewardsDistributor and RewardsDistributorExternal own a forge-test task
-        # (parity with their scripts) but are deliberately not named here: both
-        # fail to compile because their tests import forge-std/mocks/, which no
-        # tagged forge-std release ships. Naming targets, rather than withholding
-        # the task, is what keeps them out.
+        # Naming targets, rather than withholding the task, is what keeps
+        # RewardsDistributor* (reason above) out of this step.
+        #
+        # The targets carry their package scripts verbatim: `forge test -vvvvv`
+        # for treasury-market, `-vv` for Faucet. The step they replaced ran a
+        # bare `forge test`, and -vvvvv prints full call traces for PASSING tests
+        # too, so an all-green run of this step logged 13,262,150 bytes / 67,554
+        # lines. FOUNDRY_VERBOSITY caps the effective level — measured on forge
+        # 1.5.1, effective = min(-v flag, env) over the {0,1,2,3,5} x {no flag,
+        # -vvvvv} matrix — which is a CI-only knob: it leaves the targets, the
+        # suites and the counts alone (21 + 56 tests, unchanged) and puts the
+        # green log at 7,703 bytes / 100 lines. 3 rather than 0 because a failing
+        # test still prints its execution trace there: on a deliberately broken
+        # 2-test suite, 780 bytes at 0 (no trace), 7,291 at 3 (trace), 319,261 at
+        # -vvvvv.
+        env:
+          FOUNDRY_VERBOSITY: "3"
         run: moon run treasury-market:forge-test Faucet:test
