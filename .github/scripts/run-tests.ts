@@ -212,10 +212,15 @@ async function main() {
   // `detached: true` below buys the reap but costs the interrupt: an
   // interrupted runner used to take `bun test` down with it, because they
   // shared a process group; now the child leads its own, and nothing signals
-  // it unless this does. Worse, bun's runtime does not terminate this process
-  // on SIGINT by itself, so a developer's Ctrl-C is inert and the natural next
-  // step — SIGTERM — would leave `bun test` and its anvil alive and orphaned
-  // in a group nobody knows any more, still holding the claimed port. Both
+  // it unless this does. Without a handler the runner meets a signal one of
+  // two ways, and both leak the child. It dies on the spot, the default
+  // disposition — an interactive Ctrl-C goes to the foreground process group,
+  // the runner goes with it, and the child in its own group never hears about
+  // it. Or it ignores the signal outright, because a background job of a
+  // non-interactive shell inherits SIGINT as SIG_IGN, which is why `kill -INT`
+  // on a scripted run looks inert and sends the operator reaching for SIGTERM
+  // — which kills the runner and reparents `bun test` and its anvil onto init,
+  // still holding the claimed port, in a group nobody knows any more. Both
   // handlers therefore do the same group kill the normal path does and then
   // exit explicitly, by the shell's 128 + signal-number convention. A signal
   // arriving with no unit in flight still exits; it just has nothing to kill.

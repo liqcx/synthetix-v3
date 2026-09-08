@@ -22,6 +22,13 @@ import { renameSync, writeFileSync } from 'node:fs';
  */
 describe('a bun test process that abandons a child', function () {
   it('leaves a grandchild running after the run', async function () {
+    // Checked before anything is spawned: `bun test .github/scripts` would
+    // discover this file too, and a grandchild spawned before a failing
+    // assertion would be abandoned for five minutes with no runner around to
+    // reap it — this fixture leaking is the one thing it must never do.
+    const pidFile = process.env.LEAK_PID_FILE;
+    assert.ok(pidFile, 'LEAK_PID_FILE must be set by the caller');
+
     const grandchild = spawn('sleep', ['300'], { stdio: 'ignore' });
     grandchild.unref();
     assert.ok(grandchild.pid, 'the grandchild must have a pid');
@@ -30,8 +37,6 @@ describe('a bun test process that abandons a child', function () {
       'the grandchild must be running before its pid is published'
     );
 
-    const pidFile = process.env.LEAK_PID_FILE;
-    assert.ok(pidFile, 'LEAK_PID_FILE must be set by the caller');
     writeFileSync(`${pidFile}.tmp`, `${process.pid} ${grandchild.pid}\n`);
     renameSync(`${pidFile}.tmp`, pidFile);
 
