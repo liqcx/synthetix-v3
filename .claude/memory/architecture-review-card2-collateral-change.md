@@ -1,6 +1,6 @@
 ---
 name: architecture-review-card2-collateral-change
-description: "Карточка 2 обзора 07.09 («Изменение залога — один модуль», Strong): разбор card2-collateral-change-20260907.html в ~/Documents, девять умолчаний (ждут «го»), зонд ставки число в число, поправка офчейн-предпосылки (SDK/kwenta), инвентарь пинов, план PR A/PR B"
+description: "Карточка 2 обзора 07.09 («Изменение залога — один модуль», Strong): разбор card2-collateral-change-20260907.html в ~/Documents, девять умолчаний («го» 07.09), зонд ставки число в число, поправка офчейн-предпосылки (SDK/kwenta), инвентарь пинов; PR A synthetix-v3#38 слит 08.09, PR B monorepo#747 draft 08.09"
 metadata:
   type: project
 ---
@@ -56,7 +56,7 @@ upstream у ветки не ставится намеренно). Прогон S
 мутацию не поймала бы: депозит — wash). (6) события из библиотеки квалифицированным именем
 (`IPerpsAccountModule.CollateralModified`/`DebtPaid`, `IGlobalPerpsMarketModule.InterestRateUpdated`), ABI
 модуля не меняется. (7) наружу ничего нового: число даёт `getWithdrawableMargin`, причину — симуляция двери;
-квота `quoteCollateralChange` отвергнута (нет потребителя). PR B в monorepo (staging): ошибки двери и события
+квота `quoteCollateralChange` отвергнута (нет потребителя). PR B = **monorepo#747** draft 08.09 (ветка `feat-cld/collateral-change-abi` от staging b54bd5da, worktree `.worktrees/orderbook-sdk`, коммит 99242fe9; 18 ошибок + 3 события в `perps-market-proxy.ts`, guard-тест пришпилен к селекторам скомпилированных артефактов, `collateral-flow.md` с id по контурам prod 3 / staging 1 и таблицей дверей; без бампа версии). Было: ошибки двери и события
 `CollateralModified`/`DebtPaid` в `liq-onchain/src/abis/perps-market-proxy.ts` (сейчас 2 события, 0 ошибок — и на
 staging), правило долга и таблица id в `docs/protocols/synthetix-v3/collateral-flow.md`. (8) пины: Hardhat
 `Account/CollateralChange.door.test.ts` (таблица двери + двойной дефект, `payDebt`: `PendingOrderExists`,
