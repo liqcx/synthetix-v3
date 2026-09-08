@@ -541,7 +541,8 @@ with the full arguments:
 - `InsufficientCollateralAvailableForWithdraw(withdrawable, asked)` on a `bookTrader` with a
   position; `AccountLiquidatable(id)` on one after `crash` — below its initial margin, not
   flagged;
-- `InsufficientAllowance(1e18, 0)` on a deposit without `approve`;
+- `InsufficientAllowance(1e18, 0)` on a deposit without `approve`; `InsufficientBalance(asked, held)` on a
+  deposit of more than the caller holds, approved in full;
 - `payDebt`: `AccountNotFound(42069)`, `NonexistentDebt(funded)`, `NonexistentDebt(empty)`;
 - `CollateralModified(id, 0, ±amount, trader1)` by `expectEmit` on a deposit and a withdrawal,
   and no `InterestRateUpdated` topic among a deposit's recorded logs.

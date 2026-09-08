@@ -8,11 +8,34 @@ metadata:
 Разбор карточки 2 обзора 07.09 (`architecture-review-20260907-0454.html`, main @ 37b51c6a) сделан 2026-09-07
 по `main @ 9e21507f` (после #36): HTML `~/Documents/card2-collateral-change-20260907.html` — рядом с обзором,
 локальный файл (не Artifact), проверен скриншотом (playwright + `python3 -m http.server` из scratchpad;
-file:// заблокирован; скриншоты падают в `.playwright-mcp/` чекаута — удалять). **Статус: ждёт «го» на девять
-умолчаний; спека, план, ветка и worktree не созданы.** После «го»: спека
-`docs/superpowers/specs/2026-09-07-collateral-change-design.md` → план → **новый** worktree (старый
-`.claude/worktrees/feat-cld+margin-quote` занят карточкой 1 = PR #37 draft, ветка `feat-cld/stand-vocabulary`) →
-ветка `feat-cld/collateral-change` от `main` после слияния #37 (или stacked) → SDD.
+file:// заблокирован; скриншоты падают в `.playwright-mcp/` чекаута — удалять). **Сделана 07–08.09: PR liqcx/synthetix-v3#38 (draft, база main) — https://github.com/liqcx/synthetix-v3/pull/38 ; все четыре
+задачи плана закрыты с чистыми ревью; финальное ревью ветки (opus): 0 BLOCKER, 3 SHOULD-FIX в тексте спеки — закрыты волной
+b7734bd6 (реревью чистое); «Ready to merge: with fixes» → готово, мержить руками пользователя.** Коммиты: 92920695 спека, 0797c07a план,
+5423fcc2+14f58d71 таблицы двери (красные на базе ровно на трёх изменившихся ответах), d521c5fa библиотека + двери + удаления
+(ABI-имена модуля без изменений: 25 ошибок / 4 события / 17 функций; storage:verify чист), 1eea77a4 отложенные миноры
+(try/finally у капа, строка «платит чужой», natspec), 34873ee6 заметка в спеке событий расчёта. Guard: Account 117, Position 99,
+Liquidation 38, Orders 229, Market 154, Suspend+Stand 17, KeeperRewards 28; forge 9 suites / 53 tests. Газ (Hardhat receipts, зонд
+плана): депозит 192 022 → 191 946, вывод 221 685 → 221 985, payDebt 183 565 → 183 294; forge депозит 147 436 → 147 360, вывод
+159 335 → 159 635; батч 100 матчей 92 259 058 без изменений. Грабли: `getWithdrawableMargin` у аккаунта с позицией дрейфует на
+блок начисления процентов — в таблице чтение с `{ blockTag: 'pending' }`, чтобы совпасть с ревертом из eth_estimateGas; forge
+`Account` из core затеняется структурой forge-std → импорт `Account as CoreAccount`; forge `vm.expectRevert(bytes)` принимает
+более короткий фактический реверт как префикс (DP-075) — мутировать селектор, а не «добавлять аргумент»; одиночный
+`markdownlint-cli2 <file>` красный из-за markdown в gitignored `.superpowers/**`, gate CI — `pnpm lint:md`. Найдено, не на карточку:
+`AccountLiquidatable` из правила вывода срабатывает ниже IM+reward, не только у ликвидируемого (карточка 4); вьюха DEFAULT vs
+дверь STRICT. **«Го» на девять умолчаний — 07.09 (вечер).**
+Спека `docs/superpowers/specs/2026-09-07-collateral-change-design.md` (коммит 92920695) и план
+`docs/superpowers/plans/2026-09-07-collateral-change.md` (0797c07a) — на ветке `feat-cld/collateral-change` от
+`main @ 6835e6fa` (после слияния #37) в worktree `.claude/worktrees/feat-cld+margin-quote` (освободился, #37 слит;
+upstream у ветки не ставится намеренно). Прогон SDD: `plan-state` в `<worktree>/.claude/plans/2026-09-07-collateral-change/`,
+леджер `<worktree>/.superpowers/sdd/2026-09-07-collateral-change/progress.md`; четыре задачи: 0 база (ABI-имена модуля,
+счётчики, газ дверей зондом), 1 таблицы двери на обоих стендах против базы (красные ровно на трёх изменившихся ответах),
+2 библиотека + двери + удаления + ABI-диф + storage + три мутации, 3 документы + guard + draft PR. Два уточнения сверх
+умолчаний, записанные в спеку: `ModifyCollateral.failures.test.ts` поглощается таблицей (`git mv` →
+`CollateralChange.door.test.ts`); `NonexistentDebt` называет запрошенный аккаунт, а не `account.id` (был 0 для аккаунта
+без депозитов) — третий изменившийся ответ рядом с двумя от порядка «кто стучится» (PermissionDenied / AccountNotFound
+вместо InvalidId при незнакомом залоге). Оговорка про синт в правиле ставки (wash с точностью до согласия цен ядра и
+спота) — в спеке. После слияния PR: в основном чекауте `git checkout -- .claude/memory/MEMORY.md` и удалить untracked копию
+файла памяти перед `git pull` (копии тех же файлов закоммичены на ветке).
 
 Умолчания: (1) библиотека `contracts/storage/CollateralChange.sol` без своего storage — как `Settlement`
 называет процедуру; альтернативы `Collateral`, `Margin` отвергнуты (спорят с `PerpsCollateralConfiguration`
