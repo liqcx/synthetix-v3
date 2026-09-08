@@ -13,3 +13,4 @@
 - [Миграция lerna → moon, PR #39 (слит 08.09)](lerna-to-moon-pr39.md) — пять красных унаследованы и не чинятся; паритет с 6835e6fa проверяют три гейта в scripts/moon-parity; отчёты прогона в .superpowers (не в git)
 - [Логи CI-джобов: gh api, не gh run view --log](gh-run-logs-self-hosted.md) — --log-failed отдал пустоту (gh 2.65); jobId из --json jobs
 - [ci.yml: обе джобы зелёные с 08.09](ci-red-deps-router.md) — lint (PR #41, осиротевший @usecannon/router, шаги 10–16 были skipped) и contracts (PR #42, долг P3b, два мока через цикл)
+- [Ночной прогон: следующий барьер — IPFS в build-testable](nightly-build-testable-ipfs.md) — раннер не тянет trusted-multicall-forwarder (SSL alert 40); ручка CANNON_IPFS_URL; моки PR #42 проверены локально (54 + 189 тестов)
