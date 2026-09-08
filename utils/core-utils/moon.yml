@@ -4,13 +4,19 @@ tags: ["ts-lib"]
 
 tasks:
   test:
-    command: "bun x mocha --require ts-node/register"
+    command: "bun"
+    args: ["../../.github/scripts/run-tests.ts"]
     options:
       mergeArgs: "replace"
       cache: false
-  # `nyc yarn test` inlined: Task 4 deletes the `test` script this used to call.
   coverage:
-    script: "nyc bun x mocha --require ts-node/register"
+    command: "bun"
+    args:
+      - "test"
+      - "--coverage"
+      - "--preload"
+      - "./src/utils/bun/preload.ts"
+      - "test"
     deps: ["^:coverage"]
     options:
       mergeArgs: "replace"
