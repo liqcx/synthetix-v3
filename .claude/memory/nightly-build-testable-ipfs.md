@@ -1,6 +1,6 @@
 ---
 name: nightly-build-testable-ipfs
-description: Ночной прогон упирается в build-testable — cannon не может забрать trusted-multicall-forwarder; причина двойная: битый TLS у *.repo.usecannon.com и резолв неприпиненного тега через чейн. Своя IPFS-нода это НЕ чинит — провайдеров CID в публичной сети ноль
+description: Ночной прогон упирался в build-testable (cannon не мог забрать trusted-multicall-forwarder). Своя IPFS-нода НЕ чинит — провайдеров CID ноль. Починка: собирать in-repo пакет в локальный реестр, версия 0.0.4-liqcx.1
 metadata:
   type: project
 ---
@@ -45,17 +45,31 @@ pinata) отвечают 504/404. Пакеты cannon в публичный DHT 
 сервис в том же compose-app, резолвится по DNS-имени в общей сети, без ingress, с cpus/mem_limit.
 Хост 16 ядер / 61 ГБ, текущий потолок 17 / 41.
 
-## Что выглядит рабочим
+## Починка (сделана)
 
 Пакет есть в репозитории: `auxiliary/TrustedMulticallForwarder/cannonfile.toml`
 (`trusted-multicall-forwarder`, версия 0.0.4, чистый Foundry, исключён из moon в
 `.moon/workspace.yml:12` — нет package.json). Если собрать его в локальный реестр до
 `build-testable`, provision резолвится локально и до IPFS дело не доходит.
-Мешает гвард `cannon-cli/src/commands/build.ts:157`: при пустом локальном реестре и наличии
-пакета в ончейне сборка отвергается («already published … bump the `version`»). На моей машине
-гвард молчит, потому что локальный URL уже есть. Значит нужен либо бамп версии, либо обход гварда.
-Проверено: `cannon build` без `--rpc-url` виснет в реконнекте — нужен свой anvil
-(`--chain-id 13370`) и `--private-key`.
+Гвард `cannon-cli/src/commands/build.ts:157` (при пустом локальном реестре и наличии пакета
+в ончейне — «already published … bump the `version`») снят бампом версии **0.0.4 → 0.0.4-liqcx.1**.
+Версию никто не называет: oracle-manager провижнит по имени, governance берёт пресет
+`@with-synthetix` из `cannonfile.clone.toml`.
+
+**`--chain-id` передавать нельзя.** Cannon поднимает свой anvil только когда флага нет
+(`cannon-cli/src/util/build.ts:127`); с флагом он идёт в frame / `127.0.0.1:8545` и виснет
+в реконнекте. С внешним anvil по `--rpc-url` — `this.provider.snapshot is not a function`
+(нужен именно cannon-овский узел).
+
+Проверено на пустом `CANNON_DIRECTORY` (это и есть состояние раннера):
+`cannon build cannonfile.toml` пишет `tags/trusted-multicall-forwarder_latest_13370-main.txt`
+(build.ts:489 регистрирует и `<version>`, и `latest`), после чего
+`moon run oracle-manager:build-testable` даёт `Resolving … via local` и читает блоб из
+локального файлового кэша. Шаг добавлен в `nightly-contracts.yml` перед `moon run :build-testable`.
+
+Грабли локально: `utils/common-config/hardhat.config.ts:35` жёстко прописывает
+`http://localhost:8545`, и `ANVIL_PORT` понимает только perps-market — чужой anvil на 8545
+ломает cannon-сборку любого другого пакета.
 
 Отдельная история — пин версии в provision (cannon сам предупреждает про `latest@main`):
 это чинит воспроизводимость, но не доступность — припиненный CID точно так же некому отдать.
