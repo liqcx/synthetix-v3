@@ -34,7 +34,7 @@ import {BootstrapTest} from "./Bootstrap.t.sol";
  *      ever reflect the time a position was actually held. There is exactly one defect — the
  *      frozen anchor. Crediting realised PnL into `collateralAmounts[0]` without moving a token is
  *      upstream's deliberate design (audit fix f557d648): the escrow is redeemable on demand
- *      through `PerpsAccountModule._withdrawMargin` -> `CoreProxy.withdrawMarketUsd`, paid by the
+ *      through `CollateralChange.make` -> `CoreProxy.withdrawMarketUsd`, paid by the
  *      pool, and its presence in `minimumCredit` is what stops LPs withdrawing the collateral
  *      backing traders' profits. So `escrow <= netDeposited` is NOT a real invariant and is
  *      deliberately not asserted — it would stay red against a fully fixed contract.
@@ -246,8 +246,8 @@ contract PhantomEscrowTest is BootstrapTest {
         //
         // Deliberately NOT asserted: `escrow <= netDeposited`. Crediting realised PnL into
         // collateralAmounts[0] with no token movement is upstream's intended design (the escrow is
-        // redeemable on demand via _withdrawMargin -> withdrawMarketUsd, paid by the pool), so that
-        // assertion would stay red even against a fully fixed contract.
+        // redeemable on demand via CollateralChange.make -> withdrawMarketUsd, paid by the pool),
+        // so that assertion would stay red even against a fully fixed contract.
         uint256 genuineFundingCeiling = _genuineFundingCeiling();
         emit log_named_uint(
             "genuine funding ceiling for the time actually held",

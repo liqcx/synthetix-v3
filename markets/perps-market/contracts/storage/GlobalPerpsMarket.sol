@@ -4,7 +4,6 @@ pragma solidity >=0.8.11 <0.9.0;
 import {ISpotMarketSystem} from "../interfaces/external/ISpotMarketSystem.sol";
 import {DecimalMath} from "@synthetixio/core-contracts/contracts/utils/DecimalMath.sol";
 import {SetUtil} from "@synthetixio/core-contracts/contracts/utils/SetUtil.sol";
-import {MathUtil} from "../utils/MathUtil.sol";
 import {GlobalPerpsMarketConfiguration} from "./GlobalPerpsMarketConfiguration.sol";
 import {SafeCastU256, SafeCastI256, SafeCastU128} from "@synthetixio/core-contracts/contracts/utils/SafeCast.sol";
 import {SNX_USD_MARKET_ID} from "./PerpsAccount.sol";
@@ -26,30 +25,6 @@ library GlobalPerpsMarket {
 
     bytes32 private constant _SLOT_GLOBAL_PERPS_MARKET =
         keccak256(abi.encode("io.synthetix.perps-market.GlobalPerpsMarket"));
-
-    /**
-     * @notice Thrown when attempting to deposit more than enabled collateral.
-     */
-    error MaxCollateralExceeded(
-        uint128 collateralId,
-        uint256 maxAmount,
-        uint256 collateralAmount,
-        uint256 depositAmount
-    );
-
-    /**
-     * @notice Thrown when attempting to use a synth that is not enabled as collateral.
-     */
-    error SynthNotEnabledForCollateral(uint128 collateralId);
-
-    /**
-     * @notice Thrown when attempting to withdraw more collateral than is available.
-     */
-    error InsufficientCollateral(
-        uint128 collateralId,
-        uint256 collateralAmount,
-        uint256 withdrawAmount
-    );
 
     /**
      * @notice Thrown when an order puts the market above its credit capacity by checking it's utilization
@@ -207,40 +182,6 @@ library GlobalPerpsMarket {
     function updateDebt(Data storage self, int256 debtDelta) internal {
         int256 newTotalAccountsDebt = self.totalAccountsDebt.toInt() + debtDelta;
         self.totalAccountsDebt = newTotalAccountsDebt < 0 ? 0 : newTotalAccountsDebt.toUint();
-    }
-
-    /**
-     * @notice Check the collateral is enabled and amount acceptable and adjusts accounting.
-     * @dev called when the account is modifying collateral.
-     * @dev 1. checks to ensure max cap isn't hit
-     * @dev 2. adjusts accounting for collateral amounts
-     */
-    function validateCollateralAmount(
-        Data storage self,
-        uint128 collateralId,
-        int256 synthAmount
-    ) internal view {
-        uint256 collateralAmount = self.collateralAmounts[collateralId];
-        if (synthAmount > 0) {
-            uint256 maxAmount = PerpsCollateralConfiguration.load(collateralId).maxAmount;
-            if (maxAmount == 0) {
-                revert SynthNotEnabledForCollateral(collateralId);
-            }
-            uint256 newCollateralAmount = collateralAmount + synthAmount.toUint();
-            if (newCollateralAmount > maxAmount) {
-                revert MaxCollateralExceeded(
-                    collateralId,
-                    maxAmount,
-                    collateralAmount,
-                    synthAmount.toUint()
-                );
-            }
-        } else {
-            uint256 synthAmountAbs = MathUtil.abs(synthAmount);
-            if (collateralAmount < synthAmountAbs) {
-                revert InsufficientCollateral(collateralId, collateralAmount, synthAmountAbs);
-            }
-        }
     }
 
     function addMarket(Data storage self, uint128 marketId) internal {

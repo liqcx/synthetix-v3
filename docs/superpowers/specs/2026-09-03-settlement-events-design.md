@@ -85,6 +85,11 @@ any more.
   referrer)` computes the shares itself. One call on each door, but the account's storage library
   would call an external fee collector and know about referrers; distribution is not account
   state, and the gate's tests would acquire those dependencies. Not taken.
+  (2026-09-07: the refusal is about what the account's library would *know* — collectors,
+  referrers — not about a storage library calling the core, which `PerpsAccount.payDebt`,
+  `Settlement.payFees` and `seizeCollateral` already did; `CollateralChange`
+  (`2026-09-07-collateral-change-design.md`) moves the trader's funds with the core from a
+  library on that reading.)
 - **C. Pay per order on the book door too.** The doors become literally identical, but every order
   adds a `withdrawMarketUsd` into the core (about 60–80 k gas), 12–16 M on a batch of 200. Not
   taken; the review keeps the batch-once collection.
