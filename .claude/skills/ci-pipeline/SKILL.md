@@ -18,13 +18,14 @@ taste, is why the heavy suites are nightly rather than per-PR.
 
 ## Known red: the `contracts` job
 
-`lint` passes; `contracts` fails at `pnpm storage:dump`, and `size-contracts` would fail the same
-way. Neither runs under pnpm anywhere — CI or local — because this repo's hardhat packages still
-declare the dependency set Yarn's hoisting used to supply: 11 of the 16 packages with a
-`storage:dump` script do not declare `@usecannon/cli` (so `hardhat-cannon` fails to resolve,
+`lint` passes; `contracts` fails at `moon run :storage-dump`, and `size-contracts` would fail the
+same way. Neither runs under pnpm anywhere — CI or local — because this repo's hardhat packages
+still declare the dependency set Yarn's hoisting used to supply: 11 of the 16 packages with a
+`storage-dump` task do not declare `@usecannon/cli` (so `hardhat-cannon` fails to resolve,
 surfacing as `Cannot find module 'axios'`), and 13 import `@synthetixio/*` from Solidity without
 declaring it (`Cannot find module '@synthetixio/core-contracts/package.json'`).
 `markets/perps-market` and `protocol/synthetix` are the ones already correct — copy their
 `package.json` when fixing the rest. This is P3b debt the CI migration uncovered rather than caused;
-the fix is mechanical (add the missing `workspace:*` entries, then run `pnpm storage:dump` per
-package until green) and deliberately left out of the migration PR.
+the fix is mechanical (add the missing `workspace:*` entries, then run
+`moon run <project>:storage-dump` per package until green) and deliberately left out of the
+migration PR.

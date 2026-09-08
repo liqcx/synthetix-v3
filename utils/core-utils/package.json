@@ -13,13 +13,9 @@
     "utils/**/*.d.ts.map"
   ],
   "scripts": {
-    "build": "yarn build:ts",
-    "build:ts": "bun x tsc --noEmit false --project src/tsconfig.json",
-    "watch": "yarn build --watch",
-    "test": "bun x mocha --require ts-node/register",
-    "coverage": "nyc yarn test",
-    "test:watch": "yarn test --watch",
-    "prepublishOnly": "yarn build"
+    "watch": "bun x tsc --noEmit false --project src/tsconfig.json --watch",
+    "test:watch": "bun x mocha --require ts-node/register --watch",
+    "prepublishOnly": "bun x tsc --noEmit false --project src/tsconfig.json"
   },
   "peerDependencies": {
     "@usecannon/builder": ">=2.16.2-0",

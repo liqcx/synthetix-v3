@@ -87,9 +87,9 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@v1
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm build:ts
-      - run: pnpm storage:dump
-      - run: pnpm check:storage
+      - run: moon run :build-ts
+      - run: moon run :storage-dump
+      - run: moon run :check-storage
 
       # Restore the committed dumps from the merge base and diff the freshly
       # generated ones against them — this is what catches a storage-layout
@@ -112,9 +112,9 @@ jobs:
               echo "::notice::no baseline for $f (new since $base)"
             fi
           done < <(find . -name 'storage.dump.json' -print0)
-          pnpm storage:verify
+          moon run :storage-verify
 
-      - run: pnpm size-contracts
+      - run: moon run :size-contracts
 
       # The Foundry stands that build straight from source. perps-market is NOT
       # here: its stand needs script/Deploy.sol, which build-testable generates.
@@ -131,17 +131,23 @@ jobs:
       # latest, v1.16.2 (github.com/foundry-rs/forge-std, checked
       # 2026-09-04) — none ship src/mocks/; only the floating #master ref
       # currently does, and that is exactly what deps:mismatched exists to
-      # forbid. Package scripts are inconsistent (forge-test / forge-coverage
-      # / test), so call forge directly and let each foundry.toml profile
-      # apply.
+      # forbid.
       - name: Foundry suites (no Cannon)
-        run: |
-          set -euo pipefail
-          for dir in \
-            markets/treasury-market \
-            auxiliary/Faucet
-          do
-            echo "::group::forge test $dir"
-            (cd "$dir" && forge test)
-            echo "::endgroup::"
-          done
+        # Naming targets, rather than withholding the task, is what keeps
+        # RewardsDistributor* (reason above) out of this step.
+        #
+        # The targets carry their package scripts verbatim: `forge test -vvvvv`
+        # for treasury-market, `-vv` for Faucet. The step they replaced ran a
+        # bare `forge test`, and -vvvvv prints full call traces for PASSING tests
+        # too, so an all-green run of this step logged 13,262,150 bytes / 67,554
+        # lines. FOUNDRY_VERBOSITY caps the effective level — measured on forge
+        # 1.5.1, effective = min(-v flag, env) over the {0,1,2,3,5} x {no flag,
+        # -vvvvv} matrix — which is a CI-only knob: it leaves the targets, the
+        # suites and the counts alone (21 + 56 tests, unchanged) and puts the
+        # green log at 7,703 bytes / 100 lines. 3 rather than 0 because a failing
+        # test still prints its execution trace there: on a deliberately broken
+        # 2-test suite, 780 bytes at 0 (no trace), 7,291 at 3 (trace), 319,261 at
+        # -vvvvv.
+        env:
+          FOUNDRY_VERBOSITY: "3"
+        run: moon run treasury-market:forge-test Faucet:test

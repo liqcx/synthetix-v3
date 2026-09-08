@@ -1,0 +1,358 @@
+auxiliary/ArbitrumGasPriceOracle | build | yarn build:contracts
+auxiliary/ArbitrumGasPriceOracle | build-testable | CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build cannonfile.test.toml
+auxiliary/ArbitrumGasPriceOracle | build:contracts | bun x hardhat compile --force && yarn storage:dump && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
+auxiliary/ArbitrumGasPriceOracle | check:storage | diff -uw storage.dump.json storage.new.dump.json
+auxiliary/ArbitrumGasPriceOracle | clean | bun x hardhat clean
+auxiliary/ArbitrumGasPriceOracle | compile-contracts | bun x hardhat compile
+auxiliary/ArbitrumGasPriceOracle | coverage | bun x hardhat coverage --network hardhat
+auxiliary/ArbitrumGasPriceOracle | deploy | yarn build && yarn publish-contracts
+auxiliary/ArbitrumGasPriceOracle | docgen | bun x hardhat docgen
+auxiliary/ArbitrumGasPriceOracle | publish-contracts | cannon publish arbitrum-gas-price-oracle:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
+auxiliary/ArbitrumGasPriceOracle | size-contracts | bun x hardhat compile && bun x hardhat size-contracts
+auxiliary/ArbitrumGasPriceOracle | storage:dump | bun x hardhat storage:dump --output storage.new.dump.json
+auxiliary/ArbitrumGasPriceOracle | storage:verify |  bun x hardhat storage:verify
+auxiliary/ArbitrumGasPriceOracle | test | CANNON_REGISTRY_PRIORITY=local bun x hardhat test
+auxiliary/BuybackSnx | build | yarn build:contracts
+auxiliary/BuybackSnx | build-testable | CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build cannonfile.test.toml
+auxiliary/BuybackSnx | build:contracts | bun x hardhat compile --force && yarn storage:dump && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
+auxiliary/BuybackSnx | check:storage | diff -uw storage.dump.json storage.new.dump.json
+auxiliary/BuybackSnx | clean | bun x hardhat clean
+auxiliary/BuybackSnx | compile-contracts | bun x hardhat compile
+auxiliary/BuybackSnx | coverage | bun x hardhat coverage --network hardhat
+auxiliary/BuybackSnx | deploy | yarn build && yarn publish-contracts
+auxiliary/BuybackSnx | docgen | bun x hardhat docgen
+auxiliary/BuybackSnx | publish-contracts | cannon publish buyback-snx:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
+auxiliary/BuybackSnx | size-contracts | bun x hardhat compile && bun x hardhat size-contracts
+auxiliary/BuybackSnx | storage:dump | bun x hardhat storage:dump --output storage.new.dump.json
+auxiliary/BuybackSnx | storage:verify |  bun x hardhat storage:verify
+auxiliary/BuybackSnx | test | CANNON_REGISTRY_PRIORITY=local bun x hardhat test
+auxiliary/ERC4626ToAssetsRatioOracle | build | yarn build:contracts
+auxiliary/ERC4626ToAssetsRatioOracle | build-testable | CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build cannonfile.test.toml
+auxiliary/ERC4626ToAssetsRatioOracle | build:contracts | bun x hardhat compile --force && yarn storage:dump && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
+auxiliary/ERC4626ToAssetsRatioOracle | check:storage | diff -uw storage.dump.json storage.new.dump.json
+auxiliary/ERC4626ToAssetsRatioOracle | clean | bun x hardhat clean
+auxiliary/ERC4626ToAssetsRatioOracle | compile-contracts | bun x hardhat compile
+auxiliary/ERC4626ToAssetsRatioOracle | coverage | bun x hardhat coverage --network hardhat
+auxiliary/ERC4626ToAssetsRatioOracle | deploy | yarn build && yarn publish-contracts
+auxiliary/ERC4626ToAssetsRatioOracle | docgen | bun x hardhat docgen
+auxiliary/ERC4626ToAssetsRatioOracle | publish-contracts | cannon publish erc-4626-to-assets-ratio-oracle:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
+auxiliary/ERC4626ToAssetsRatioOracle | size-contracts | bun x hardhat compile && bun x hardhat size-contracts
+auxiliary/ERC4626ToAssetsRatioOracle | storage:dump | bun x hardhat storage:dump --output storage.new.dump.json
+auxiliary/ERC4626ToAssetsRatioOracle | storage:verify |  bun x hardhat storage:verify
+auxiliary/ERC4626ToAssetsRatioOracle | test | CANNON_REGISTRY_PRIORITY=local bun x hardhat test
+auxiliary/Faucet | build | forge build
+auxiliary/Faucet | clean | forge clean
+auxiliary/Faucet | fmt | forge fmt
+auxiliary/Faucet | test | forge test -vv
+auxiliary/MegaEthGasPriceOracle | build | yarn build:contracts
+auxiliary/MegaEthGasPriceOracle | build-testable | CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build cannonfile.test.toml
+auxiliary/MegaEthGasPriceOracle | build:contracts | bun x hardhat compile --force && yarn storage:dump && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
+auxiliary/MegaEthGasPriceOracle | check:storage | diff -uw storage.dump.json storage.new.dump.json
+auxiliary/MegaEthGasPriceOracle | clean | bun x hardhat clean
+auxiliary/MegaEthGasPriceOracle | compile-contracts | bun x hardhat compile
+auxiliary/MegaEthGasPriceOracle | coverage | bun x hardhat coverage --network hardhat
+auxiliary/MegaEthGasPriceOracle | deploy | yarn build && yarn publish-contracts
+auxiliary/MegaEthGasPriceOracle | docgen | bun x hardhat docgen
+auxiliary/MegaEthGasPriceOracle | publish-contracts | cannon publish megaeth-gas-price-oracle:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
+auxiliary/MegaEthGasPriceOracle | size-contracts | bun x hardhat compile && bun x hardhat size-contracts
+auxiliary/MegaEthGasPriceOracle | storage:dump | bun x hardhat storage:dump --output storage.new.dump.json
+auxiliary/MegaEthGasPriceOracle | storage:verify |  bun x hardhat storage:verify
+auxiliary/MegaEthGasPriceOracle | test | CANNON_REGISTRY_PRIORITY=local bun x hardhat test
+auxiliary/OpGasPriceOracle | build | yarn build:contracts
+auxiliary/OpGasPriceOracle | build-testable | CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build cannonfile.test.toml
+auxiliary/OpGasPriceOracle | build:contracts | bun x hardhat compile --force && yarn storage:dump && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
+auxiliary/OpGasPriceOracle | check:storage | diff -uw storage.dump.json storage.new.dump.json
+auxiliary/OpGasPriceOracle | clean | bun x hardhat clean
+auxiliary/OpGasPriceOracle | compile-contracts | bun x hardhat compile
+auxiliary/OpGasPriceOracle | coverage | bun x hardhat coverage --network hardhat
+auxiliary/OpGasPriceOracle | deploy | yarn build && yarn publish-contracts
+auxiliary/OpGasPriceOracle | docgen | bun x hardhat docgen
+auxiliary/OpGasPriceOracle | publish-contracts | cannon publish op-gas-price-oracle:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
+auxiliary/OpGasPriceOracle | size-contracts | bun x hardhat compile && bun x hardhat size-contracts
+auxiliary/OpGasPriceOracle | storage:dump | bun x hardhat storage:dump --output storage.new.dump.json
+auxiliary/OpGasPriceOracle | storage:verify |  bun x hardhat storage:verify
+auxiliary/OpGasPriceOracle | test | CANNON_REGISTRY_PRIORITY=local bun x hardhat test
+auxiliary/OwnedFeeCollector | build | yarn build:contracts
+auxiliary/OwnedFeeCollector | build-testable | CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build cannonfile.test.toml
+auxiliary/OwnedFeeCollector | build:contracts | bun x hardhat compile --force && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
+auxiliary/OwnedFeeCollector | clean | bun x hardhat clean
+auxiliary/OwnedFeeCollector | compile-contracts | bun x hardhat compile
+auxiliary/OwnedFeeCollector | coverage | bun x hardhat coverage --network hardhat
+auxiliary/OwnedFeeCollector | deploy | yarn build && yarn publish-contracts
+auxiliary/OwnedFeeCollector | docgen | bun x hardhat docgen
+auxiliary/OwnedFeeCollector | publish-contracts | cannon publish owned-fee-collector:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
+auxiliary/OwnedFeeCollector | size-contracts | bun x hardhat compile && bun x hardhat size-contracts
+auxiliary/OwnedFeeCollector | test | CANNON_REGISTRY_PRIORITY=local bun x hardhat test
+auxiliary/PythERC7412Wrapper | build | yarn build:contracts
+auxiliary/PythERC7412Wrapper | build-testable | CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build cannonfile.test.toml
+auxiliary/PythERC7412Wrapper | build:contracts | bun x hardhat compile --force && yarn storage:dump && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
+auxiliary/PythERC7412Wrapper | check:storage | diff -uw storage.dump.json storage.new.dump.json
+auxiliary/PythERC7412Wrapper | clean | bun x hardhat clean && rm -rf contracts/generated
+auxiliary/PythERC7412Wrapper | compile-contracts | bun x hardhat compile
+auxiliary/PythERC7412Wrapper | coverage | bun x hardhat coverage --network hardhat
+auxiliary/PythERC7412Wrapper | deploy | yarn build && yarn publish-contracts
+auxiliary/PythERC7412Wrapper | docgen | bun x hardhat docgen
+auxiliary/PythERC7412Wrapper | generate-testable | rm -rf contracts/generated && bun x hardhat generate-testable
+auxiliary/PythERC7412Wrapper | publish-contracts | cannon publish pyth-erc7412-wrapper:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
+auxiliary/PythERC7412Wrapper | size-contracts | bun x hardhat compile && bun x hardhat size-contracts
+auxiliary/PythERC7412Wrapper | storage:dump | bun x hardhat storage:dump --output storage.new.dump.json
+auxiliary/PythERC7412Wrapper | storage:verify |  bun x hardhat storage:verify
+auxiliary/PythERC7412Wrapper | test | CANNON_REGISTRY_PRIORITY=local bun x hardhat test
+auxiliary/RewardsDistributor | build | CANNON_REGISTRY_PRIORITY=local cannon build
+auxiliary/RewardsDistributor | cov | forge coverage --report lcov && genhtml ./lcov.info --output-directory coverage
+auxiliary/RewardsDistributor | forge-coverage | forge coverage --report lcov
+auxiliary/RewardsDistributor | forge-test | forge test -vvvvv
+auxiliary/RewardsDistributor | publish-contracts | cannon publish synthetix-rewards-distributor:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
+auxiliary/RewardsDistributorExternal | build | CANNON_REGISTRY_PRIORITY=local cannon build
+auxiliary/RewardsDistributorExternal | cov | forge coverage --report lcov && genhtml ./lcov.info --output-directory coverage
+auxiliary/RewardsDistributorExternal | forge-coverage | forge coverage --report lcov
+auxiliary/RewardsDistributorExternal | forge-test | forge test -vvvvv
+auxiliary/RewardsDistributorExternal | publish-contracts | cannon publish synthetix-rewards-dist-ext:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
+auxiliary/SpotMarketOracle | build | yarn build:contracts
+auxiliary/SpotMarketOracle | build-testable | CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build cannonfile.test.toml
+auxiliary/SpotMarketOracle | build:contracts | bun x hardhat compile --force && yarn storage:dump && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
+auxiliary/SpotMarketOracle | check:storage | diff -uw storage.dump.json storage.new.dump.json
+auxiliary/SpotMarketOracle | clean | bun x hardhat clean
+auxiliary/SpotMarketOracle | compile-contracts | bun x hardhat compile
+auxiliary/SpotMarketOracle | coverage | bun x hardhat coverage --network hardhat
+auxiliary/SpotMarketOracle | deploy | yarn build && yarn publish-contracts
+auxiliary/SpotMarketOracle | docgen | bun x hardhat docgen
+auxiliary/SpotMarketOracle | publish-contracts | cannon publish spot-market-oracle:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
+auxiliary/SpotMarketOracle | size-contracts | bun x hardhat compile && bun x hardhat size-contracts
+auxiliary/SpotMarketOracle | storage:dump | bun x hardhat storage:dump --output storage.new.dump.json
+auxiliary/SpotMarketOracle | storage:verify |  bun x hardhat storage:verify
+auxiliary/SpotMarketOracle | test | CANNON_REGISTRY_PRIORITY=local bun x hardhat test
+auxiliary/WstEthToStEthRatioOracle | build | yarn build:contracts
+auxiliary/WstEthToStEthRatioOracle | build-testable | CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build cannonfile.test.toml
+auxiliary/WstEthToStEthRatioOracle | build:contracts | bun x hardhat compile --force && yarn storage:dump && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
+auxiliary/WstEthToStEthRatioOracle | check:storage | diff -uw storage.dump.json storage.new.dump.json
+auxiliary/WstEthToStEthRatioOracle | clean | bun x hardhat clean
+auxiliary/WstEthToStEthRatioOracle | compile-contracts | bun x hardhat compile
+auxiliary/WstEthToStEthRatioOracle | coverage | bun x hardhat coverage --network hardhat
+auxiliary/WstEthToStEthRatioOracle | deploy | yarn build && yarn publish-contracts
+auxiliary/WstEthToStEthRatioOracle | docgen | bun x hardhat docgen
+auxiliary/WstEthToStEthRatioOracle | publish-contracts | cannon publish wsteth-to-steth-ratio-oracle:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
+auxiliary/WstEthToStEthRatioOracle | size-contracts | bun x hardhat compile && bun x hardhat size-contracts
+auxiliary/WstEthToStEthRatioOracle | storage:dump | bun x hardhat storage:dump --output storage.new.dump.json
+auxiliary/WstEthToStEthRatioOracle | storage:verify |  bun x hardhat storage:verify
+auxiliary/WstEthToStEthRatioOracle | test | CANNON_REGISTRY_PRIORITY=local bun x hardhat test
+markets/bfp-market | SKIP.build | yarn build:contracts
+markets/bfp-market | SKIP.build-testable | CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build cannonfile.test.toml
+markets/bfp-market | SKIP.build:contracts | bun x hardhat compile --force && yarn storage:dump && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
+markets/bfp-market | SKIP.cannon-build | bun x hardhat cannon:build
+markets/bfp-market | SKIP.check:storage | diff -uw storage.dump.json storage.new.dump.json
+markets/bfp-market | SKIP.clean | bun x hardhat clean && rm -rf contracts/generated
+markets/bfp-market | SKIP.compile-contracts | bun x hardhat compile
+markets/bfp-market | SKIP.coverage | bun x hardhat test
+markets/bfp-market | SKIP.coverage1 | bun x hardhat coverage --network hardhat
+markets/bfp-market | SKIP.deploy | yarn build && yarn publish-contracts
+markets/bfp-market | SKIP.docgen | bun x hardhat docgen
+markets/bfp-market | SKIP.generate-testable | rm -rf contracts/generated && bun x hardhat generate-testable
+markets/bfp-market | SKIP.publish-contracts | cannon publish synthetix-bfp-market:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
+markets/bfp-market | SKIP.size-contracts | bun x hardhat compile && bun x hardhat size-contracts
+markets/bfp-market | SKIP.start | yarn build && yarn cannon-build
+markets/bfp-market | SKIP.storage:dump | bun x hardhat storage:dump --output storage.new.dump.json
+markets/bfp-market | SKIP.storage:verify |  bun x hardhat storage:verify
+markets/bfp-market | SKIP.test | CANNON_REGISTRY_PRIORITY=local bun x hardhat test
+markets/bfp-market | SKIP.test:stable | sh ./scripts/stable_test.sh
+markets/legacy-market | build | yarn build:contracts
+markets/legacy-market | build:contracts | bun x hardhat compile --force && yarn storage:dump && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
+markets/legacy-market | clean | bun x hardhat clean
+markets/legacy-market | compile-contracts | bun x hardhat compile
+markets/legacy-market | coverage | bun x hardhat coverage --network hardhat
+markets/legacy-market | deploy | yarn build && yarn publish-contracts
+markets/legacy-market | docgen | bun x hardhat docgen
+markets/legacy-market | publish-contracts | cannon publish synthetix-legacy-market:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
+markets/legacy-market | size-contracts | bun x hardhat compile && bun x hardhat size-contracts
+markets/legacy-market | storage:dump | bun x hardhat storage:dump --output storage.new.dump.json
+markets/legacy-market | storage:verify |  bun x hardhat storage:verify
+markets/legacy-market | test | bun x hardhat test
+markets/perps-market | anvil-clean | rm -rf $HOME/.foundry/anvil/tmp
+markets/perps-market | build | yarn build:contracts
+markets/perps-market | build-testable | CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build cannonfile.test.toml && pnpm run build-testable:foundry
+markets/perps-market | build-testable:foundry | bun scripts/foundry-cannonfile.ts && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build cannonfile.test.foundry.toml --write-script script/Deploy.sol --write-script-format foundry --wipe
+markets/perps-market | build:contracts | bun x hardhat compile --force && yarn storage:dump && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
+markets/perps-market | cannon-build | bun x hardhat cannon:build
+markets/perps-market | check:storage | diff -uw storage.dump.json storage.new.dump.json
+markets/perps-market | clean | bun x hardhat clean && rm -rf contracts/generated
+markets/perps-market | compile-contracts | bun x hardhat compile
+markets/perps-market | coverage | bun x hardhat test
+markets/perps-market | coverage1 | bun x hardhat coverage --network hardhat
+markets/perps-market | deploy | yarn build && yarn publish-contracts
+markets/perps-market | docgen | bun x hardhat docgen
+markets/perps-market | forge-test | forge test
+markets/perps-market | publish-contracts | cannon publish synthetix-perps-market:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
+markets/perps-market | size-contracts | bun x hardhat compile && bun x hardhat size-contracts
+markets/perps-market | start | yarn build && yarn cannon-build
+markets/perps-market | storage:dump | bun x hardhat storage:dump --output storage.new.dump.json
+markets/perps-market | storage:verify |  bun x hardhat storage:verify
+markets/perps-market | test | CANNON_REGISTRY_PRIORITY=local bun x hardhat test; yarn anvil-clean
+markets/perps-market | test:isolated | bash scripts/test-isolated.sh
+markets/perps-market/subgraph | alchemy:base-mainnet-andromeda | graph deploy perps-market-base-mainnet-andromeda subgraph.base-mainnet-andromeda.yaml --output-dir ./build/base-mainnet-andromeda --version-label v1 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
+markets/perps-market/subgraph | alchemy:base-sepolia-andromeda | graph deploy perps-market-base-sepolia-andromeda subgraph.base-sepolia-andromeda.yaml --output-dir ./build/base-sepolia-andromeda --version-label v1 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
+markets/perps-market/subgraph | auth | graph auth --product hosted-service $V3_GRAPH_KEY
+markets/perps-market/subgraph | cannon | cannon
+markets/perps-market/subgraph | coverage | graph test --coverage
+markets/perps-market/subgraph | goldsky:base-sepolia-andromeda | goldsky subgraph deploy perps-market-base-sepolia-andromeda/0.0.1 --path ./build/base-sepolia-andromeda
+markets/perps-market/subgraph | goldsky:megaeth-testnet-production | goldsky subgraph deploy perps-market-megaeth-testnet/0.0.1 --path ./build/megaeth-testnet-production
+markets/perps-market/subgraph | goldsky:megaeth-testnet-staging | goldsky subgraph deploy perps-market-megaeth-testnet-staging/0.0.1 --path ./build/megaeth-testnet-staging
+markets/perps-market/subgraph | graph | graph
+markets/perps-market/subgraph | pretest | node generate.js
+markets/perps-market/subgraph | prettier | prettier
+markets/perps-market/subgraph | subgraph:build | node generate.js --build
+markets/perps-market/subgraph | subgraph:codegen | node generate.js
+markets/perps-market/subgraph | test | graph test
+markets/spot-market | build | yarn build:contracts
+markets/spot-market | build-testable | CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build cannonfile.test.toml
+markets/spot-market | build:contracts | bun x hardhat compile --force && yarn storage:dump && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
+markets/spot-market | cannon-build | bun x hardhat cannon:build
+markets/spot-market | check:storage | diff -uw storage.dump.json storage.new.dump.json
+markets/spot-market | clean | bun x hardhat clean && rm -rf contracts/generated
+markets/spot-market | compile-contracts | bun x hardhat compile
+markets/spot-market | coverage | bun x hardhat test
+markets/spot-market | coverage1 | bun x hardhat coverage --network hardhat
+markets/spot-market | deploy | yarn build && yarn publish-contracts
+markets/spot-market | docgen | bun x hardhat docgen
+markets/spot-market | publish-contracts | cannon publish synthetix-spot-market:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
+markets/spot-market | size-contracts | bun x hardhat compile && bun x hardhat size-contracts
+markets/spot-market | start | yarn build && yarn cannon-build
+markets/spot-market | storage:dump | bun x hardhat storage:dump --output storage.new.dump.json
+markets/spot-market | storage:verify |  bun x hardhat storage:verify
+markets/spot-market | test | CANNON_REGISTRY_PRIORITY=local bun x hardhat test
+markets/spot-market | test:fork | bun x hardhat test test-fork/AsyncOrdersModule.e2e.test.ts
+markets/spot-market/subgraph | alchemy:base-mainnet-andromeda | graph deploy spot-market-base-mainnet-andromeda subgraph.base-mainnet-andromeda.yaml --output-dir ./build/base-mainnet-andromeda --version-label v1 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
+markets/spot-market/subgraph | alchemy:base-sepolia-andromeda | graph deploy spot-market-base-sepolia-andromeda subgraph.base-sepolia-andromeda.yaml --output-dir ./build/base-sepolia-andromeda --version-label v1 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
+markets/spot-market/subgraph | alchemy:optimism-mainnet | graph deploy spot-market-optimism-mainnet subgraph.optimism-mainnet.yaml --output-dir ./build/optimism-mainnet --version-label v2 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
+markets/spot-market/subgraph | auth | graph auth --product hosted-service $V3_GRAPH_KEY
+markets/spot-market/subgraph | cannon | cannon
+markets/spot-market/subgraph | coverage | yarn deployments:optimism-mainnet && yarn codegen:optimism-mainnet && git diff --exit-code && yarn test --coverage
+markets/spot-market/subgraph | create-local | graph create --node http://localhost:8020/ snx-v3/spot-market-optimism-goerli
+markets/spot-market/subgraph | deploy-local | graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 snx-v3/spot-market-optimism-goerli
+markets/spot-market/subgraph | graph | graph
+markets/spot-market/subgraph | prettier | prettier
+markets/spot-market/subgraph | remove-local | graph remove --node http://localhost:8020/ snx-v3/spot-market-optimism-goerli
+markets/spot-market/subgraph | subgraph:build | ./build.sh
+markets/spot-market/subgraph | subgraph:codegen | ./codegen.sh
+markets/spot-market/subgraph | test | graph test
+markets/treasury-market | build | yarn build:contracts
+markets/treasury-market | build-testable | cannon build cannonfile.test.toml --write-script script/Deploy.sol --write-script-format foundry --wipe
+markets/treasury-market | build:contracts | bun x hardhat compile --force && yarn storage:dump && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
+markets/treasury-market | clean | bun x hardhat clean
+markets/treasury-market | compile-contracts | bun x hardhat compile
+markets/treasury-market | coverage | bun x hardhat coverage --network hardhat
+markets/treasury-market | deploy | yarn build && yarn publish-contracts
+markets/treasury-market | docgen | bun x hardhat docgen
+markets/treasury-market | forge-coverage | forge coverage -vvvv --report lcov
+markets/treasury-market | forge-test | forge test -vvvvv
+markets/treasury-market | publish-contracts | cannon publish synthetix-treasury-market:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
+markets/treasury-market | size-contracts | bun x hardhat compile && bun x hardhat size-contracts
+markets/treasury-market | storage:dump | bun x hardhat storage:dump --output storage.new.dump.json
+markets/treasury-market | storage:verify |  bun x hardhat storage:verify
+protocol/governance | SKIP.build | yarn build:contracts
+protocol/governance | SKIP.build-testable | CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build cannonfile.test.toml
+protocol/governance | SKIP.build:contracts | bun x hardhat compile --force && yarn storage:dump && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
+protocol/governance | SKIP.check:storage | diff -uw storage.dump.json storage.new.dump.json
+protocol/governance | SKIP.clean | bun x hardhat clean && rm -rf contracts/generated
+protocol/governance | SKIP.compile-contracts | bun x hardhat compile
+protocol/governance | SKIP.coverage | bun x hardhat coverage --network hardhat
+protocol/governance | SKIP.deploy | yarn build && yarn publish-contracts
+protocol/governance | SKIP.docgen | bun x hardhat docgen
+protocol/governance | SKIP.generate-testable | rm -rf contracts/generated && bun x hardhat generate-testable
+protocol/governance | SKIP.publish-contracts | cannon publish synthetix:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
+protocol/governance | SKIP.size-contracts | bun x hardhat compile && bun x hardhat size-contracts
+protocol/governance | SKIP.storage:dump | bun x hardhat storage:dump --output storage.new.dump.json
+protocol/governance | SKIP.storage:verify |  bun x hardhat storage:verify
+protocol/governance | SKIP.test | CANNON_REGISTRY_PRIORITY=local bun x hardhat test
+protocol/oracle-manager | build | yarn build:contracts
+protocol/oracle-manager | build-testable | CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build cannonfile.test.toml --wipe
+protocol/oracle-manager | build:contracts | bun x hardhat compile --force && yarn storage:dump && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
+protocol/oracle-manager | check:storage | diff -uw storage.dump.json storage.new.dump.json
+protocol/oracle-manager | clean | bun x hardhat clean && rm -rf contracts/generated
+protocol/oracle-manager | compile-contracts | bun x hardhat compile
+protocol/oracle-manager | coverage | bun x hardhat coverage --network hardhat
+protocol/oracle-manager | deploy | yarn build && yarn publish-contracts
+protocol/oracle-manager | docgen | bun x hardhat docgen
+protocol/oracle-manager | generate-testable | rm -rf contracts/generated && bun x hardhat generate-testable
+protocol/oracle-manager | publish-contracts | cannon publish oracle-manager:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
+protocol/oracle-manager | size-contracts | bun x hardhat compile && bun x hardhat size-contracts
+protocol/oracle-manager | storage:dump | bun x hardhat storage:dump --output storage.new.dump.json
+protocol/oracle-manager | storage:verify |  bun x hardhat storage:verify
+protocol/oracle-manager | test | CANNON_REGISTRY_PRIORITY=local bun x hardhat test
+protocol/synthetix | build | yarn build:contracts
+protocol/synthetix | build-testable | CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build cannonfile.test.toml
+protocol/synthetix | build:contracts | bun x hardhat compile --force && yarn storage:dump && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
+protocol/synthetix | check:storage | diff -uw storage.dump.json storage.new.dump.json
+protocol/synthetix | clean | bun x hardhat clean && rm -rf contracts/generated
+protocol/synthetix | compile-contracts | bun x hardhat compile
+protocol/synthetix | coverage | bun x hardhat coverage --network hardhat
+protocol/synthetix | deploy | yarn build && yarn publish-contracts
+protocol/synthetix | docgen | bun x hardhat docgen
+protocol/synthetix | generate-testable | rm -rf contracts/generated && bun x hardhat generate-testable
+protocol/synthetix | publish-contracts | cannon publish synthetix:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
+protocol/synthetix | size-contracts | bun x hardhat compile && bun x hardhat size-contracts
+protocol/synthetix | storage:dump | bun x hardhat storage:dump --output storage.new.dump.json
+protocol/synthetix | storage:verify |  bun x hardhat storage:verify
+protocol/synthetix | test | CANNON_REGISTRY_PRIORITY=local bun x hardhat test
+protocol/synthetix/subgraph | alchemy:arbitrum-mainnet | graph deploy synthetix-arbitrum-mainnet subgraph.arbitrum-mainnet.yaml --output-dir ./build/arbitrum-mainnet --version-label v1.0.3 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
+protocol/synthetix/subgraph | alchemy:arbitrum-sepolia | graph deploy synthetix-arbitrum-sepolia subgraph.arbitrum-sepolia.yaml --output-dir ./build/arbitrum-sepolia --version-label v1 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
+protocol/synthetix/subgraph | alchemy:base-mainnet-andromeda | graph deploy synthetix-base-mainnet-andromeda subgraph.base-mainnet-andromeda.yaml --output-dir ./build/base-mainnet-andromeda --version-label v1 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
+protocol/synthetix/subgraph | alchemy:base-sepolia-andromeda | graph deploy synthetix-base-sepolia-andromeda subgraph.base-sepolia-andromeda.yaml --output-dir ./build/base-sepolia-andromeda --version-label v1 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
+protocol/synthetix/subgraph | alchemy:mainnet | graph deploy synthetix-mainnet subgraph.mainnet.yaml --output-dir ./build/mainnet --version-label v2 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
+protocol/synthetix/subgraph | alchemy:optimism-mainnet | graph deploy synthetix-optimism-mainnet subgraph.optimism-mainnet.yaml --output-dir ./build/optimism-mainnet --version-label v1 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
+protocol/synthetix/subgraph | alchemy:sepolia | graph deploy synthetix-sepolia subgraph.sepolia.yaml --output-dir ./build/sepolia --version-label v1 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
+protocol/synthetix/subgraph | cannon | cannon
+protocol/synthetix/subgraph | coverage | yarn deployments:mainnet && yarn codegen:mainnet && git diff --exit-code && yarn test --coverage
+protocol/synthetix/subgraph | create-local | graph create --node http://localhost:8020/ snx-v3/goerli
+protocol/synthetix/subgraph | deploy-local | graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 snx-v3/goerli
+protocol/synthetix/subgraph | graph | graph
+protocol/synthetix/subgraph | prettier | prettier
+protocol/synthetix/subgraph | remove-local | graph remove --node http://localhost:8020/ snx-v3/goerli
+protocol/synthetix/subgraph | subgraph:build | ./build.sh
+protocol/synthetix/subgraph | subgraph:codegen | ./codegen.sh
+protocol/synthetix/subgraph | test | graph test
+utils/common-config | build | yarn build:ts
+utils/common-config | build:ts | echo 'Needed because https://github.com/yarnpkg/berry/issues/3995'
+utils/core-contracts | build-testable | bun x hardhat compile
+utils/core-contracts | clean | bun x hardhat clean
+utils/core-contracts | compile-contracts | bun x hardhat compile
+utils/core-contracts | coverage | bun x hardhat coverage
+utils/core-contracts | docgen | bun x hardhat docgen
+utils/core-contracts | size-contracts | bun x hardhat compile && bun x hardhat size-contracts
+utils/core-contracts | test | bun x hardhat test --network hardhat
+utils/core-modules | build | yarn build:contracts
+utils/core-modules | build-testable | bun x hardhat compile
+utils/core-modules | build:contracts | bun x hardhat compile --force && yarn storage:dump && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
+utils/core-modules | check:storage | diff -uw storage.dump.json storage.new.dump.json
+utils/core-modules | clean | bun x hardhat clean && rm -rf contracts/generated
+utils/core-modules | compile-contracts | bun x hardhat compile
+utils/core-modules | coverage | bun x hardhat coverage --network hardhat
+utils/core-modules | docgen | bun x hardhat docgen
+utils/core-modules | generate-testable | rm -rf contracts/generated && bun x hardhat generate-testable
+utils/core-modules | size-contracts | bun x hardhat compile && bun x hardhat size-contracts
+utils/core-modules | storage:dump | bun x hardhat storage:dump --output storage.new.dump.json
+utils/core-modules | storage:verify |  bun x hardhat storage:verify
+utils/core-modules | test | CANNON_REGISTRY_PRIORITY=local bun x hardhat test
+utils/core-utils | build | yarn build:ts
+utils/core-utils | build:ts | bun x tsc --noEmit false --project src/tsconfig.json
+utils/core-utils | coverage | nyc yarn test
+utils/core-utils | prepublishOnly | yarn build
+utils/core-utils | test | bun x mocha --require ts-node/register
+utils/core-utils | test:watch | yarn test --watch
+utils/core-utils | watch | yarn build --watch
+utils/docgen | abis | bun ./abis.js
+utils/docgen | docgen:contracts | ./docgen-contracts.sh
+utils/hardhat-storage | build | yarn build:ts
+utils/hardhat-storage | build:ts | bun x tsc --noEmit false --project src/tsconfig.json
+utils/hardhat-storage | coverage | yarn test --coverage
+utils/hardhat-storage | prepublishOnly | yarn build
+utils/hardhat-storage | test | jest
+utils/hardhat-storage | test:watch | yarn test --watch
+utils/hardhat-storage | watch | yarn build --watch
+utils/sample-project | build | yarn build:contracts
+utils/sample-project | build:contracts | bun x hardhat compile --force && yarn storage:dump && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
+utils/sample-project | check:storage | diff -uw storage.dump.json storage.new.dump.json
+utils/sample-project | clean | bun x hardhat clean
+utils/sample-project | coverage | bun x hardhat coverage --network hardhat
+utils/sample-project | storage:dump | bun x hardhat storage:dump --output storage.new.dump.json
+utils/sample-project | storage:verify |  bun x hardhat storage:verify
+utils/sample-project | test | bun x hardhat test

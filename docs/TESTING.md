@@ -166,8 +166,7 @@ pnpm test
 ### Тесты конкретного пакета
 
 ```bash
-cd markets/perps-market
-pnpm test
+moon run perps-market:test
 ```
 
 ### Конкретный тестовый файл
@@ -234,9 +233,8 @@ Foundry-прокси не маршрутизирует асинхронную д
 параметром в `test/helpers/*` остаются для нынешних вызывающих и уходят с последним из них.
 
 ```bash
-cd markets/perps-market
-pnpm build-testable            # Hardhat-пакет + ~1 мин на генерацию script/Deploy.sol
-pnpm forge-test                # forge test
+moon run perps-market:build-testable   # Hardhat-пакет + ~1 мин на генерацию script/Deploy.sol
+moon run perps-market:forge-test       # forge test
 ```
 
 В CI стенд perps-market гоняется в ночном прогоне (`nightly-contracts.yml`) — ему нужен

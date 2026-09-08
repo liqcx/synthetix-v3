@@ -17,16 +17,16 @@ abis:
 yarn deployments
 
 # 2. generate subgraph files
-yarn subgraph:codegen
+moon run core-subgraph:subgraph-codegen
 
 # 3. build subgraph
-yarn subgraph:build
+moon run core-subgraph:subgraph-build
 ```
 
 ## Testing the subgraph
 
 ```bash
-yarn test
+moon run core-subgraph:test
 ```
 
 ### Deploying subgraph for each network

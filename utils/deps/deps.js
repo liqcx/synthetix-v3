@@ -5,6 +5,7 @@ const cp = require('child_process');
 const fs = require('fs/promises');
 const prettier = require('prettier');
 const { fgReset, fgRed, fgGreen, fgYellow, fgCyan } = require('./lib/colors');
+const { moonCommandsBySource, isUsedByMoon } = require('./lib/moon-usage');
 
 const prettierOptions = JSON.parse(
   require('fs').readFileSync(`${__dirname}/../../.prettierrc`, 'utf8')
@@ -69,6 +70,11 @@ async function run() {
 
   const deps = Object.fromEntries([].concat(existingDeps).concat(workspaceDeps));
 
+  // A moon task's command/args/script is a usage site depcheck cannot see —
+  // it only reads a package's own `scripts` field. One call for the whole
+  // workspace; see lib/moon-usage.js for why.
+  const moonCommands = await moonCommandsBySource();
+
   await workspacePackages.reduce(async (promise, { location, name }) => {
     await promise;
 
@@ -79,6 +85,8 @@ async function run() {
       ...packageJson.depcheck,
       package: packageJson,
     });
+    dependencies = dependencies.filter((dep) => !isUsedByMoon(dep, location, moonCommands));
+    devDependencies = devDependencies.filter((dep) => !isUsedByMoon(dep, location, moonCommands));
     dependencies.sort();
     devDependencies.sort();
 

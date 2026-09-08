@@ -1,0 +1,28 @@
+$schema: "https://moonrepo.dev/schemas/tasks.json"
+
+inheritedBy:
+  tags: ["ts-lib"]
+
+tasks:
+  build-ts:
+    command: "bun x tsc --noEmit false --project src/tsconfig.json"
+    deps: ["^:build-ts"]
+    inputs:
+      - "src/**/*"
+      - "src/tsconfig.json"
+      - "/tsconfig.json"
+    # No cache. A cached task with no `outputs` restores nothing, so a hit reports
+    # success having produced no dist/ at all — verified: build, `mv
+    # utils/hardhat-storage/dist` away, re-run, `2 completed (2 cached)` and dist
+    # still absent. `outputs` cannot fix it here: hardhat-storage emits to
+    # ../dist, but core-utils' src/tsconfig.json sets outDir ".." — its emit
+    # interleaves with the package sources and there is no directory to name.
+    # The verb takes ~170ms; ordering and --affected come from `inputs` anyway.
+    options:
+      cache: false
+
+  build:
+    command: "noop"
+    deps: ["build-ts"]
+    options:
+      cache: false

@@ -1,0 +1,23 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+tags: ["contracts"]
+
+# Narrower than its tag: these verbs have never existed here, and a task the
+# package never had would make `moon run :<verb>` touch more than `pnpm -r` does.
+workspace:
+  inheritedTasks:
+    exclude: ["deploy"]
+
+tasks:
+  build-testable:
+    command: "bun x hardhat compile"
+    options:
+      mergeArgs: "replace"
+      cache: false
+  # `bun x hardhat clean && rm -rf contracts/generated` at 6835e6fa — the tag's
+  # body stops at hardhat, so the generated-contracts wipe is restored here.
+  clean:
+    script: "bun x hardhat clean && rm -rf contracts/generated"
+    options:
+      mergeArgs: "replace"
+      cache: false

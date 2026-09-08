@@ -20,15 +20,7 @@
     "proxy",
     "ownership"
   ],
-  "scripts": {
-    "clean": "bun x hardhat clean",
-    "test": "bun x hardhat test --network hardhat",
-    "coverage": "bun x hardhat coverage",
-    "compile-contracts": "bun x hardhat compile",
-    "build-testable": "bun x hardhat compile",
-    "size-contracts": "bun x hardhat compile && bun x hardhat size-contracts",
-    "docgen": "bun x hardhat docgen"
-  },
+  "scripts": {},
   "devDependencies": {
     "@ethersproject/abstract-provider": "^5.7.0",
     "@ethersproject/bignumber": "^5.7.0",

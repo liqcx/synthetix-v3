@@ -1,5 +1,12 @@
 # Scripts в корневом package.json
 
+Сборка и тесты — это таски **moon** (`moon run <project>:<task>` — один проект,
+`moon run :<task>` — во всех, где таск объявлен). Скрипты ниже — тонкие шимы над ними в корневом
+`package.json`, и держат старые «двоеточные» имена ради привычки (`build:contracts`,
+`storage:dump`). Внутри самого moon это не так: **id таска не может содержать двоеточие**, поэтому
+`storage:dump` — это `storage-dump`, `subgraph:codegen` — `subgraph-codegen`, и так далее по всей
+таблице ниже.
+
 ## Сборка
 
 | Script              | Описание                                                                    |
@@ -37,11 +44,13 @@
 
 ## Публикация
 
+`publish:release`, `publish:dev` и `version:dev` (обёртки над Lerna) удалены вместе с Lerna —
+пакеты несут апстримовый scope `@synthetixio`, публиковать в npm с этим форком некуда. Версии
+теперь бампаются вручную одним коммитом; Cannon-публикация идёт через moon (см. корневой
+`README.md`).
+
 | Script              | Описание                                |
 | ------------------- | --------------------------------------- |
-| `publish:release`   | Публикация релиза через Lerna           |
-| `publish:dev`       | Публикация dev-версии с тегом `dev`     |
-| `version:dev`       | Установка dev-версии на основе git SHA  |
 | `publish-contracts` | Публикация контрактов в Cannon registry |
 
 ## Субграфы
@@ -74,8 +83,8 @@ Cannon приезжает форком [`alxwlw/cannon`](https://github.com/alxw
 
 ## Утилиты
 
-| Script             | Описание                                                               |
-| ------------------ | ---------------------------------------------------------------------- |
-| `docgen:contracts` | Генерация документации контрактов                                      |
-| `copy-storage`     | Копирование `storage.new.dump.json` → `storage.dump.json` (pre-commit) |
-| `changed`          | Список изменённых пакетов через Lerna                                  |
+| Script             | Описание                                                                                         |
+| ------------------ | ------------------------------------------------------------------------------------------------ |
+| `docgen:contracts` | Генерация документации контрактов                                                                |
+| `copy-storage`     | Копирование `storage.new.dump.json` → `storage.dump.json` (pre-commit)                           |
+| `changed`          | Список затронутых проектов — теперь запросом к moon (`moon query projects --affected`), не Lerna |

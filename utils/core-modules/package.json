@@ -14,21 +14,7 @@
     "storage.dump.json",
     "*.toml"
   ],
-  "scripts": {
-    "clean": "bun x hardhat clean && rm -rf contracts/generated",
-    "build": "yarn build:contracts",
-    "storage:verify": " bun x hardhat storage:verify",
-    "build:contracts": "bun x hardhat compile --force && yarn storage:dump && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build",
-    "storage:dump": "bun x hardhat storage:dump --output storage.new.dump.json",
-    "generate-testable": "rm -rf contracts/generated && bun x hardhat generate-testable",
-    "build-testable": "bun x hardhat compile",
-    "check:storage": "diff -uw storage.dump.json storage.new.dump.json",
-    "test": "CANNON_REGISTRY_PRIORITY=local bun x hardhat test",
-    "coverage": "bun x hardhat coverage --network hardhat",
-    "compile-contracts": "bun x hardhat compile",
-    "size-contracts": "bun x hardhat compile && bun x hardhat size-contracts",
-    "docgen": "bun x hardhat docgen"
-  },
+  "scripts": {},
   "keywords": [],
   "author": "Synthetix",
   "license": "MIT",

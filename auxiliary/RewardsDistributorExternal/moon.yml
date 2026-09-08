@@ -1,0 +1,18 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+tags: ["foundry"]
+
+tasks:
+  publish-contracts:
+    script: "cannon publish synthetix-rewards-dist-ext:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\\d+\\.\\d+\\.\\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')"
+    deps: ["^:publish-contracts"]
+    options:
+      cache: false
+  build:
+    command: "cannon build"
+    deps: ["^:build"]
+    env:
+      CANNON_REGISTRY_PRIORITY: "local"
+    options:
+      mergeArgs: "replace"
+      cache: false

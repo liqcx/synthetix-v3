@@ -13,20 +13,7 @@
     "*.toml"
   ],
   "scripts": {
-    "build:contracts": "bun x hardhat compile --force && yarn storage:dump && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build",
-    "storage:dump": "bun x hardhat storage:dump --output storage.new.dump.json",
-    "build": "yarn build:contracts",
-    "build-testable": "cannon build cannonfile.test.toml --write-script script/Deploy.sol --write-script-format foundry --wipe",
-    "storage:verify": " bun x hardhat storage:verify",
-    "forge-test": "forge test -vvvvv",
-    "forge-coverage": "forge coverage -vvvv --report lcov",
-    "coverage": "bun x hardhat coverage --network hardhat",
-    "clean": "bun x hardhat clean",
-    "compile-contracts": "bun x hardhat compile",
-    "publish-contracts": "cannon publish synthetix-treasury-market:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\\d+\\.\\d+\\.\\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')",
-    "deploy": "yarn build && yarn publish-contracts",
-    "size-contracts": "bun x hardhat compile && bun x hardhat size-contracts",
-    "docgen": "bun x hardhat docgen"
+    "forge-coverage": "forge coverage -vvvv --report lcov"
   },
   "keywords": [],
   "author": "",

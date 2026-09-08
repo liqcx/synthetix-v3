@@ -1,0 +1,29 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+tags: ["subgraph"]
+
+tasks:
+  subgraph-codegen:
+    command: "node generate.js"
+    options:
+      mergeArgs: "replace"
+      cache: false
+  subgraph-build:
+    command: "node generate.js --build"
+    options:
+      mergeArgs: "replace"
+      cache: false
+  # `pretest: node generate.js` at 6835e6fa. pnpm runs pre<script> hooks (verified:
+  # `pnpm run test` here prints `$ node generate.js` first); moon has no lifecycle
+  # hooks, so without this edge `moon run :test` would compile nothing on a clean
+  # clone — src/generated/ and the rendered subgraph.*.yaml are gitignored. The
+  # hook's body is byte-identical to this package's subgraph-codegen task.
+  # Neither other subgraph package has a pretest, so neither carries this edge.
+  test:
+    deps: ["subgraph-codegen"]
+  coverage:
+    command: "graph test --coverage"
+    deps: ["^:coverage"]
+    options:
+      mergeArgs: "replace"
+      cache: false

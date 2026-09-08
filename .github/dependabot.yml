@@ -9,9 +9,6 @@ updates:
         patterns:
           - "@usecannon*"
           - "*cannon*"
-      lerna:
-        patterns:
-          - "*lerna*"
       subgraph:
         patterns:
           - "@graphprotocol*"
@@ -35,9 +32,6 @@ updates:
           # cannon
           - "@usecannon*"
           - "*cannon*"
-
-          # lerna
-          - "*lerna*"
 
           # subgraph
           - "@graphprotocol*"

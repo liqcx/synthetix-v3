@@ -1,0 +1,17 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+tags: ["ts-lib"]
+
+tasks:
+  test:
+    command: "bun x mocha --require ts-node/register"
+    options:
+      mergeArgs: "replace"
+      cache: false
+  # `nyc yarn test` inlined: Task 4 deletes the `test` script this used to call.
+  coverage:
+    script: "nyc bun x mocha --require ts-node/register"
+    deps: ["^:coverage"]
+    options:
+      mergeArgs: "replace"
+      cache: false

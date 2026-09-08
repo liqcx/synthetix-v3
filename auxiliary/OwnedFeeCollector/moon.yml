@@ -1,0 +1,22 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+tags: ["contracts"]
+
+# Narrower than its tag: these verbs have never existed here, and a task the
+# package never had would make `moon run :<verb>` touch more than `pnpm -r` does.
+workspace:
+  inheritedTasks:
+    exclude:
+      ["check-storage", "generate-testable", "storage-dump", "storage-verify"]
+
+tasks:
+  publish-contracts:
+    script: "cannon publish owned-fee-collector:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\\d+\\.\\d+\\.\\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')"
+    deps: ["^:publish-contracts"]
+    options:
+      cache: false
+  # Its build:contracts has no dump step: this package owns no storage:dump.
+  build-contracts:
+    script: "bun x hardhat compile --force && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build"
+    options:
+      mergeArgs: "replace"

@@ -5,9 +5,6 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "test": "forge test -vv",
-    "build": "forge build",
-    "clean": "forge clean",
     "fmt": "forge fmt"
   }
 }

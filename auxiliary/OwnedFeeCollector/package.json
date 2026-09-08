@@ -12,19 +12,7 @@
     "storage.dump.json",
     "*.toml"
   ],
-  "scripts": {
-    "test": "CANNON_REGISTRY_PRIORITY=local bun x hardhat test",
-    "coverage": "bun x hardhat coverage --network hardhat",
-    "clean": "bun x hardhat clean",
-    "build": "yarn build:contracts",
-    "build:contracts": "bun x hardhat compile --force && CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build",
-    "build-testable": "CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build cannonfile.test.toml",
-    "compile-contracts": "bun x hardhat compile",
-    "size-contracts": "bun x hardhat compile && bun x hardhat size-contracts",
-    "publish-contracts": "cannon publish owned-fee-collector:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\\d+\\.\\d+\\.\\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')",
-    "deploy": "yarn build && yarn publish-contracts",
-    "docgen": "bun x hardhat docgen"
-  },
+  "scripts": {},
   "keywords": [],
   "author": "",
   "license": "MIT",

@@ -1,0 +1,23 @@
+$schema: "https://moonrepo.dev/schemas/toolchain.json"
+
+javascript:
+  packageManager: "pnpm"
+  # Inferred tasks carry no inputs or outputs, so they buy neither caching nor
+  # affected-detection. Every task in this repo is declared explicitly.
+  inferTasksFromScripts: false
+  # `pnpm -r run X` never installed anything on its own — the developer runs
+  # `pnpm install` themselves. Auto-installing on a dirty package.json is
+  # behaviour moon adds, not behaviour this repo had, and the install-check
+  # path it takes without CI=true crashes (plugin::wasm::failed_function_call
+  # parsing node_modules/mocha's `engines.node: ">= 14.0.0"`) whenever any
+  # package.json differs from HEAD. Off restores the old, faithful behaviour
+  # and sidesteps the crash at the same time.
+  installDependencies: false
+
+node: {}
+pnpm: {}
+
+# `typescript` is deliberately absent. Measured, not assumed: this repo has 9
+# tsconfig files (7 under packages) and NOT ONE declares a `references` array;
+# two set `composite` that nothing consumes. Enabling syncProjectReferences
+# would have moon start writing references nothing reads.

@@ -1,0 +1,3 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+# No tasks: this package owns none of the migrated verbs.

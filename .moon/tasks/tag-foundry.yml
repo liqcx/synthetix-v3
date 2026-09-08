@@ -1,0 +1,18 @@
+$schema: "https://moonrepo.dev/schemas/tasks.json"
+
+# `forge-test` only. auxiliary/Faucet is NOT tagged foundry: it has no
+# forge-test script — its Foundry run is its `test` script, defined in its own
+# moon.yml. RewardsDistributor and RewardsDistributorExternal ARE tagged: they
+# own a forge-test script today, so parity requires they own the task. That they
+# fail to compile (forge-std ships no src/mocks/ in any tagged release) is
+# pre-existing and equally true of `pnpm -r run forge-test`. CI keeps them out by
+# naming targets explicitly, not by withholding the task.
+
+inheritedBy:
+  tags: ["foundry"]
+
+tasks:
+  forge-test:
+    command: "forge test -vvvvv"
+    options:
+      cache: false

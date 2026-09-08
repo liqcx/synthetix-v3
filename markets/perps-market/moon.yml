@@ -1,0 +1,43 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+tags: ["contracts", "foundry"]
+
+# Narrower than its tag: these verbs have never existed here, and a task the
+# package never had would make `moon run :<verb>` touch more than `pnpm -r` does.
+workspace:
+  inheritedTasks:
+    exclude: ["generate-testable"]
+
+tasks:
+  publish-contracts:
+    script: "cannon publish synthetix-perps-market:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\\d+\\.\\d+\\.\\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')"
+    deps: ["^:publish-contracts"]
+    options:
+      cache: false
+  test:
+    script: "CANNON_REGISTRY_PRIORITY=local bun x hardhat test; pnpm run anvil-clean"
+    options:
+      mergeArgs: "replace"
+      cache: false
+  coverage:
+    command: "bun x hardhat test"
+    options:
+      mergeArgs: "replace"
+      cache: false
+  build-testable:
+    script: "CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build cannonfile.test.toml && pnpm run build-testable:foundry"
+    options:
+      mergeArgs: "replace"
+      cache: false
+  forge-test:
+    command: "forge test"
+    options:
+      mergeArgs: "replace"
+      cache: false
+  # `bun x hardhat clean && rm -rf contracts/generated` at 6835e6fa — the tag's
+  # body stops at hardhat, so the generated-contracts wipe is restored here.
+  clean:
+    script: "bun x hardhat clean && rm -rf contracts/generated"
+    options:
+      mergeArgs: "replace"
+      cache: false

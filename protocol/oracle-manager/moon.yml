@@ -1,0 +1,22 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+tags: ["contracts"]
+
+tasks:
+  publish-contracts:
+    script: "cannon publish oracle-manager:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\\d+\\.\\d+\\.\\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')"
+    deps: ["^:publish-contracts"]
+    options:
+      cache: false
+  build-testable:
+    command: "bun x hardhat cannon:build cannonfile.test.toml --wipe"
+    options:
+      mergeArgs: "replace"
+      cache: false
+  # `bun x hardhat clean && rm -rf contracts/generated` at 6835e6fa — the tag's
+  # body stops at hardhat, so the generated-contracts wipe is restored here.
+  clean:
+    script: "bun x hardhat clean && rm -rf contracts/generated"
+    options:
+      mergeArgs: "replace"
+      cache: false

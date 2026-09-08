@@ -1,0 +1,22 @@
+$schema: "https://moonrepo.dev/schemas/tasks.json"
+
+inheritedBy:
+  tags: ["subgraph"]
+
+tasks:
+  subgraph-codegen:
+    command: "./codegen.sh"
+    deps: ["^:subgraph-codegen"]
+    options:
+      cache: false
+
+  subgraph-build:
+    command: "./build.sh"
+    deps: ["^:subgraph-build"]
+    options:
+      cache: false
+
+  test:
+    command: "graph test"
+    options:
+      cache: false
