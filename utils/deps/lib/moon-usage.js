@@ -14,9 +14,20 @@ const fs = require('node:fs');
 // package: moon resolves inherited tag tasks for us, so a command that lives
 // only in a shared `.moon/tasks/*.yml` file (not in the project's own
 // moon.yml) is still seen here.
+//
+// `moon query projects`' JSON is 822,661 bytes today against Node's 1 MiB
+// (1,048,576 byte) default `maxBuffer` — 78.5% of it, on a workspace that
+// only grows moon tasks over time. 10 MiB is ~12.7x today's size: enough
+// headroom that this workspace would have to grow an order of magnitude
+// before it mattered again, without going so high that a truly runaway
+// process is silently tolerated.
+const MOON_QUERY_MAX_BUFFER = 10 * 1024 * 1024;
+
 async function moonCommandsBySource() {
   const exec = require('./exec');
-  const { projects } = JSON.parse(await exec('moon query projects'));
+  const { projects } = JSON.parse(
+    await exec('moon query projects', { maxBuffer: MOON_QUERY_MAX_BUFFER })
+  );
 
   const bySource = new Map();
   for (const project of projects) {
@@ -52,17 +63,18 @@ function binNames(dep, location) {
   return typeof bin === 'string' ? [path.basename(dep)] : Object.keys(bin);
 }
 
-// "package name or bin name" per the fix's own brief: the declared dependency
-// name itself is checked too, not only its resolved binaries, so a dependency
-// invoked by its npm name (rare here, but cheap to cover) is not missed.
+// Bin names only, matching depcheck's own `special/bin.js` exactly — a raw
+// package-name check was tried and measured wrong: it makes a bare word like
+// "diff" or "test" a live whitelist entry for every project whose inherited
+// task happens to contain that token, silently hiding an unused dependency
+// that is merely *named* the same as a command another task runs.
 function isUsedByMoon(dep, location, commandsBySource) {
   const commands = commandsBySource.get(location);
   if (!commands) {
     return false;
   }
 
-  const names = [dep, ...binNames(dep, location)];
-  return names.some((name) => commands.includes(` ${name} `));
+  return binNames(dep, location).some((name) => commands.includes(` ${name} `));
 }
 
 module.exports = { moonCommandsBySource, isUsedByMoon };
