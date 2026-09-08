@@ -11,7 +11,7 @@ defaultValue = "0x48914229deDd5A9922f44441ffCCfC2Cb7856Ee9"
 defaultValue = "500000000000000000"
 
 [provision.usd]
-source = "mintable-token:1.8@permissionless-mint"
+source = "mintable-token:1.8-liq.1@permissionless-mint"
 options.symbol = "USD"
 options.name = "Mintable USD"
 options.salt = "usd"

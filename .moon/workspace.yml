@@ -6,10 +6,11 @@ projects:
     - "protocol/*"
     - "markets/*"
     - "auxiliary/*"
-    # No package.json (pure Foundry package, not a pnpm workspace member per
+    # No package.json (pure Foundry packages, not pnpm workspace members per
     # pnpm-workspace.yaml's own resolution) — the auxiliary/* glob still
-    # matches the directory, so it is excluded explicitly.
+    # matches their directories, so they are excluded explicitly.
     - "!auxiliary/TrustedMulticallForwarder"
+    - "!auxiliary/MintableToken"
     # A file, not a project root — auxiliary/* matches it too and moon warns
     # on every query. A directory-only glob (auxiliary/*/) does not suppress
     # this; only the explicit negation does.

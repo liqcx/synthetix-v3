@@ -88,6 +88,20 @@ jobs:
             foundry-rs/forge-std@v1.9.7
           pnpm exec cannon build cannonfile.toml --quiet
 
+      # Same wall, different package: BuybackSnx and OwnedFeeCollector provision
+      # `mintable-token:...@permissionless-mint`, whose bytes are just as
+      # unreachable. Unlike the forwarder this package had no source in the repo,
+      # so auxiliary/MintableToken is a vendored copy — see its README for what
+      # was recovered from the upstream artifact and what had to be decided.
+      # forge-std is not needed here (no Foundry tests), only OpenZeppelin, and
+      # at the same v5.0.0 tag the forwarder pins.
+      - name: Register mintable-token in the local cannon registry
+        working-directory: auxiliary/MintableToken
+        run: |
+          forge install --shallow --no-git \
+            OpenZeppelin/openzeppelin-contracts@v5.0.0
+          pnpm exec cannon build cannonfile.toml --quiet
+
       # Serial on purpose. Every cannon build spawns its own anvil, and outside
       # markets/perps-market — the one package whose hardhat.config.ts reads
       # ANVIL_PORT — the port comes from utils/common-config/hardhat.config.ts,
