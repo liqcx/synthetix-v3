@@ -22,10 +22,13 @@ import { renameSync, writeFileSync } from 'node:fs';
  */
 describe('a bun test process that abandons a child', function () {
   it('leaves a grandchild running after the run', async function () {
-    // Checked before anything is spawned: `bun test .github/scripts` would
-    // discover this file too, and a grandchild spawned before a failing
-    // assertion would be abandoned for five minutes with no runner around to
-    // reap it — this fixture leaking is the one thing it must never do.
+    // Checked before anything is spawned: `bun test ./.github/scripts` from
+    // the repo root discovers this file too (the leading `./` matters — a
+    // bare `.github/scripts` is read as a filter, and bun's scanner skips
+    // dot-directories, so it matches nothing), and a grandchild spawned
+    // before a failing assertion would be abandoned for five minutes with no
+    // runner around to reap it — this fixture leaking is the one thing it
+    // must never do.
     const pidFile = process.env.LEAK_PID_FILE;
     assert.ok(pidFile, 'LEAK_PID_FILE must be set by the caller');
 
