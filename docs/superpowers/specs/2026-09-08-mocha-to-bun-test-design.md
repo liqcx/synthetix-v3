@@ -164,7 +164,7 @@ existing convention:
 | `TEST_ATTEMPTS` | re-runs of a failed unit, default 2 |
 | `TEST_WALL_CLOCK` | per-process kill, default 1 200 000 |
 | `JUNIT_DIR` | as today |
-| `BASE_ANVIL_PORT` | base port for a unit's anvil (base + unit index), default 8600; never 8545 |
+| `BASE_ANVIL_PORT` | floor for a unit's anvil port search (offset by the runner's own pid and the unit's index, then the first candidate `lsof` reports free, skipping 8545), default 8600 |
 
 The runner takes the package directory as its one argument and globs
 `test/**/*.test.{ts,js}` itself, so there is no `TEST_FILES` hand-off.

@@ -1,7 +1,7 @@
 import assert from 'assert/strict';
 
 import { modeFor } from './suites';
-import { knob, parsePids, portFor, slugFor, unitsFor } from './run-tests';
+import { claimPort, knob, parsePids, portFor, slugFor, stringKnob, unitsFor } from './run-tests';
 
 describe('.github/scripts/run-tests.ts', function () {
   const files = [
@@ -91,5 +91,64 @@ describe('portFor', function () {
     const b = portFor(8544, 2);
     assert.notEqual(a, 8545);
     assert.notEqual(a, b);
+  });
+});
+
+describe('stringKnob', function () {
+  it('treats an empty string as unset and returns the fallback', function () {
+    assert.equal(stringKnob('', '/tmp/junit'), '/tmp/junit');
+  });
+
+  it('treats unset (undefined) as unset and returns the fallback', function () {
+    assert.equal(stringKnob(undefined, '/tmp/junit'), '/tmp/junit');
+  });
+
+  it('passes a real value through unchanged', function () {
+    assert.equal(stringKnob('/tmp/junit-probe', '/tmp/junit'), '/tmp/junit-probe');
+  });
+});
+
+describe('claimPort', function () {
+  // Mirrors the property the old `leakedPids` suite pinned against the
+  // scan-delta shape (round 1) — "something present before the unit is
+  // never reaped" — against the current shape: a port `isFree` reports
+  // occupied is never the one `claimPort` hands back, so `reapPort` (which
+  // is only ever called with what `claimPort` returned) can never reap it.
+
+  it('returns the first candidate when it is free', function () {
+    assert.equal(
+      claimPort(8600, 0, 5, () => true),
+      8600
+    );
+  });
+
+  it('skips an occupied candidate and returns the next free one', function () {
+    const occupied = new Set([8600]);
+    const port = claimPort(8600, 0, 5, (p) => !occupied.has(p));
+    assert.equal(port, 8601);
+  });
+
+  it('never returns a port that stays occupied for the whole search — the mirror property: something already there is never claimed, and so never reaped', function () {
+    const stranger = 8600; // e.g. a bystander anvil that was already there
+    const port = claimPort(8600, 0, 5, (p) => p !== stranger);
+    assert.notEqual(port, stranger);
+  });
+
+  it('throws, naming every port tried, when nothing is ever free', function () {
+    assert.throws(() => claimPort(8600, 0, 3, () => false), /8600, 8601, 8602/);
+  });
+
+  it('skips a real listener and leaves it alive, using the real lsof-backed check (no injected isFree)', function () {
+    // Everything above tests the walk against a fake `isFree`; this is the
+    // one test that exercises the real default — `pidsOnPort`'s actual
+    // `lsof -sTCP:LISTEN` call and its exit-code/stderr discrimination
+    // (DP-095) — against a real bound socket, without needing a real anvil.
+    const server = Bun.listen({ hostname: '127.0.0.1', port: 0, socket: { data() {} } });
+    try {
+      assert.notEqual(claimPort(server.port, 0, 3), server.port);
+      assert.equal(claimPort(server.port, 0, 3), server.port + 1);
+    } finally {
+      server.stop();
+    }
   });
 });

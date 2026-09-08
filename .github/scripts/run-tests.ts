@@ -17,6 +17,9 @@ const ROOT = path.resolve(import.meta.dir, '..', '..');
  */
 const PRELOAD = path.join(ROOT, 'utils/core-utils/src/utils/bun/preload.ts');
 
+/** How many candidate ports `claimPort` will check before giving up. */
+const MAX_PORT_CLAIM_TRIES = 20;
+
 /** One process per file, or one for the whole package. */
 export function unitsFor(files: string[], mode: Mode): string[][] {
   return mode === 'per-file' ? files.map((file) => [file]) : [files];
@@ -32,9 +35,9 @@ export function slugFor(unit: string[], mode: Mode): string {
 }
 
 /**
- * Parses newline-delimited pid output (`pgrep`/`lsof -t`) into pid strings,
- * dropping blank lines and surrounding whitespace. Pure so the reaping logic
- * below can be unit-tested without spawning anything.
+ * Parses newline-delimited pid output (`lsof -t`) into pid strings, dropping
+ * blank lines and surrounding whitespace. Pure so the reaping logic below can
+ * be unit-tested without spawning anything.
  */
 export function parsePids(raw: string): string[] {
   return raw
@@ -64,8 +67,20 @@ export function knob(name: string, raw: string | undefined, fallback: number): n
 }
 
 /**
- * The anvil port a unit gets: a base plus the unit's index, so ports never
- * collide across units in the same run. Never 8545 — that is hardhat-cannon's
+ * The string-valued sibling of `knob`: `undefined`/`''` mean unset and fold
+ * to `fallback`, same as the numeric knobs — there is no format to validate
+ * for a directory path, just the same "'' is not a real value" fold, so
+ * `JUNIT_DIR=''` (the same GHA-unset shape the numeric knobs already guard
+ * against) does not quietly turn into a cwd-relative `<pkg>` directory that
+ * `run-suites.sh`-style callers never see and no JUnit XML ever lands in.
+ */
+export function stringKnob(raw: string | undefined, fallback: string): string {
+  return raw === undefined || raw === '' ? fallback : raw;
+}
+
+/**
+ * The anvil port a unit gets: a base plus an index, so a single runner's own
+ * units don't collide with each other. Never 8545 — that is hardhat-cannon's
  * own default, so it is where a developer's own, unrelated anvil is likely to
  * already be listening, and that anvil is not this runner's to touch.
  *
@@ -75,6 +90,10 @@ export function knob(name: string, raw: string | undefined, fallback: number): n
  * or below 8545 — the default base 8600 never triggers this), every port
  * from there on shifts up by one, so the sequence stays strictly increasing
  * and 8545 is simply skipped rather than reused as a landing spot.
+ *
+ * This only produces *candidates* — it says nothing about whether a candidate
+ * is actually free. `claimPort` below is what turns a candidate into an
+ * owned port.
  */
 export function portFor(base: number, index: number): number {
   const port = base + index;
@@ -82,29 +101,69 @@ export function portFor(base: number, index: number): number {
 }
 
 /**
- * Pids currently bound to `port`, via `lsof -ti tcp:<port>`.
+ * Pids with a socket bound (`-sTCP:LISTEN`, not merely mentioning the port on
+ * either end) to `port`, via `lsof -ti tcp:<port>`.
+ *
+ * `lsof` exits non-zero both for "nothing matched" (the common, expected
+ * case: empty stdout, empty stderr) and for a genuine failure — a bad
+ * invocation, or insufficient privileges to read the socket table on this
+ * image (empty stdout, but stderr says so). Those two are not the same
+ * outcome: silently treating the second as "nothing is listening" is how a
+ * reap can "succeed" at reaping nothing, and how a free-port check can wave a
+ * port through that `lsof` never actually cleared. `stdout` being non-empty
+ * is unambiguous either way; when it's empty, stderr is the only way to tell
+ * them apart, so it is captured and inspected rather than discarded.
  */
 function pidsOnPort(port: number): Set<string> {
-  // `-sTCP:LISTEN` restricts this to sockets *bound to* `port`, not merely
-  // mentioning it — without it, `-ti tcp:<port>` also matches a client
-  // process whose *remote* end happens to be `<port>`, which is not this
-  // unit's anvil and not this runner's to kill.
-  const { stdout } = Bun.spawnSync(['lsof', '-ti', `tcp:${port}`, '-sTCP:LISTEN'], {
-    stdout: 'pipe',
-    stderr: 'ignore',
-  });
+  const { stdout, stderr, exitCode } = Bun.spawnSync(
+    ['lsof', '-ti', `tcp:${port}`, '-sTCP:LISTEN'],
+    { stdout: 'pipe', stderr: 'pipe' }
+  );
+  const err = stderr.toString().trim();
+  if (exitCode !== 0 && err) {
+    throw new Error(`lsof failed checking tcp:${port}: ${err}`);
+  }
   return new Set(parsePids(stdout.toString()));
 }
 
 /**
+ * Walks candidate ports starting at `portFor(base, startIndex)`, checking
+ * each with `isFree`, and returns the first one `isFree` itself reports
+ * empty. A port that is occupied — by a bystander, a developer's own anvil,
+ * or anything else — is *never* returned, no matter how briefly it was
+ * observed that way: ownership is established by seeing a port empty
+ * immediately before claiming it, not by assuming a port is yours because you
+ * intended to use it. Throws, naming every candidate tried, if none of the
+ * first `maxTries` are free.
+ *
+ * `isFree` defaults to the real `pidsOnPort` check but is overridable so this
+ * can be unit-tested without spawning a process (DP-017) — the real-process
+ * proof lives in this task's acceptance evidence, not in the committed test
+ * suite.
+ */
+export function claimPort(
+  base: number,
+  startIndex: number,
+  maxTries: number,
+  isFree: (port: number) => boolean = (port) => pidsOnPort(port).size === 0
+): number {
+  const tried: number[] = [];
+  for (let i = 0; i < maxTries; i++) {
+    const port = portFor(base, startIndex + i);
+    tried.push(port);
+    if (isFree(port)) return port;
+  }
+  throw new Error(`No free anvil port found after ${maxTries} tries: ${tried.join(', ')}`);
+}
+
+/**
  * `hardhat test` used to tear down the anvil instance(s) Cannon spawns for a
- * run; `bun test` does not. Reap only what is bound to the port THIS unit was
- * assigned via `ANVIL_PORT` — ownership by construction, not by diffing every
- * `anvil` process on the machine. A scan-delta over process names cannot tell
- * "a unit's own leaked anvil" from "a bystander anvil that started somewhere
- * else during the same window" (moon runs project tasks in parallel by
- * default, so two runners can be alive at once); a port this runner itself
- * handed out has no such ambiguity — nothing else is supposed to be there.
+ * run; `bun test` does not. Reap only the port THIS unit `claimPort`ed and
+ * handed to its child via `ANVIL_PORT` — a port observed free immediately
+ * before this unit's own child was spawned into it is this unit's to reap;
+ * a port anything else already held never becomes this unit's, no matter
+ * what is on it by the time this runs. This is never called with a port that
+ * was not first claimed this way — see `main`.
  */
 function reapPort(port: number): void {
   for (const pid of pidsOnPort(port)) {
@@ -117,18 +176,23 @@ function reapPort(port: number): void {
 }
 
 async function main() {
-  const {
-    TEST_TIMEOUT,
-    TEST_ATTEMPTS,
-    TEST_WALL_CLOCK,
-    BASE_ANVIL_PORT,
-    JUNIT_DIR = '/tmp/junit',
-  } = process.env;
+  const { TEST_TIMEOUT, TEST_ATTEMPTS, TEST_WALL_CLOCK, BASE_ANVIL_PORT, JUNIT_DIR } = process.env;
 
   const testTimeout = knob('TEST_TIMEOUT', TEST_TIMEOUT, 120_000);
   const testAttempts = knob('TEST_ATTEMPTS', TEST_ATTEMPTS, 2);
   const testWallClock = knob('TEST_WALL_CLOCK', TEST_WALL_CLOCK, 1_200_000);
   const baseAnvilPort = knob('BASE_ANVIL_PORT', BASE_ANVIL_PORT, 8600);
+  const junitBase = stringKnob(JUNIT_DIR, '/tmp/junit');
+
+  // `pidsOnPort`/`claimPort`/`reapPort` all shell out to `lsof`; fail once,
+  // loudly, and before touching any unit, rather than letting the first
+  // `Bun.spawnSync(['lsof', ...])` throw an ENOENT mid-run and abandon
+  // whatever units had not started yet with an exit code indistinguishable
+  // from "tests failed".
+  if (!Bun.which('lsof')) {
+    console.error('::error::lsof not found on PATH — required to claim and reap anvil ports');
+    return 1;
+  }
 
   const dir = path.resolve(process.argv[2] ?? process.cwd());
   const rel = path.relative(ROOT, dir);
@@ -146,15 +210,22 @@ async function main() {
   const preloads = [PRELOAD];
   if (existsSync(path.join(dir, 'hardhat.config.ts'))) preloads.push('hardhat/register');
 
-  const junitDir = path.join(JUNIT_DIR, rel.replaceAll('/', '-'));
+  const junitDir = path.join(junitBase, rel.replaceAll('/', '-'));
   await mkdir(junitDir, { recursive: true });
 
   const units = unitsFor(files, mode);
   let failed = 0;
 
+  // A pid-derived offset so two runners started moments apart do not both
+  // start their port search at the same candidate. This is a courtesy, not
+  // the correctness guarantee: `claimPort`'s occupancy check is what
+  // actually prevents two runners from ever sharing a port, this only makes
+  // the common case (both landing on the very same first choice) less
+  // likely to happen at all.
+  const pidOffset = process.pid % 1000;
+
   for (const [index, unit] of units.entries()) {
     const slug = slugFor(unit, mode);
-    const port = portFor(baseAnvilPort, index);
     const args = [
       'test',
       ...preloads.flatMap((preload) => ['--preload', preload]),
@@ -167,6 +238,7 @@ async function main() {
 
     let passed = false;
     for (let attempt = 1; attempt <= testAttempts && !passed; attempt++) {
+      const port = claimPort(baseAnvilPort, pidOffset + index, MAX_PORT_CLAIM_TRIES);
       console.log(`${rel} ${slug}: attempt ${attempt}/${testAttempts} (ANVIL_PORT=${port})`);
       const child = Bun.spawn(['bun', ...args], {
         cwd: dir,
