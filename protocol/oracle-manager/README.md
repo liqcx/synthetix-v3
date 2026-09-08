@@ -125,7 +125,7 @@ To run the oracle manager (after running `yarn && yarn build` in the project roo
 
 To run the tests:
 
-`yarn test`
+`moon run oracle-manager:test`
 
 ### New Node Type Checklist
 

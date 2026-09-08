@@ -131,6 +131,16 @@ module.exports = [
     },
   },
   {
+    // `.mjs` is always an ES module at the Node.js runtime level, regardless of
+    // the surrounding `sourceType: 'commonjs'` default above — without this
+    // override every `import` here is a parse error.
+    files: ['scripts/moon-parity/*.mjs'],
+
+    languageOptions: {
+      sourceType: 'module',
+    },
+  },
+  {
     files: [
       'protocol/synthetix/subgraph/**/*',
       'markets/spot-market/subgraph/**/*',

@@ -136,133 +136,60 @@ npm login
 npm logout
 ```
 
-## Publish Dev Release
+## Publishing
 
-**Each step is necessary, do not skip any steps.**
+This fork does not publish to npm. `yarn version:dev`, `yarn publish:dev` and `yarn publish:release`
+were thin wrappers over Lerna, bumping every package to a dev version and pushing it to the npm
+`dev`/`latest` tag; all three are gone along with Lerna, and there is nowhere left to publish a
+package to — every `package.json` still carries the upstream `@synthetixio` scope, which this fork
+does not own.
 
-Dev releases are expected to be done from _ANY_ branch without restrictions at any moment of code readiness.
+What replaces them: package versions are bumped by hand, in an ordinary commit, e.g.
+`build(perps-market): 3.11.5-orderbook — the package opens the book door it closes` (`1918c695`).
+There is no separate "dev" channel between bumping a version and publishing it — the same
+`publish-contracts`/`deploy` tasks below run against whatever version is currently checked in.
 
-Do **NOT** manually update `package.json` of any package.
+Cannon publishing is a moon task, per project. **Each publish comes at a mainnet fee cost of
+`0.0025 ETH`, so it is worth not publishing more than required.** If you aren't using an
+EIP-1193-compatible wallet, prepend `CANNON_PRIVATE_KEY=<PRIVATE_KEY>` to the command.
 
-1.  Confirm there are no git changes
+```sh
+# from anywhere in the repo — moon resolves the project by id, no cd needed
+moon run perps-market:deploy
+moon run synthetix:deploy
+# and so on
+```
 
-    ```sh
-    git diff --exit-code
-    ```
+`deploy` is `moon run <project>:build && moon run <project>:publish-contracts`
+(`.moon/tasks/tag-contracts.yml`). To build and test locally without paying the publish fee, run
+just `build`/`build-contracts` and stop there — `publish-contracts` is the step that actually
+pushes to the Cannon registry. Each project defines its own `publish-contracts` task in its
+`moon.yml`; the shape is the same everywhere (example, `synthetix`):
 
-    This step is important as dev release will create changes in the process which must **NOT** be committed
-    and after successful release all changes should be fully reset.
+```sh
+# This is only an example to illustrate what `deploy` does under the hood.
+# Steps 1-3 are the `build` / `build-contracts` task:
+# 1. Compile the contracts and all the support files
+bun x hardhat compile --force
+# 2. Dump the contract storage
+bun x hardhat storage:dump --output storage.new.dump.json
+# 3. Deploy on chain (cannon's chain only 13370) and generate all the IPFS artifacts in cannon local folder
+#    CANNON_REGISTRY_PRIORITY=local ensures that cannon uses local cache first and not pulling packages from outside
+#    This is needed when there is a dependency between packages and we publishing a chain of packages one by one
+CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
+# Step 4 is `publish-contracts` itself:
+# 4. Publish given package to the cannon registry
+pnpm exec cannon publish synthetix:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
+```
 
-2.  Bump all the package versions to a dev variant that will be in a format of `0.0.0-dev.$GIT_SHA_SHORT`
+Before publishing an official release, verify what changed since the last one and confirm you're on
+an up-to-date `main` with write access:
 
-    ```sh
-    # make sure to run it in the repo ROOT
-    yarn version:dev
-    ```
+```sh
+pnpm changed  # moon query projects --affected
 
-    This will execute lerna command to bump all packages (without doing any commits).
-    Underlying command can always be checked in `package.json` scripts. Full version is:
-
-    ```sh
-    yarn lerna version 0.0.0-dev.$(git rev-parse --short HEAD) --no-changelog --no-push --no-git-tag-version --force-publish --allow-branch $(git branch --show-current)
-    ```
-
-3.  Run publish of all packages to NPM registry under `dev` tag
-    This will execute lerna command to publish all packages (still, without doing any commits).
-    This step will update lock file as well as all the internal workspace references.
-
-    ```sh
-    yarn publish:dev
-    ```
-
-    Underlying command can always be checked in `package.json` scripts. Full version is:
-
-    ```sh
-    yarn lerna publish from-package --force-publish --dist-tag dev --no-git-reset
-    ```
-
-    If there is no intention to publish to NPM or cannon registry at all for testing locally only, you can do a dry-run instead
-    It will not run npm publish but still will do all the necessary updates to local package.json files.
-
-    ```sh
-    yarn publish:dev --dry-run
-    ```
-
-4.  Deploy each individual package to cannon, make sure you still have all the results of steps 2 and 3 in working tree.
-    For each package you'd like to publish to cannon, call package script `deploy`
-    Note that each publish comes at a mainnet fee cost of `0.0025 ETH`, so it is wide not to publish more than required
-
-    ```sh
-    yarn workspace @synthetixio/perps-market deploy
-    yarn workspace @synthetixio/main deploy
-    # and so on
-    ```
-
-    Same can be achieved by executing `yarn deploy` inside each package folder
-
-    ```sh
-    pushd .
-    cd markets/perps-market
-    yarn deploy
-    popd
-
-    pushd .
-    cd protocol/synthetix
-    yarn deploy
-    popd
-
-    # and so on
-    ```
-
-    Each package may define its own way to deploy with cannon, please refer to package.json scripts section.
-    The most common list of operation `deploy` shortcut will execute (example from `protocol/synthetix`):
-
-    ```sh
-    # This is only an example to illustrate what deploy shortcut is doing under the hood
-    # 1. Compile the contracts and all the support files
-    bun x hardhat compile --force
-    # 2. Dump the contract storage
-    bun x hardhat storage:dump --output storage.new.dump.json
-    # 3. Deploy on chain (cannon's chain only 13370) and generate all the IPFS artifacts in cannon local folder
-    #    CANNON_REGISTRY_PRIORITY=local ensures that cannon uses local cache first and not pulling packages from outside
-    #    This is needed when there is a dependency between packages and we publishing a chain of packages one by one
-    CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
-    # 4. Publish given package to the cannon registry
-    yarn cannon publish synthetix:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
-    ```
-
-5.  After successful publishing of all needed packages, reset your git working tree to avoid accidentally
-    committing dev version changes and dependency references upstream.
-
-    ```sh
-    git reset --hard
-    ```
-
-    And ensure workign tree is clean again
-
-    ```sh
-    git diff --exit-code
-    ```
-
-## Publish Official Release
-
-**Each step is necessary, do not skip any steps.**
-
-- Verify what has changed since the last release
-
-  ```sh
-  yarn changed
-  ```
-
-- Confirm you are on the `main` branch and that there are no git changes `git diff --exit-code .` and you have write access to `main` branch
-
-  ```sh
-  git fetch --all
-  git checkout main
-  git pull
-  git diff --exit-code .
-  ```
-
-- Publish the release with `yarn publish:release`. (After successful publish, there should be no diff in git.)
-- If you aren't using an EIP-1193 compatible wallet, prepend `CANNON_PRIVATE_KEY=<PRIVATE_KEY>` to the following command.
-- In the directory for each package you’d like to publish to cannon, run `yarn deploy`
+git fetch --all
+git checkout main
+git pull
+git diff --exit-code .
+```

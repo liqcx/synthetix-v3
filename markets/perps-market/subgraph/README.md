@@ -23,16 +23,17 @@ silent — it surfaces as a build error, not as misindexing.
 ## Commands
 
 ```bash
-pnpm subgraph:codegen   # manifests + types
-pnpm subgraph:build     # the above, then graph build per network
-pnpm test               # matchstick; run codegen first
+moon run perps-market-subgraph:subgraph-codegen   # manifests + types
+moon run perps-market-subgraph:subgraph-build     # the above, then graph build per network
+moon run perps-market-subgraph:test               # matchstick; run codegen first
 pnpm goldsky:megaeth-testnet-staging
 ```
 
 ## Moving a contour
 
 Edit the network's `address`, `startBlock` and `cannonPackage` in `networks.json`, run
-`pnpm subgraph:build`, redeploy. Nothing else moves — that is the point of the record.
+`moon run perps-market-subgraph:subgraph-build`, redeploy. Nothing else moves — that is the point
+of the record.
 
 Addresses come from `synthetix-deployments`; `cannonPackage` names their origin. Production's
 Cannon state is no longer served by the registry, so its address is carried, not fetched.

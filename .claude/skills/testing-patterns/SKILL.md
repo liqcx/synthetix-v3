@@ -5,7 +5,7 @@ description: Use when writing or modifying tests in synthetix-v3 — Hardhat/Moc
 
 # Testing patterns
 
-Running the suites end to end (prerequisites, Cannon setup, per-package commands, what happens
+Running the suites end to end (prerequisites, Cannon setup, per-project moon commands, what happens
 during `pnpm test`, troubleshooting): `docs/TESTING.md`.
 
 ## Hardhat/Mocha Tests (most packages)

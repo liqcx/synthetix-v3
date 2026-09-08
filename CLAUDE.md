@@ -10,19 +10,42 @@ libraries** (not inheritance).
 
 ## Build & Test Commands
 
-### Inside a package directory
+The workspace runs on **moon**, not per-package `pnpm`/`yarn` scripts (lerna is gone). Target every
+project that defines a task with `moon run :<task>`; target one by project id with
+`moon run <project>:<task>` (`moon query projects` lists ids — e.g. `perps-market`, `synthetix`,
+`oracle-manager`). A moon task id never contains a colon, so the old `build:contracts` /
+`storage:dump` naming becomes `build-contracts` / `storage-dump` inside moon; the root `pnpm`
+scripts are thin shims that keep the colon spelling for muscle memory (`pnpm build:contracts` →
+`moon run :build-contracts`).
+
+### Running one project's tasks
 
 ```bash
-pnpm build:contracts          # compile + storage dump + cannon build (runs `bun x hardhat` under the hood)
-pnpm test                     # run hardhat tests via `bun x hardhat test`
+moon run perps-market:build-contracts   # compile + storage dump + cannon build (runs `bun x hardhat` under the hood)
+moon run perps-market:test              # run hardhat tests via `bun x hardhat test`
 ```
 
-JS runtime: package.json scripts invoke `bun x hardhat …` (and `bun x mocha`, `bun …`). **pnpm 11**
-is the package manager — install with `pnpm install --frozen-lockfile`. Bun 1.3+ for runtime.
+JS runtime: moon task bodies invoke `bun x hardhat …` (and `bun x mocha`, `bun …`) the same way the
+package.json scripts they replaced used to. **pnpm 11** is the package manager — install with
+`pnpm install --frozen-lockfile`. Bun 1.3+ for runtime.
+
+**Nothing is cached.** `build-ts` was meant to be moon's one cached task; a probe (build, delete
+`dist`, re-run) showed a cache hit reporting success while producing nothing — `2 completed (2
+cached)`, `dist` still gone — because it declared `inputs` and no `outputs`, and
+`utils/core-utils`'s `src/tsconfig.json` sets `outDir: ".."`, which leaves no output directory to
+declare in the first place. Every task in the graph — all 267 of them, whether declared in a
+`.moon/tasks/tag-*.yml` or a project's own `moon.yml` — sets `options.cache: false` because of it,
+so caching is off everywhere: a fast green `moon run` is not evidence the task produced anything.
+
+**A fresh clone does not self-heal.** `javascript.installDependencies: false` in
+`.moon/toolchains.yml` means `moon run` on a tree with no `node_modules` fails outright rather than
+installing one — deliberately, since `pnpm -r run` never auto-installed either. Run `pnpm install`
+first, same as always.
 
 **CI** runs on GitHub Actions on the org's self-hosted runners: `ci.yml` (`lint` + `contracts`)
 gates every PR, `nightly-contracts.yml` runs the heavy suites. **Known red: the `contracts` job**
-fails at `pnpm storage:dump` (P3b dependency debt the CI migration uncovered rather than caused).
+fails at `moon run :storage-dump` (P3b dependency debt the CI migration uncovered rather than
+caused).
 Workflow layout, the nightly trigger and the fix recipe: skill `ci-pipeline`.
 
 ### Single test file (Hardhat/Mocha packages)
