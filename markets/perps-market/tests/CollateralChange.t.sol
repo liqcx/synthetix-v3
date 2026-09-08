@@ -43,6 +43,7 @@ import {PerpsCollateralConfiguration} from "../contracts/storage/PerpsCollateral
  *           into the initial margin                   InsufficientCollateralAvailableForWithdraw  —
  *           below the initial margin                  AccountLiquidatable                         —
  *           no allowance                              InsufficientAllowance                       —
+ *           no balance                                InsufficientBalance                         —
  *           no debt                                   —                                           NonexistentDebt(the account asked about)
  *           two defects                               who knocks is asked first
  */
@@ -254,6 +255,17 @@ contract CollateralChangeTest is BootstrapTest {
             abi.encodeWithSelector(IERC20.InsufficientAllowance.selector, uint256(1e18), uint256(0))
         );
         modify(trader1, FUNDED, collateralId, 1e18);
+    }
+
+    /// @dev More than the caller holds, approved in full: the core's burn refuses it.
+    function test_noBalance() public {
+        uint256 held = usdToken.balanceOf(trader1);
+        uint256 asked = held + 1e18;
+        vm.startPrank(trader1);
+        usdToken.approve(address(perps), asked);
+        vm.expectRevert(abi.encodeWithSelector(IERC20.InsufficientBalance.selector, asked, held));
+        perps.modifyCollateral(FUNDED, collateralId, int256(asked));
+        vm.stopPrank();
     }
 
     function test_twoDefects_whoKnocksIsAskedFirst() public {

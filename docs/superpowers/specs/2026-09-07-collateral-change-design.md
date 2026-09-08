@@ -408,7 +408,7 @@ library CollateralChange {
 The five private functions are today's code under names that say what they admit; they keep
 today's arithmetic and today's order of reverts. `create` moves from before the last checks to
 the ledger write, which nothing observes: the one reader of `id` on this path is the valuation
-(`getOpenPositionsAndCurrentPrices`, `PerpsAccount.sol:423`, puts it into the context), and
+(`getOpenPositionsAndCurrentPrices`, `PerpsAccount.sol:327`, puts it into the context), and
 `validate` reaches the valuation only for a withdrawal that the account's balance admits — an
 account holding collateral has been through `create`, at the door or in `settlePositionChange`;
 an account that never deposited is refused `InsufficientSynthCollateral` first. The library
@@ -448,7 +448,7 @@ three errors; imports of either library that lose their last user.
 
 ## Visible through the proxy
 
-- **Selectors, types, events, errors, storage layout: unchanged.** Seven errors and two events
+- **Selectors, types, events, errors, storage layout: unchanged.** Seven errors and three events
   move their declaration or their `emit` into a library; solc puts a library's errors and events
   into the ABI of the module whose code reverts or emits them (#26, #27), so the module's ABI
   keeps the same names and signatures. The PR proves it: the names and signatures of
@@ -517,10 +517,11 @@ subject clear of its margins at 2 000 once the taker fee and the skew premium ar
 | the rate does not follow a deposit or withdrawal                     | `FUNDED` deposits 100, withdraws 100                                | no `InterestRateUpdated` in either receipt; `interestRate()` as before    | ✓   |
 | the rate follows a payment                                           | `DEBTOR` pays 1 000                                                 | `DebtPaid(DEBTOR, 1 000, trader1)`; `InterestRateUpdated(marketId, r)` with `r == interestRate()` after and `r != interestRate()` before; the core's `getWithdrawableMarketUsd` up by 1 000 | ✓ |
 
-The mutations that redden the new rows, run once on the branch and reverted: swap two checks in
-`validate` (the two-defect row); add `InterestRate.update` to `make` (the deposit's rate row);
-drop `checkPendingOrder` from `payDebt` (its pending row). `PayDebt.test.ts` keeps the arithmetic
-of paying; `deposit:98`, `withdraw:157` and `PayDebt:175` keep pinning the events' sender.
+The mutations that redden the new rows, run once on the branch and reverted: swap two
+checks in `validate` (the market-before-account row: move `_admitByTheMarket` last); add
+`InterestRate.update` to `make` (the deposit's rate row); drop `checkPendingOrder` from
+`payDebt` (its pending row). `PayDebt.test.ts` keeps the arithmetic of paying;
+`deposit:98`, `withdraw:157` and `PayDebt:175` keep pinning the events' sender.
 
 **Foundry**, `tests/CollateralChange.t.sol` — *the twin, by selector.* The stand holds snxUSD
 alone (no spot market is cloned), sets no rate parameters, and cannot create a debt: with one
