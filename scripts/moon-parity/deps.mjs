@@ -13,6 +13,12 @@ import { fileURLToPath } from "node:url";
 // see task-set.mjs for why.
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
+// `moon query projects`' JSON is 822,661 bytes today against Node's 1 MiB
+// (1,048,576 byte) default `maxBuffer` for `execSync` — 78.5% of it. Same
+// ceiling, same fix, as `utils/deps/lib/moon-usage.js` (Task 4) and
+// task-set.mjs in this directory: 10 MiB is ~12.7x today's size.
+const MOON_QUERY_MAX_BUFFER = 10 * 1024 * 1024;
+
 // Read verbatim from `git show 6835e6fa:package.json`.
 const TOPOLOGICAL = new Set([
 	"build",
@@ -43,7 +49,10 @@ for (const f of ["contracts", "ts-lib", "foundry", "subgraph"]) {
 }
 
 const { projects } = JSON.parse(
-	execSync("moon query projects", { cwd: ROOT }).toString(),
+	execSync("moon query projects", {
+		cwd: ROOT,
+		maxBuffer: MOON_QUERY_MAX_BUFFER,
+	}).toString(),
 );
 let bad = 0;
 for (const p of projects) {

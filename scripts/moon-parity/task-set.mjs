@@ -9,6 +9,15 @@ import { fileURLToPath } from "node:url";
 // from outside the repo root.
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
+// `moon query projects`' JSON is 822,661 bytes today against Node's 1 MiB
+// (1,048,576 byte) default `maxBuffer` for `execSync` — 78.5% of it, on a
+// workspace that only grows moon tasks over time. Same ceiling, same fix, as
+// `utils/deps/lib/moon-usage.js` (Task 4): 10 MiB is ~12.7x today's size,
+// enough headroom that this workspace would have to grow an order of
+// magnitude before it mattered again, without tolerating a truly runaway
+// process silently.
+const MOON_QUERY_MAX_BUFFER = 10 * 1024 * 1024;
+
 const RENAME = {
 	"build:ts": "build-ts",
 	"build:contracts": "build-contracts",
@@ -53,7 +62,10 @@ for (const line of readFileSync(baselinePath, "utf8").trim().split("\n")) {
 }
 
 const { projects } = JSON.parse(
-	execSync("moon query projects", { cwd: ROOT }).toString(),
+	execSync("moon query projects", {
+		cwd: ROOT,
+		maxBuffer: MOON_QUERY_MAX_BUFFER,
+	}).toString(),
 );
 const haveByTask = new Map();
 for (const project of projects) {
