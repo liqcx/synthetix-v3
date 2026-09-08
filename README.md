@@ -71,7 +71,7 @@ To prepare for system upgrades, this repository is used to release new versions 
 
 ## Releasing requirements
 
-**Important** to not use global `cannon` installation and rely on cannon cli from the repo by running it with `yarn cannon` command.
+**Important** to not use global `cannon` installation and rely on cannon cli from the repo by running it with `pnpm exec cannon`.
 Sometimes newer or older versions of cannon may produce incompatible state and as a result deployment state will be borked.
 Using exactly same cannon version as all the repo maintainers use is a requirement and not an recommendation.
 
@@ -86,7 +86,7 @@ Do **not** run `pnpm update --interactive` on these two — it drops the alias a
 stock Cannon. Use `pnpm cannon:update` (or the `cannon-update` workflow) instead; the fork publishes
 the `nonce` and `latest` dist-tags.
 
-After installing for the first time, run `yarn cannon setup` to configure a reliable IPFS URL for publishing packages and any other preferred settings,
+After installing for the first time, run `pnpm exec cannon setup` to configure a reliable IPFS URL for publishing packages and any other preferred settings,
 Cannon keeps its settings in file `~/.local/share/cannon/settings.json` and it might be more convenient to update it instead of using setup wizard.
 
 Required options to set:
@@ -118,22 +118,6 @@ Here is how your `settings.json` should look like (with sensitive fields strippe
     }
   ]
 }
-```
-
-You need to have publish access to the `@synthetixio` NPM org.
-Check your currently logged in npm user with
-
-```sh
-npm whoami
-```
-
-Open https://www.npmjs.com, login with your account and verify your name is present in the list of members on https://www.npmjs.com/settings/synthetixio/members page
-
-If needed you can login and logout with npm cli
-
-```sh
-npm login
-npm logout
 ```
 
 ## Publishing
@@ -182,14 +166,17 @@ CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
 pnpm exec cannon publish synthetix:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
 ```
 
-Before publishing an official release, verify what changed since the last one and confirm you're on
-an up-to-date `main` with write access:
+Before publishing an official release, confirm you're on an up-to-date `main` with a clean tree:
 
 ```sh
-pnpm changed  # moon query projects --affected
-
 git fetch --all
 git checkout main
 git pull
 git diff --exit-code .
 ```
+
+`pnpm changed` is deliberately not part of that check. It is `moon query projects --affected`, which
+lists the projects touched by the _working tree's_ current changes — untracked files included — so
+on the clean, up-to-date `main` the block above insists on, it prints `[]` by construction. It
+answers "which projects would a `--affected` run pick up right now", not "what changed since the
+last release"; the `lerna changed --long` it replaced answered the latter, and nothing does now.
