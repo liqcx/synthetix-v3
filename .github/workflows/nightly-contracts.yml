@@ -46,6 +46,34 @@ jobs:
 
       - run: moon run :build-ts
       - run: moon run :generate-testable
+
+      # oracle-manager's cannonfile provisions `trusted-multicall-forwarder`
+      # with no version, i.e. the mutable `latest@main`. On a runner the local
+      # cannon registry is empty, so that resolves through the ON-CHAIN registry
+      # to a CID whose bytes live only on Cannon's own repo service — and the
+      # regional hostnames it uses (`us-east.repo.usecannon.com` and friends,
+      # picked by timezone in cannon-builder/src/constants.ts:54) fail the TLS
+      # handshake with alert 40 for everyone, not just from here. The apex
+      # `repo.usecannon.com` has a valid certificate; the second-level wildcard
+      # evidently is not covered. Nor is the content reachable another way:
+      # delegated routing reports zero providers for the CID and every public
+      # gateway times out, so cannon packages simply are not on the public DHT.
+      #
+      # The source of that package is in this repo, so build it into the local
+      # registry first: `latest@main` then resolves `via local` and the
+      # provision never touches the network. Two things this step depends on:
+      #   * NO --chain-id. cannon only spawns its own anvil when the flag is
+      #     absent (cannon-cli/src/util/build.ts:127); passing it sends cannon
+      #     to frame / 127.0.0.1:8545 and the build hangs on reconnect.
+      #   * The version in cannonfile.toml must not exist on the on-chain
+      #     registry, or the build refuses with "already published" — hence
+      #     0.0.4-liqcx.1 rather than upstream's 0.0.4.
+      # The package is a pure Foundry one (no package.json, excluded from moon
+      # in .moon/workspace.yml), so this is a plain step, not a moon task.
+      - name: Register trusted-multicall-forwarder in the local cannon registry
+        working-directory: auxiliary/TrustedMulticallForwarder
+        run: pnpm exec cannon build cannonfile.toml --quiet
+
       - run: moon run :build-testable
 
       - name: Hardhat integration suites
