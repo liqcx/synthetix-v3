@@ -1,4 +1,8 @@
 import assert from 'assert/strict';
+import { type ChildProcess, spawn } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 import { modeFor } from './suites';
 import { claimPort, knob, portFor, slugFor, stringKnob, unitsFor } from './run-tests';
@@ -139,8 +143,187 @@ describe('claimPort', function () {
     try {
       const port = claimPort(server.port, 0, 3);
       assert.notEqual(port, server.port);
+
+      // The "leaves it alive" half, which the name promised and only the
+      // "skips" half used to assert: the stranger's socket is still bound
+      // after `claimPort` stepped over it, so nothing on the claim path
+      // closes what it declines to take. Matched on `code`, not on the
+      // message — bun's EADDRINUSE error reads `Failed to listen at
+      // 127.0.0.1` and never spells the code out in its text.
+      assert.throws(
+        () => {
+          const rebind = Bun.listen({
+            hostname: '127.0.0.1',
+            port: server.port,
+            socket: { data() {} },
+          });
+          rebind.stop();
+        },
+        (error: unknown) => (error as { code?: string }).code === 'EADDRINUSE'
+      );
     } finally {
       server.stop();
     }
   });
+});
+
+const ROOT = path.resolve(import.meta.dir, '..', '..');
+const RUNNER = path.join(import.meta.dir, 'run-tests.ts');
+
+/**
+ * A package whose one test spawns a grandchild and abandons it, standing in
+ * for the anvil `bun test` orphans. See its own header for why it is not a
+ * real anvil.
+ */
+const LEAK_FIXTURE = path.join(import.meta.dir, '__fixtures__', 'leaky-child');
+
+/** Well clear of 8545, of the 8600 default, and of any ambient anvil. */
+const FIXTURE_BASE_PORT = '21000';
+
+interface Run {
+  runner: ChildProcess;
+  pidFile: string;
+  /** Everything the runner and its child wrote, for assertion messages. */
+  log: () => string;
+}
+
+function startRunner(env: Record<string, string> = {}): Run {
+  const work = mkdtempSync(path.join(tmpdir(), 'run-tests-leak-'));
+  const pidFile = path.join(work, 'pids');
+  const runner = spawn('bun', [RUNNER, LEAK_FIXTURE], {
+    cwd: ROOT,
+    env: {
+      ...process.env,
+      LEAK_PID_FILE: pidFile,
+      JUNIT_DIR: path.join(work, 'junit'),
+      BASE_ANVIL_PORT: FIXTURE_BASE_PORT,
+      TEST_ATTEMPTS: '1',
+      TEST_TIMEOUT: '30000',
+      ...env,
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  // Drained rather than inherited: an undrained pipe would eventually block
+  // the runner, and a hang there would be blamed on the mechanism under test.
+  const chunks: string[] = [];
+  runner.stdout?.on('data', (chunk) => chunks.push(String(chunk)));
+  runner.stderr?.on('data', (chunk) => chunks.push(String(chunk)));
+  return { runner, pidFile, log: () => chunks.join('') };
+}
+
+function exitOf(child: ChildProcess): Promise<number | null> {
+  return new Promise((resolve) => {
+    child.on('exit', (code) => resolve(code));
+    child.on('error', () => resolve(null));
+  });
+}
+
+function alive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Polls an OS fact — a process-table entry, a file appearing — until it holds
+ * or the deadline passes. Bounded and cheap, but genuinely wall-clock: there
+ * is no fake-timer equivalent for "the kernel has reaped that pid", so this is
+ * the one place in this file that waits on real time.
+ */
+async function until(condition: () => boolean, deadlineMs: number): Promise<boolean> {
+  const stopAt = Date.now() + deadlineMs;
+  while (!condition() && Date.now() < stopAt) {
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  return condition();
+}
+
+/** `<bun test child pid> <abandoned grandchild pid>`, as the fixture wrote it. */
+function readPids(pidFile: string): { child: number; grandchild: number } {
+  const [child, grandchild] = readFileSync(pidFile, 'utf8').trim().split(/\s+/).map(Number);
+  return { child, grandchild };
+}
+
+/** Never leave the fixture's processes behind, whatever the assertions did. */
+function cleanUp(...pids: number[]): void {
+  for (const pid of pids) {
+    if (!Number.isInteger(pid) || pid <= 0) continue;
+    try {
+      process.kill(pid, 'SIGKILL');
+    } catch {
+      // Already gone — which is what the assertions wanted anyway.
+    }
+  }
+}
+
+describe('the runner reaps what bun test abandons', function () {
+  // The two mechanisms that make this runner safe — `detached: true` on the
+  // spawn, and the `process.kill(-child.pid, 'SIGKILL')` after it — are both
+  // invisible to every other test in this file: delete either one and the
+  // suite above stays fully green while a leaked anvil survives every run.
+  // These tests run the real runner against a fixture that reproduces the
+  // topology and look at the process table afterwards, which is the only
+  // place the difference shows.
+
+  it('group-kills the grandchild the fixture abandoned', async function () {
+    const run = startRunner();
+    const code = await exitOf(run.runner);
+    assert.equal(code, 0, `the runner exited ${code}\n${run.log()}`);
+
+    const { child, grandchild } = readPids(run.pidFile);
+    try {
+      assert.equal(
+        await until(() => !alive(grandchild), 5_000),
+        true,
+        `the abandoned grandchild ${grandchild} is still alive after the run\n${run.log()}`
+      );
+      assert.equal(alive(child), false, `the bun test child ${child} is still alive`);
+    } finally {
+      cleanUp(grandchild, child);
+    }
+  }, 120_000);
+
+  for (const [signal, status] of [
+    ['SIGINT', 130],
+    ['SIGTERM', 143],
+  ] as const) {
+    it(`group-kills the unit in flight on ${signal}, and exits ${status}`, async function () {
+      const run = startRunner({ LEAK_HOLD: '1' });
+      const exited = exitOf(run.runner);
+
+      // The pid file appearing is the event that says a unit is genuinely
+      // in flight — no timer guesses at when the child got far enough.
+      assert.equal(
+        await until(() => existsSync(run.pidFile), 60_000),
+        true,
+        `the fixture never reported its pids\n${run.log()}`
+      );
+      const { child, grandchild } = readPids(run.pidFile);
+
+      try {
+        run.runner.kill(signal);
+        assert.equal(
+          await exited,
+          status,
+          `the runner did not exit ${status} on ${signal}\n${run.log()}`
+        );
+        assert.equal(
+          await until(() => !alive(child), 5_000),
+          true,
+          `the bun test child ${child} survived ${signal}\n${run.log()}`
+        );
+        assert.equal(
+          await until(() => !alive(grandchild), 5_000),
+          true,
+          `the abandoned grandchild ${grandchild} survived ${signal}\n${run.log()}`
+        );
+      } finally {
+        cleanUp(grandchild, child);
+        if (run.runner.pid && alive(run.runner.pid)) run.runner.kill('SIGKILL');
+      }
+    }, 120_000);
+  }
 });

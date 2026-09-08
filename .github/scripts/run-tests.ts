@@ -2,7 +2,7 @@
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
+import { type ChildProcess, spawn } from 'node:child_process';
 
 import { Glob } from 'bun';
 
@@ -144,6 +144,32 @@ export function claimPort(
   throw new Error(`No free anvil port found after ${maxTries} tries: ${tried.join(', ')}`);
 }
 
+/**
+ * The child of the unit currently in flight, or `undefined` between units and
+ * before the first one. The signal handlers `main` installs reach that child's
+ * process group through this, so it is cleared on every exit from an attempt
+ * — normal exit, spawn error, wall-clock kill — and a signal arriving between
+ * units therefore never names a pid that has already been reused.
+ */
+let inFlight: ChildProcess | undefined;
+
+/**
+ * SIGKILL the whole process group `child` leads (the negative pid), which is
+ * the child plus whatever it forked and did not tear down — `bun test` and
+ * the anvil under it. Only ever called with a child this runner spawned
+ * itself with `detached: true` a few lines earlier, so it can never name a
+ * group this process merely inherited. Throwing means the group is already
+ * gone, or nothing but the child was ever in it: both are the ordinary case.
+ */
+function reapGroup(child: ChildProcess | undefined): void {
+  if (!child?.pid) return;
+  try {
+    process.kill(-child.pid, 'SIGKILL');
+  } catch {
+    // Group is already gone, or nothing else was ever in it — fine.
+  }
+}
+
 async function main() {
   const { TEST_TIMEOUT, TEST_ATTEMPTS, TEST_WALL_CLOCK, BASE_ANVIL_PORT, JUNIT_DIR } = process.env;
 
@@ -183,6 +209,28 @@ async function main() {
   // happen at all.
   const pidOffset = process.pid % 1000;
 
+  // `detached: true` below buys the reap but costs the interrupt: an
+  // interrupted runner used to take `bun test` down with it, because they
+  // shared a process group; now the child leads its own, and nothing signals
+  // it unless this does. Worse, bun's runtime does not terminate this process
+  // on SIGINT by itself, so a developer's Ctrl-C is inert and the natural next
+  // step — SIGTERM — would leave `bun test` and its anvil alive and orphaned
+  // in a group nobody knows any more, still holding the claimed port. Both
+  // handlers therefore do the same group kill the normal path does and then
+  // exit explicitly, by the shell's 128 + signal-number convention. A signal
+  // arriving with no unit in flight still exits; it just has nothing to kill.
+  for (const [signal, status] of [
+    ['SIGINT', 130],
+    ['SIGTERM', 143],
+  ] as const) {
+    process.on(signal, () => {
+      console.error(`::error::${rel}: ${signal} received; killing the unit in flight`);
+      reapGroup(inFlight);
+      inFlight = undefined;
+      process.exit(status);
+    });
+  }
+
   try {
     for (const [index, unit] of units.entries()) {
       const slug = slugFor(unit, mode);
@@ -217,6 +265,7 @@ async function main() {
           detached: true,
           stdio: ['ignore', 'inherit', 'inherit'],
         });
+        inFlight = child;
 
         const killer = setTimeout(() => {
           console.error(
@@ -234,13 +283,8 @@ async function main() {
         });
         clearTimeout(killer);
 
-        if (child.pid) {
-          try {
-            process.kill(-child.pid, 'SIGKILL');
-          } catch {
-            // Group is already gone, or nothing else was ever in it — fine.
-          }
-        }
+        reapGroup(child);
+        inFlight = undefined;
 
         passed = code === 0;
       }
