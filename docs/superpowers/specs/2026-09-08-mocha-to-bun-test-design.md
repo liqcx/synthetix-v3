@@ -144,9 +144,17 @@ Contract:
 Types keep coming from `@types/mocha`, which becomes a types-only devDependency. No hand-written
 `.d.ts`.
 
+### `.github/scripts/suites.ts`
+
+The single source of truth for which package runs in which mode. Exports the suite list and a
+`modeFor(dir)` lookup, and prints the list when invoked with `--list` so `run-suites.sh` reads it
+rather than keeping a second copy. A package that is not listed defaults to `per-file`, the safe
+mode.
+
 ### `.github/scripts/run-tests.ts`
 
-Replaces `.github/scripts/test-batch.js`. A bun script; inputs by environment, matching the
+Replaces `.github/scripts/test-batch.js`. A bun script, invoked both by `run-suites.sh` and by the
+moon `test` task, so a local run and a CI run cannot diverge. Inputs by environment, matching the
 existing convention:
 
 | Variable | Meaning |
@@ -186,7 +194,12 @@ up-front `SUITE_FILTER` validation, the "zero test files is a failure" guard, an
 
 ### moon tasks and manifests
 
-- `.moon/tasks/tag-contracts.yml` `test`: `bun x hardhat test` → `bun test` with both preloads.
+- `.moon/tasks/tag-contracts.yml` `test`: `bun x hardhat test` → the same `run-tests.ts` the
+  nightly uses, invoked as `../../.github/scripts/run-tests.ts` (every tagged project sits exactly
+  two levels below the workspace root). It must **not** call `bun test` directly: a bare
+  `bun test` in a `coreBootstrap` package is precisely the batched invocation that collected 13
+  tests out of ~150 in the core-modules probe, so `moon run <pkg>:test` would disagree with CI
+  again — the failure this migration exists to remove.
 - `utils/core-utils/moon.yml`: `test` drops `--require ts-node/register`; `coverage` becomes
   `bun test --coverage`, and `nyc` goes.
 - Root `package.json` loses `mocha`, `mocha-junit-reporter` and `nyc`; keeps `@types/mocha`.
