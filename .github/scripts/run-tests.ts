@@ -2,6 +2,7 @@
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { spawn } from 'node:child_process';
 
 import { Glob } from 'bun';
 
@@ -32,18 +33,6 @@ export function slugFor(unit: string[], mode: Mode): string {
     .replace(/^test\//, '')
     .replace(/\.test\.[tj]s$/, '')
     .replaceAll('/', '-');
-}
-
-/**
- * Parses newline-delimited pid output (`lsof -t`) into pid strings, dropping
- * blank lines and surrounding whitespace. Pure so the reaping logic below can
- * be unit-tested without spawning anything.
- */
-export function parsePids(raw: string): string[] {
-  return raw
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
 }
 
 /**
@@ -101,51 +90,50 @@ export function portFor(base: number, index: number): number {
 }
 
 /**
- * Pids with a socket bound (`-sTCP:LISTEN`, not merely mentioning the port on
- * either end) to `port`, via `lsof -ti tcp:<port>`.
- *
- * `lsof` exits non-zero both for "nothing matched" (the common, expected
- * case: empty stdout, empty stderr) and for a genuine failure — a bad
- * invocation, or insufficient privileges to read the socket table on this
- * image (empty stdout, but stderr says so). Those two are not the same
- * outcome: silently treating the second as "nothing is listening" is how a
- * reap can "succeed" at reaping nothing, and how a free-port check can wave a
- * port through that `lsof` never actually cleared. `stdout` being non-empty
- * is unambiguous either way; when it's empty, stderr is the only way to tell
- * them apart, so it is captured and inspected rather than discarded.
+ * Tries to bind `port` on `127.0.0.1`. `Bun.listen` throws synchronously
+ * (`EADDRINUSE`) when the port is already taken; on success the listener is
+ * closed immediately, releasing the port back for the child this runner is
+ * about to spawn. This is the whole "is it free" check — no `lsof`, no
+ * process table to read or misread.
  */
-function pidsOnPort(port: number): Set<string> {
-  const { stdout, stderr, exitCode } = Bun.spawnSync(
-    ['lsof', '-ti', `tcp:${port}`, '-sTCP:LISTEN'],
-    { stdout: 'pipe', stderr: 'pipe' }
-  );
-  const err = stderr.toString().trim();
-  if (exitCode !== 0 && err) {
-    throw new Error(`lsof failed checking tcp:${port}: ${err}`);
+function canBind(port: number): boolean {
+  try {
+    const server = Bun.listen({ hostname: '127.0.0.1', port, socket: { data() {} } });
+    server.stop();
+    return true;
+  } catch {
+    return false;
   }
-  return new Set(parsePids(stdout.toString()));
 }
 
 /**
  * Walks candidate ports starting at `portFor(base, startIndex)`, checking
  * each with `isFree`, and returns the first one `isFree` itself reports
- * empty. A port that is occupied — by a bystander, a developer's own anvil,
+ * free. A port that is occupied — by a bystander, a developer's own anvil,
  * or anything else — is *never* returned, no matter how briefly it was
- * observed that way: ownership is established by seeing a port empty
- * immediately before claiming it, not by assuming a port is yours because you
- * intended to use it. Throws, naming every candidate tried, if none of the
- * first `maxTries` are free.
+ * observed that way: ownership is established by successfully binding a
+ * port immediately before handing it to a child, not by assuming a port is
+ * yours because you intended to use it. Throws, naming every candidate
+ * tried, if none of the first `maxTries` are free.
  *
- * `isFree` defaults to the real `pidsOnPort` check but is overridable so this
- * can be unit-tested without spawning a process (DP-017) — the real-process
- * proof lives in this task's acceptance evidence, not in the committed test
- * suite.
+ * `isFree` defaults to the real `canBind` check but is overridable so this
+ * can be unit-tested without spawning a process (DP-017) — the real-bind
+ * proof lives in this task's acceptance evidence and in the one real-listener
+ * test in `run-tests.test.ts`, not only in the injected-fake walk logic.
+ *
+ * This is check-then-act — the port could, in principle, be taken by
+ * something else between this function returning and the caller's child
+ * actually binding it. That window is accepted: the caller never reaps by
+ * port (see `main`), so the worst case on this end is the *child's* own
+ * anvil failing to bind, which `TEST_ATTEMPTS` already retries past — never
+ * another process being killed for holding a port this runner merely
+ * intended to use.
  */
 export function claimPort(
   base: number,
   startIndex: number,
   maxTries: number,
-  isFree: (port: number) => boolean = (port) => pidsOnPort(port).size === 0
+  isFree: (port: number) => boolean = canBind
 ): number {
   const tried: number[] = [];
   for (let i = 0; i < maxTries; i++) {
@@ -156,25 +144,6 @@ export function claimPort(
   throw new Error(`No free anvil port found after ${maxTries} tries: ${tried.join(', ')}`);
 }
 
-/**
- * `hardhat test` used to tear down the anvil instance(s) Cannon spawns for a
- * run; `bun test` does not. Reap only the port THIS unit `claimPort`ed and
- * handed to its child via `ANVIL_PORT` — a port observed free immediately
- * before this unit's own child was spawned into it is this unit's to reap;
- * a port anything else already held never becomes this unit's, no matter
- * what is on it by the time this runs. This is never called with a port that
- * was not first claimed this way — see `main`.
- */
-function reapPort(port: number): void {
-  for (const pid of pidsOnPort(port)) {
-    try {
-      process.kill(Number(pid), 'SIGKILL');
-    } catch {
-      // Already gone by the time we got here — fine.
-    }
-  }
-}
-
 async function main() {
   const { TEST_TIMEOUT, TEST_ATTEMPTS, TEST_WALL_CLOCK, BASE_ANVIL_PORT, JUNIT_DIR } = process.env;
 
@@ -183,16 +152,6 @@ async function main() {
   const testWallClock = knob('TEST_WALL_CLOCK', TEST_WALL_CLOCK, 1_200_000);
   const baseAnvilPort = knob('BASE_ANVIL_PORT', BASE_ANVIL_PORT, 8600);
   const junitBase = stringKnob(JUNIT_DIR, '/tmp/junit');
-
-  // `pidsOnPort`/`claimPort`/`reapPort` all shell out to `lsof`; fail once,
-  // loudly, and before touching any unit, rather than letting the first
-  // `Bun.spawnSync(['lsof', ...])` throw an ENOENT mid-run and abandon
-  // whatever units had not started yet with an exit code indistinguishable
-  // from "tests failed".
-  if (!Bun.which('lsof')) {
-    console.error('::error::lsof not found on PATH — required to claim and reap anvil ports');
-    return 1;
-  }
 
   const dir = path.resolve(process.argv[2] ?? process.cwd());
   const rel = path.relative(ROOT, dir);
@@ -218,46 +177,79 @@ async function main() {
 
   // A pid-derived offset so two runners started moments apart do not both
   // start their port search at the same candidate. This is a courtesy, not
-  // the correctness guarantee: `claimPort`'s occupancy check is what
-  // actually prevents two runners from ever sharing a port, this only makes
-  // the common case (both landing on the very same first choice) less
-  // likely to happen at all.
+  // the correctness guarantee: `claimPort`'s bind check is what actually
+  // prevents two runners from ever sharing a port, this only makes the
+  // common case (both landing on the very same first choice) less likely to
+  // happen at all.
   const pidOffset = process.pid % 1000;
 
-  for (const [index, unit] of units.entries()) {
-    const slug = slugFor(unit, mode);
-    const args = [
-      'test',
-      ...preloads.flatMap((preload) => ['--preload', preload]),
-      '--timeout',
-      String(testTimeout),
-      '--reporter=junit',
-      `--reporter-outfile=${path.join(junitDir, `${slug}.xml`)}`,
-      ...unit,
-    ];
+  try {
+    for (const [index, unit] of units.entries()) {
+      const slug = slugFor(unit, mode);
+      const args = [
+        'test',
+        ...preloads.flatMap((preload) => ['--preload', preload]),
+        '--timeout',
+        String(testTimeout),
+        '--reporter=junit',
+        `--reporter-outfile=${path.join(junitDir, `${slug}.xml`)}`,
+        ...unit,
+      ];
 
-    let passed = false;
-    for (let attempt = 1; attempt <= testAttempts && !passed; attempt++) {
-      const port = claimPort(baseAnvilPort, pidOffset + index, MAX_PORT_CLAIM_TRIES);
-      console.log(`${rel} ${slug}: attempt ${attempt}/${testAttempts} (ANVIL_PORT=${port})`);
-      const child = Bun.spawn(['bun', ...args], {
-        cwd: dir,
-        env: { ...process.env, ANVIL_PORT: String(port) },
-        stdio: ['ignore', 'inherit', 'inherit'],
-      });
-      const killer = setTimeout(() => {
-        console.error(
-          `::error::${rel} ${slug} exceeded TEST_WALL_CLOCK (${testWallClock} ms); killing it`
-        );
-        child.kill('SIGKILL');
-      }, testWallClock);
-      const code = await child.exited;
-      clearTimeout(killer);
-      reapPort(port);
-      passed = code === 0;
+      let passed = false;
+      for (let attempt = 1; attempt <= testAttempts && !passed; attempt++) {
+        const port = claimPort(baseAnvilPort, pidOffset + index, MAX_PORT_CLAIM_TRIES);
+        console.log(`${rel} ${slug}: attempt ${attempt}/${testAttempts} (ANVIL_PORT=${port})`);
+
+        // `detached: true` makes this child the leader of its own process
+        // group (POSIX `setsid`-alike), so whatever it forks — Cannon's
+        // anvil, in particular — lands in that same group rather than this
+        // runner's own. `hardhat test` used to tear that anvil down;
+        // `bun test` does not, so once the child is gone this runner kills
+        // the whole group instead of trying to work out which port the
+        // orphan ended up on: a process-group kill needs no port reasoning,
+        // and cannot mistake a bystander for its own leak the way reaping by
+        // "whatever is bound to the port" or "whatever appeared since" both
+        // could.
+        const child = spawn('bun', args, {
+          cwd: dir,
+          env: { ...process.env, ANVIL_PORT: String(port) },
+          detached: true,
+          stdio: ['ignore', 'inherit', 'inherit'],
+        });
+
+        const killer = setTimeout(() => {
+          console.error(
+            `::error::${rel} ${slug} exceeded TEST_WALL_CLOCK (${testWallClock} ms); killing it`
+          );
+          child.kill('SIGKILL');
+        }, testWallClock);
+
+        const code = await new Promise<number>((resolve) => {
+          child.on('exit', (code) => resolve(code ?? 1));
+          child.on('error', (err) => {
+            console.error(`::error::${rel} ${slug} failed to start: ${err.message}`);
+            resolve(1);
+          });
+        });
+        clearTimeout(killer);
+
+        if (child.pid) {
+          try {
+            process.kill(-child.pid, 'SIGKILL');
+          } catch {
+            // Group is already gone, or nothing else was ever in it — fine.
+          }
+        }
+
+        passed = code === 0;
+      }
+
+      if (!passed) failed++;
     }
-
-    if (!passed) failed++;
+  } catch (err) {
+    console.error(`::error::${(err as Error).message}`);
+    return 1;
   }
 
   console.log(`${rel}: ${units.length - failed}/${units.length} units passed (${mode})`);

@@ -1,7 +1,7 @@
 import assert from 'assert/strict';
 
 import { modeFor } from './suites';
-import { claimPort, knob, parsePids, portFor, slugFor, stringKnob, unitsFor } from './run-tests';
+import { claimPort, knob, portFor, slugFor, stringKnob, unitsFor } from './run-tests';
 
 describe('.github/scripts/run-tests.ts', function () {
   const files = [
@@ -33,20 +33,6 @@ describe('.github/scripts/run-tests.ts', function () {
 
   it('defaults an unlisted package to the safe mode', function () {
     assert.equal(modeFor('markets/legacy-market'), 'per-file');
-  });
-});
-
-describe('parsePids', function () {
-  it('splits a normal multi-line pid list', function () {
-    assert.deepEqual(parsePids('111\n222\n333'), ['111', '222', '333']);
-  });
-
-  it('returns nothing for an empty string', function () {
-    assert.deepEqual(parsePids(''), []);
-  });
-
-  it('drops blank lines and surrounding whitespace', function () {
-    assert.deepEqual(parsePids('  111  \n\n222\n   \n333\n'), ['111', '222', '333']);
   });
 });
 
@@ -111,9 +97,12 @@ describe('stringKnob', function () {
 describe('claimPort', function () {
   // Mirrors the property the old `leakedPids` suite pinned against the
   // scan-delta shape (round 1) — "something present before the unit is
-  // never reaped" — against the current shape: a port `isFree` reports
-  // occupied is never the one `claimPort` hands back, so `reapPort` (which
-  // is only ever called with what `claimPort` returned) can never reap it.
+  // never reaped" — against the current bind-probe shape: a port `isFree`
+  // reports occupied is never the one `claimPort` hands back, and the
+  // reaping this runner does (a process-group kill after the child exits)
+  // never touches a port at all, so a port `claimPort` steps over can never
+  // be reaped by construction, not only by `reapPort` no longer being
+  // called with it.
 
   it('returns the first candidate when it is free', function () {
     assert.equal(
@@ -138,15 +127,18 @@ describe('claimPort', function () {
     assert.throws(() => claimPort(8600, 0, 3, () => false), /8600, 8601, 8602/);
   });
 
-  it('skips a real listener and leaves it alive, using the real lsof-backed check (no injected isFree)', function () {
+  it('skips a real listener and leaves it alive, using the real bind-probe check (no injected isFree)', function () {
     // Everything above tests the walk against a fake `isFree`; this is the
-    // one test that exercises the real default — `pidsOnPort`'s actual
-    // `lsof -sTCP:LISTEN` call and its exit-code/stderr discrimination
-    // (DP-095) — against a real bound socket, without needing a real anvil.
+    // one test that exercises the real default — `canBind`'s actual
+    // `Bun.listen` attempt — against a real bound socket, without needing a
+    // real anvil. Only the property that matters is asserted: the occupied
+    // port itself is never returned. Asserting the exact neighbour
+    // (`server.port + 1`) would pin an OS-assigned ephemeral port happening
+    // to be free, which is not a property this function promises.
     const server = Bun.listen({ hostname: '127.0.0.1', port: 0, socket: { data() {} } });
     try {
-      assert.notEqual(claimPort(server.port, 0, 3), server.port);
-      assert.equal(claimPort(server.port, 0, 3), server.port + 1);
+      const port = claimPort(server.port, 0, 3);
+      assert.notEqual(port, server.port);
     } finally {
       server.stop();
     }
