@@ -4,6 +4,7 @@ import { mochaContext, withLabel } from '../../../src/utils/bun/preload';
 
 describe('utils/bun/preload.ts', function () {
   const order: string[] = [];
+  let skippedTestRan = false;
 
   before('a labelled hook runs', function () {
     // mocha's `this` has to exist and swallow the call; bun has no equivalent.
@@ -30,8 +31,18 @@ describe('utils/bun/preload.ts', function () {
   it('keeps the mocha modifiers', function () {
     const globals = globalThis as unknown as Record<string, Record<string, unknown>>;
     assert.equal(typeof globals.describe.skip, 'function');
+    assert.equal(typeof globals.describe.todo, 'function');
     assert.equal(typeof globals.it.skip, 'function');
     assert.equal(typeof globals.it.only, 'function');
+    assert.equal(typeof globals.it.todo, 'function');
+  });
+
+  it.skip('this skipped test should not run', function () {
+    skippedTestRan = true;
+  });
+
+  it('verifies that skipped tests are not executed', function () {
+    assert.equal(skippedTestRan, false, 'skipped test should not have run');
   });
 
   it('ran the labelled before hook exactly once, ahead of the tests', function () {

@@ -1,3 +1,5 @@
+/// <reference types="bun-types" />
+
 import {
   afterAll,
   afterEach,
@@ -16,7 +18,10 @@ import {
  */
 
 /** Hooks get one budget; per-test time comes from the runner's --timeout. */
-const HOOK_TIMEOUT = Number(process.env.BUN_HOOK_TIMEOUT) || 600_000;
+const HOOK_TIMEOUT =
+  process.env.BUN_HOOK_TIMEOUT !== undefined && process.env.BUN_HOOK_TIMEOUT !== ''
+    ? Number(process.env.BUN_HOOK_TIMEOUT)
+    : 600_000;
 
 export interface MochaContext {
   timeout(ms?: number): MochaContext;
