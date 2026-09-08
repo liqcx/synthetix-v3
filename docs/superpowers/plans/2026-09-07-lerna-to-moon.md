@@ -1222,51 +1222,88 @@ install step: setup-liqcx auto-installs whatever .prototools lists."
 
 ---
 
-### Task 6: Documentation
+### Task 6: Documentation, and the gates the PR needs
 
 **Files:**
 
-- Modify: `README.md` (the "Publish Dev Release" section and its neighbours)
-- Modify: `SCRIPTS.md` (the "Публикация" section and the `changed` row)
-- Modify: `CLAUDE.md` (the build commands section)
+- Modify: `README.md`, `SCRIPTS.md`, `CLAUDE.md`
+- Modify: `docs/TESTING.md`, `markets/perps-market/README.md`,
+  `markets/perps-market/subgraph/README.md`, `protocol/oracle-manager/README.md`,
+  `protocol/synthetix/subgraph/README.md`
+- Modify: `.claude/skills/testing-patterns/SKILL.md`, `.claude/skills/ci-pipeline/SKILL.md`
+- Create: `scripts/moon-parity/` (the three gate scripts)
 
 **Interfaces:**
 
 - Consumes: everything above.
-- Produces: docs that match the repository.
+- Produces: the PR.
 
-- [ ] **Step 1: Rewrite README's publish flow**
+- [ ] **Step 1: Commit the three parity gates**
 
-The current text tells the reader to run `yarn version:dev` then `yarn publish:dev` — both deleted,
-both impossible here. Replace that section with what is true: this fork does not publish to npm (the
-packages carry the upstream `@synthetixio` scope), versions are bumped by hand in a commit (as
+They live in a session scratchpad today and die with it, yet they are the only executable evidence
+for this migration's central claim. They keep working after the cleanup, because the baseline they
+read is a historical snapshot of `6835e6fa`, not the working tree. Copy them to
+`scripts/moon-parity/` as `task-set.mjs`, `bodies.mjs` and `deps.mjs`, fix the baseline path they
+resolve, and add a short `scripts/moon-parity/README.md` saying what each proves, what it cannot see
+(a task-set gate is blind to a wrong body; a body gate is blind to a step outside a body — that is
+why there are three), and the exact command to run all three. Then run them from the committed
+location and paste the output.
+
+- [ ] **Step 2: Rewrite every package-context recipe that no longer works**
+
+Task 4 measured these repo-wide and verified each line number with a fresh `grep -n`. **Verify them
+again before editing — line numbers move.** Package-context means the reader is told to `cd` into a
+package, where the script no longer exists; the moon equivalent is `moon run <project>:<task>`
+(remember the rename: `build:contracts` → `build-contracts`, `subgraph:codegen` → `subgraph-codegen`,
+and so on).
+
+| File | Lines | What is broken |
+| --- | --- | --- |
+| `CLAUDE.md` | 16-17 | `pnpm build:contracts`, `pnpm test` under "Inside a package directory" |
+| `docs/TESTING.md` | 169-170 | `cd markets/perps-market` then `pnpm test` |
+| `docs/TESTING.md` | 237-239 | `cd markets/perps-market`, `pnpm build-testable`, `pnpm forge-test` |
+| `markets/perps-market/subgraph/README.md` | 26-28 | `pnpm subgraph:codegen`, `pnpm subgraph:build`, `pnpm test` |
+| `markets/perps-market/README.md` | 14, 18, 22 | `yarn test` in three named package directories |
+| `markets/perps-market/README.md` | 32 | `yarn clean` — no directory stated; read the section and decide, it is genuinely ambiguous |
+| `protocol/oracle-manager/README.md` | 128 | `yarn test`, in a README scoped to that package |
+| `protocol/synthetix/subgraph/README.md` | 20, 23, 29 | `yarn subgraph:codegen`, `yarn subgraph:build`, `yarn test` |
+| `README.md` (root) | 196, 197, 206, 211, 268 | `yarn workspace … deploy` and `yarn deploy` after a `cd` |
+
+`.claude/skills/testing-patterns/SKILL.md:9` points at `docs/TESTING.md` for per-package commands —
+update the pointer's wording if the recipes move. `.claude/skills/ci-pipeline/SKILL.md` describes the
+`contracts` job failing at `pnpm storage:dump`; the failure is the same but the command is now
+`moon run :storage-dump`.
+
+**Do not touch these — Task 4 checked them and they are pre-existing staleness, not this migration's
+doing:** `markets/bfp-market/README.md:25-26,29`, `protocol/synthetix/subgraph/README.md:17,36,39-50`,
+`markets/spot-market/README.md:170`, `utils/hardhat-storage/README.md:38`,
+`protocol/governance/README.md:10,18,26`, root `README.md:64`. Fixing them would smuggle unrelated
+work into this PR.
+
+- [ ] **Step 3: Rewrite README's publish flow**
+
+It still tells the reader to run `yarn version:dev` then `yarn publish:dev` — both deleted, both
+impossible here: the packages carry the upstream `@synthetixio` scope. Replace with what is true:
+this fork does not publish to npm, versions are bumped by hand in a commit (as
 `chore(perps-market): bump to 3.11.5-orderbook` did), and Cannon publishing runs through
 `moon run <project>:publish-contracts` or `moon run <project>:deploy`. Keep the mainnet-fee warning
-(`0.0025 ETH` per publish) — it is still true. Fix the surrounding `yarn` invocations to `pnpm` while
-you are in the file.
+(`0.0025 ETH` per publish) — still true.
 
-- [ ] **Step 2: Update SCRIPTS.md**
+- [ ] **Step 4: Update SCRIPTS.md and CLAUDE.md for how the repo now runs**
 
-Delete the `publish:release` / `publish:dev` / `version:dev` rows from the "Публикация" table, leaving
-`publish-contracts`. Change the `changed` row's description to say it queries moon for affected
-projects. Add one short section stating that the build/test verbs are moon tasks, that the root
-scripts are shims keeping their colon names, and that moon task ids cannot contain a colon (so
-`storage:dump` is `storage-dump` inside moon).
+SCRIPTS.md: drop `publish:release` / `publish:dev` / `version:dev`, keep `publish-contracts`, and say
+`changed` now queries moon. Add a short section: the build and test verbs are moon tasks, the root
+`pnpm` scripts are shims that keep their colon names, and **a moon task id cannot contain a colon**,
+so `storage:dump` is `storage-dump` inside moon.
 
-- [ ] **Step 3: Update CLAUDE.md's build section**
+CLAUDE.md: state that the workspace runs on moon — `moon run :<task>` across projects,
+`moon run <project>:<task>` for one — and record the two caveats a newcomer will otherwise hit:
+**nothing is cached** (a task with `inputs` and no `outputs` served a cache hit that reported success
+while producing nothing, so caching is off everywhere), and **a fresh clone does not self-heal** —
+`javascript.installDependencies: false` means `moon run` on a tree with no `node_modules` fails
+rather than installing; run `pnpm install` first, exactly as `pnpm -r` always required.
 
-Under "Build & Test Commands", note that the workspace runs on moon: `moon run :<task>` for every
-project, `moon run <project>:<task>` for one, and that the root `pnpm` scripts are shims.
-
-**The existing per-package lines are now wrong and must be rewritten, not kept.** `CLAUDE.md:16-17`
-tells the reader to `cd` into a package and run `pnpm build:contracts` / `pnpm test`; those scripts
-no longer exist there. The moon equivalents are `moon run <project>:build-contracts` and
-`moon run <project>:test`. The same stale instruction appears in `docs/TESTING.md` (around lines
-169-170 and 236-239) and `markets/perps-market/subgraph/README.md` (around lines 26-29), and
-`.claude/skills/testing-patterns/SKILL.md:9` points at the TESTING.md recipes — fix all of them in
-this task, and verify the line numbers before editing rather than trusting these.
-
-- [ ] **Step 4: Check the docs gates**
+- [ ] **Step 5: Check the docs gates**
 
 ```bash
 pnpm lint:md
@@ -1275,25 +1312,36 @@ pnpm pretty
 
 Expected: both pass.
 
-- [ ] **Step 5: Commit and open the draft PR**
+- [ ] **Step 6: Commit and open the draft PR**
 
 ```bash
-git add README.md SCRIPTS.md CLAUDE.md
+git add README.md SCRIPTS.md CLAUDE.md docs/TESTING.md markets protocol .claude/skills scripts/moon-parity
 git commit -m "docs: the publish flow that cannot run stops being documented
 
 README told the reader to run yarn version:dev and yarn publish:dev, which
 published to a scope this fork does not own. What is true: versions are
-bumped by hand in a commit, and Cannon publishing goes through moon."
+bumped by hand in a commit, and Cannon publishing goes through moon. The
+per-package recipes that named deleted scripts now name moon tasks, and the
+three parity gates ship with the branch instead of dying with a session."
 
 git push -u origin feat-cld/moon-migration
-gh pr create --draft --repo liqcx/synthetix-v3 --base main \
-  --title "build: remove lerna and put the task graph in moon" \
-  --body "See docs/superpowers/specs/2026-09-07-lerna-to-moon-design.md.
-
-Parity, not green, is the acceptance criterion: \`pnpm storage:dump\` stays red in exactly the P3b way it is red on main."
 ```
 
-- [ ] **Step 6: Verify the push actually landed**
+The PR body must state plainly that **CI is not expected to go green**, and why: `storage:dump` is
+red on `main` for the P3b link debt, and this branch does not touch it. List the inherited reds
+(`storage:dump`, `core-modules:build-contracts` HH411, `core-utils` mocha under Node 24,
+`perps-market/subgraph` matchstick, the `@usecannon/router` entry in `pnpm deps`) so a reviewer can
+tell them from anything the migration caused.
+
+```bash
+gh pr create --draft --repo liqcx/synthetix-v3 --base main \
+  --title "build: remove lerna and put the task graph in moon" \
+  --body-file <(printf '%s\n' "See docs/superpowers/specs/2026-09-07-lerna-to-moon-design.md.")
+```
+
+Write the real body from the notes above rather than that placeholder line.
+
+- [ ] **Step 7: Verify the push actually landed**
 
 ```bash
 git fetch origin
