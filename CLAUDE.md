@@ -43,6 +43,14 @@ so caching is off everywhere: a fast green `moon run` is not evidence the task p
 installing one — deliberately, since `pnpm -r run` never auto-installed either. Run `pnpm install`
 first, same as always.
 
+**Third-party versions live in pnpm catalogs, not in the manifests.** Every manifest writes
+`catalog:<name>`; the version itself sits once in `pnpm-workspace.yaml` under nine named catalogs
+(`build`, `lint`, `testing`, `hardhat`, `cannon`, `eth`, `solidity`, `subgraph`, `utils`). Bump a
+dependency there, then `pnpm install && pnpm dedupe` — `pnpm up`/`pnpm add` in a package writes a
+literal back into that manifest and orphans the catalog entry, which nothing fails on. Two shapes
+stay literal on purpose: `workspace:*`, and `utils/core-utils`'s `peerDependencies`, whose ranges
+are deliberately wider than what this workspace installs.
+
 **CI** runs on GitHub Actions on the org's self-hosted runners: `ci.yml` (`lint` + `contracts`)
 gates every PR, `nightly-contracts.yml` runs the heavy suites. **Known red: the `contracts` job**
 fails at `moon run :storage-dump` (P3b dependency debt the CI migration uncovered rather than

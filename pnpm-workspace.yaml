@@ -233,6 +233,10 @@ overrides:
   # живёт единственный раз, и `pnpm cannon:update` двигает его один. Продублируй
   # версию сюда — и оверрайд начнёт молча побеждать обновлённую зависимость,
   # то есть команда обновления станет пустышкой.
+  # После перехода на каталоги в корневом манифесте стоит `catalog:cannon`, так
+  # что ссылка идёт на один шаг дальше — в каталог `cannon` выше. Проверено:
+  # pnpm резолвит каталог ДО записи оверрайда, и в локфайле `overrides:` по
+  # прежнему литерал `npm:@alxwlw/cannon-builder@…`, а не `catalog:cannon`.
   "@usecannon/builder": "$@usecannon/builder"
   "@usecannon/cli": "$@usecannon/cli"
   "hardhat-gas-reporter>eth-gas-reporter": "git+https://github.com/dbeal-eth/eth-gas-reporter.git#1772400f123bb9ddda777170f53594205fffda87"

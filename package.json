@@ -51,7 +51,7 @@
     "copy-storage": "bash -c 'for f in $(find . -name 'storage.new.dump.json'); do cp $f $(dirname $f)/storage.dump.json; git add $(dirname $f)/storage.dump.json; done'",
     "changed": "moon query projects --affected",
     "audit": "pnpm audit --audit-level high",
-    "cannon:update": "pnpm up -r @usecannon/builder@npm:@alxwlw/cannon-builder@${CANNON_TAG:-nonce} @usecannon/cli@npm:@alxwlw/cannon-cli@${CANNON_TAG:-nonce} && pnpm dedupe"
+    "cannon:update": "bun scripts/cannon-update.ts"
   },
   "devDependencies": {
     "@eslint/eslintrc": "catalog:lint",

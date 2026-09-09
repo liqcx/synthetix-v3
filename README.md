@@ -80,7 +80,9 @@ Cannon comes from the [`alxwlw/cannon`](https://github.com/alxwlw/cannon) fork, 
 `npm:` aliases, and `pnpm-workspace.yaml` overrides pin the same aliases for the whole tree — that
 is what makes `hardhat cannon:build` (which resolves Cannon through `hardhat-cannon`) run the fork
 rather than stock 2.25.1. Every `import`/`require` of `@usecannon/*` therefore stays unchanged, and
-only one copy of the builder is ever loaded.
+only one copy of the builder is ever loaded. The version is written once, in the `cannon` catalog
+of `pnpm-workspace.yaml`; the manifests that use it say `catalog:cannon`, and the overrides reach
+it by back-reference (`$@usecannon/builder`).
 
 Do **not** run `pnpm update --interactive` on these two — it drops the alias and silently reinstalls
 stock Cannon. Use `pnpm cannon:update` (or the `cannon-update` workflow) instead; the fork publishes
