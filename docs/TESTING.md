@@ -352,6 +352,8 @@ export function bootstrapMarkets(data) {
 | `REPORT_GAS=true` | Включить отчет по gas usage | `bun x hardhat test` |
 | `TEST_TIMEOUT` | Таймаут одного теста, мс (по умолчанию 120000) — это `--timeout` у `bun test`, лимит на тест, а не на юнит целиком | `.github/scripts/run-tests.ts` (`pnpm test`) |
 | `TEST_ATTEMPTS` | Сколько попыток раннер даёт упавшему юниту (по умолчанию 2, то есть один повтор) | `.github/scripts/run-tests.ts` (`pnpm test`) |
+| `TEST_WALL_CLOCK` | Стенные часы на один юнит, мс (по умолчанию 1200000): по истечении раннер убивает процесс `bun test` целиком (SIGKILL по группе) и засчитывает юниту попытку — в отличие от `TEST_TIMEOUT`, это лимит на весь процесс, а не на отдельный тест | `.github/scripts/run-tests.ts` (`pnpm test`) |
+| `BASE_ANVIL_PORT` | Нижняя граница поиска порта для anvil конкретного юнита (по умолчанию 8600): раннер сдвигает её на свой pid и индекс юнита и берёт первый кандидат, который реально биндится; 8545 пропускается всегда — это дефолт hardhat-cannon, где скорее всего слушает чужой anvil | `.github/scripts/run-tests.ts` (`pnpm test`) |
 
 ---
 
