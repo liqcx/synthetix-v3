@@ -380,29 +380,9 @@ default`, and the two plain-JS consumers that `require()` it
 (`utils/sample-project/test/contracts/SettingsModule.test.js:2` and `SomeModule.test.js:3`) were
 updated to read `.default`, matching what `module: "Node16"` hands them.
 
-### A pre-existing failure, recorded and out of scope
+### A migration defect, fixed in the final review round (2026-09-09)
 
-Four `utils/core-utils` AST tests (`test/utils/ast/finders.test.ts`,
-`test/utils/ast/storage-struct.test.ts`) fail under bun — and **fail identically under
-mocha on node**, which the nightly never revealed because `utils/core-utils` dies at load before
-reaching them:
-
-```
-HardhatError: HH411: The library @synthetixio/core-contracts, imported from
-contracts/Token.sol, is not installed.
-  Caused by: Cannot find module '@synthetixio/core-contracts/package.json' from
-  utils/core-utils/test/fixtures/sample-project
-```
-
-This is the P3b family the `ci-pipeline` skill documents, landing in a test fixture rather than a
-package: `test/fixtures/sample-project` has no `node_modules` of its own, and pnpm's isolated
-linker does not put `@synthetixio/core-contracts` anywhere the walk-up from that directory can see
-it. Yarn's flat layout used to supply it. Not caused by this migration and not fixed by it — but
-recorded here so it is not mistaken for a regression when the counts are compared.
-
-### A migration defect, found by Task 9 (2026-09-09) — not fixed here
-
-`protocol/synthetix/test/integration/modules/core/VaultModule.test.ts` fails one unit under bun,
+`protocol/synthetix/test/integration/modules/core/VaultModule.test.ts` failed one unit under bun,
 reproducibly, in both `per-file` and `per-package` mode: `(fail) VaultModule > delegateCollateral()
 > market debt accumulation > second user delegates > remove exposure > (unnamed) [~15ms]`, throwing
 `InvalidCollateralAmount()` from a `delegateCollateral` call inside a `before('delegate', …)` hook.
@@ -438,15 +418,55 @@ per-file JUnit XML, `skipped="3"` on each of `increase exposure` and `reduce exp
 placeholder + 2 real `it()`s apiece) where mocha counts only the 2 real `it()`s. That accounts for
 2 of the 3 extra; the third is the one new failure, from a hook mocha never ran at all.
 
-This is the case the task brief calls out by name: a suite that mocha never exercises and bun does,
-diverging on a genuine mocha/bun `beforeAll` semantics gap, not a flake and not something that
-fails under both runners. Two live readings, and Task 9 resolves neither (measurement only, and the
-Step 4-6 hard stop keeps this branch un-pushed pending that decision): either the shim should skip a
-`before`/`after` hook when its describe has no reachable tests (matching mocha, at the cost of
-special-casing something bun does not expose a hook for), or `remove exposure` is unfinished test
-code — a `before` hook with no assertions ever written after it, sitting between two `.skip`'d
-siblings that look like its unfinished neighbours — and the fix is finishing or deleting the test,
-not the shim. Either fix is out of this task's scope.
+**The fix is `describe.skip` at `VaultModule.test.ts:674`, and there is no second option.** An
+earlier draft of this section offered one — teach the shim to skip a `before`/`after` hook whose
+`describe` has no reachable tests, matching mocha. That cannot be written, for the reason this
+document already gives in the `preload.ts` component contract, point 4 ("Mocha `this`"): bun's
+transpiler injects a lexical binding for every one of its own test globals a file references, and
+`describe`
+and `it` are two of them, so inside a test file those names are bun's, not the shim's. The shim
+never observes a suite being opened or a test being registered and therefore cannot count what a
+`describe` contains. Escaping that means dropping the shadowing, which means the 440-file codemod
+this design rejects on cherry-pick grounds. `before`/`after` reach the shim only because bun's own
+hooks are named `beforeAll`/`afterAll` and there is no global to inject for them.
+
+So `remove exposure` is read for what it is: unfinished test code — a `before` hook with no
+assertions ever written after it, sitting between two `.skip`'d siblings that look like its
+unfinished neighbours. `.skip` restores the status quo ante honestly. It keeps the block visible as
+someone's unfinished intent rather than deleting it, it matches its two siblings, and it is a
+one-word diff a cherry-pick from upstream can carry — which finishing or deleting the test would
+not be, and neither is this branch's call to make.
+
+**The class is bounded at one site.** An AST walk over all 606 tracked non-vendored `.ts`/`.js`
+sources — for every `describe`/`context`/`suite` call, the hooks registered directly in its body
+against the `it`/`specify`/`test` calls anywhere in its subtree — returned 9 candidates, 8 of which
+register their tests through a helper (`itBehavesAsAValidSet()`, `checkMarketInterestRate()`) and
+are therefore not test-less at all. One live site: this one. The two neighbouring shapes returned
+**zero** — a `describe` with hooks whose tests are all `.skip`/`.todo`, and an `async` `describe`
+body that `await`s before registering its `it()`s. Those two are the silent direction, where a hook
+bun now runs would *pass* and change state nobody reviewed; that both are empty is why this is safe
+to close rather than merely fixed.
+
+### A pre-existing failure, recorded and out of scope
+
+Four `utils/core-utils` AST tests (`test/utils/ast/finders.test.ts`,
+`test/utils/ast/storage-struct.test.ts`) fail under bun — and **fail identically under
+mocha on node**, which the nightly never revealed because `utils/core-utils` dies at load before
+reaching them:
+
+```
+HardhatError: HH411: The library @synthetixio/core-contracts, imported from
+contracts/Token.sol, is not installed.
+  Caused by: Cannot find module '@synthetixio/core-contracts/package.json' from
+  utils/core-utils/test/fixtures/sample-project
+```
+
+This is the P3b family the `ci-pipeline` skill documents, landing in a test fixture rather than a
+package: `test/fixtures/sample-project` has no `node_modules` of its own, and pnpm's isolated
+linker does not put `@synthetixio/core-contracts` anywhere the walk-up from that directory can see
+it. Yarn's flat layout used to supply it. Not caused by this migration and not fixed by it — but
+recorded here so it is not mistaken for a regression when the counts are compared.
+
 
 ## Phases
 
