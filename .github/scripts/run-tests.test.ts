@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { modeFor } from './suites';
+import { SUITES, modeFor } from './suites';
 import {
   claimPort,
   knob,
@@ -38,7 +38,28 @@ describe('.github/scripts/run-tests.ts', function () {
     assert.equal(slugFor(files, 'per-package'), 'all');
   });
 
-  it('knows the mode of every nightly suite', function () {
+  // The name this test used to carry — "knows the mode of every nightly
+  // suite" — promised the whole table and asserted two of its seven rows.
+  // Both of the mutations that matter stayed green under it: flipping
+  // `markets/spot-market` to `per-package`, and deleting the
+  // `protocol/synthetix` row outright, after which `--list` emits six suites
+  // and the nightly silently stops running the largest one. run-suites.sh's
+  // zero-files guard cannot catch that, because it only fires for suites the
+  // table still lists. So pin the table itself — every dir, every mode, in
+  // order, which is also the order the nightly runs them in.
+  it('pins the whole nightly suite table: which packages, which modes, in which order', function () {
+    assert.deepEqual(SUITES, [
+      { dir: 'protocol/synthetix', mode: 'per-file' },
+      { dir: 'protocol/oracle-manager', mode: 'per-file' },
+      { dir: 'markets/spot-market', mode: 'per-file' },
+      { dir: 'markets/perps-market', mode: 'per-file' },
+      { dir: 'utils/core-modules', mode: 'per-file' },
+      { dir: 'utils/core-contracts', mode: 'per-package' },
+      { dir: 'utils/core-utils', mode: 'per-package' },
+    ]);
+  });
+
+  it('resolves a listed package through modeFor, not only through the table', function () {
     assert.equal(modeFor('markets/perps-market'), 'per-file');
     assert.equal(modeFor('utils/core-utils'), 'per-package');
   });
