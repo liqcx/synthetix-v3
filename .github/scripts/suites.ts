@@ -8,11 +8,19 @@
 export type Mode = 'per-file' | 'per-package';
 
 /**
- * `per-file` is for packages whose tests go through `coreBootstrap`. bun loads
- * every file of a run into one process, and `snapshotCheckpoint`'s hook then
- * fires before the bootstrap has assigned a provider — nine core-modules files
- * in one process collected 13 tests and failed 8. `per-package` is for the two
- * packages with no bootstrap.
+ * `per-file` is for packages whose tests go through `coreBootstrap`;
+ * `per-package` is for the two packages with no bootstrap.
+ *
+ * The per-file assignment is provisional. Its original justification — bun
+ * loading every file of a run into one process, so `snapshotCheckpoint`'s hook
+ * fires before the bootstrap has assigned a provider — came from a design-phase
+ * probe run against a throwaway shim, before the preload in
+ * `utils/core-utils/src/utils/bun/preload.ts` and the `ses` patch existed. With
+ * both in place per-package passes cleanly on `utils/core-modules`. What
+ * per-file still buys is retry granularity: `TEST_ATTEMPTS` retries a unit, so
+ * one flake costs a single file here and a whole package there. Task 9 of the
+ * migration plan re-measures both modes; do not read this table as measured
+ * until it has.
  */
 export const SUITES: { dir: string; mode: Mode }[] = [
   { dir: 'protocol/synthetix', mode: 'per-file' },

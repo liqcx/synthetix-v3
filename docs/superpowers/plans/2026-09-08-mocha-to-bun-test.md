@@ -1097,8 +1097,24 @@ grep -rn "mocha" --include='*.yml' --include='*.json' --include='*.sh' --include
   .moon .github utils protocol markets auxiliary package.json | grep -v node_modules
 ```
 
-Expected: only `@types/mocha` in `package.json` and the dependabot grouping patterns. Anything else
-is a call site this plan missed — report it rather than deleting it.
+Expected, and nothing else — every one of these is correct and stays:
+
+- `package.json` — `@types/mocha` (line 66), plus `mocha` and `mocha-junit-reporter`, which
+  Step 2 removes.
+- `.github/dependabot.yml` — the `"*mocha*"` grouping patterns, which Step 3 removes.
+- `utils/core-utils/package.json:70` — the string `"mocha"` inside `depcheck.ignoreMatches`,
+  added by Task 5 for the types-only `Context` import in `src/utils/mocha/mocha-helpers.ts`.
+  It is not a dependency. Leave it.
+- `markets/bfp-market/package.json` — `mocha-each` and `@types/mocha-each`. Different packages.
+  bfp-market's `moon.yml` carries no tags, so it inherits no tag-contracts tasks and is in
+  neither `SUITES` nor the nightly; nothing runs it today. **Leave it alone and say so in the
+  report** — adopting a dormant package is scope this plan did not take on.
+
+Anything outside that list is a call site this plan missed — report it rather than deleting it.
+
+Do not run `pnpm store prune` or otherwise purge the store after Step 2. Task 9's Step 2 baseline
+may need to reinstall `mocha@10.8.2` briefly, and a warm store makes that a second rather than a
+download.
 
 - [ ] **Step 2: Drop the runtime dependencies**
 
@@ -1152,11 +1168,35 @@ git commit -m "build: drop mocha and mocha-junit-reporter"
 - [ ] **Step 1: Run all seven suites locally**
 
 ```bash
-JUNIT_DIR=/tmp/junit-full .github/scripts/run-suites.sh 2>&1 | tee /tmp/bun-migration-full.log
+.github/scripts/run-suites.sh 2>&1 | tee /tmp/bun-migration-full.log
 ```
 
 Expected: the `GITHUB_STEP_SUMMARY` table is not written locally, but each suite prints
 `<dir>: passed|failed (<n>s)`. Record all seven lines.
+
+Do not set `JUNIT_DIR` on this command — `run-suites.sh` does not honour an outer value. It
+starts by wiping `/tmp/junit` and then builds `/tmp/junit/<dir-with-slashes-as-dashes>` per
+suite, passing that to the runner. The XML lands under `/tmp/junit`, always.
+
+- [ ] **Step 1b: Measure the other mode for every per-file suite**
+
+The per-file assignment lost its original justification during this plan: the "13 tests
+collected, 8 fail" probe behind it was run against a throwaway shim, before the shipped preload
+and the `ses` patch existed. `TEST_MODE_OVERRIDE=per-package` on `utils/core-modules` now passes,
+nine runs out of nine. So measure rather than assume, for all five per-file packages:
+
+```bash
+for dir in protocol/synthetix protocol/oracle-manager markets/spot-market \
+           markets/perps-market utils/core-modules; do
+  echo "=== $dir per-package ==="
+  TEST_MODE_OVERRIDE=per-package SUITE_FILTER="$dir" \
+    .github/scripts/run-suites.sh 2>&1 | tail -6
+done
+```
+
+Record, per package: pass / fail / skip counts and wall clock, in both modes. **Do not change any
+mode in `.github/scripts/suites.ts`.** A mode change is a follow-up with its own review, not this
+task's work — this step establishes the fact, nothing more.
 
 - [ ] **Step 2: Compare against the mocha baseline**
 
@@ -1174,12 +1214,37 @@ TS_NODE_TRANSPILE_ONLY=true node \
 and loads files you did not ask for. A test that passes here and fails under bun is a migration
 defect and blocks this task; a test that fails both ways is pre-existing and gets recorded.
 
-- [ ] **Step 3: Record the measured per-file cost in the spec**
+**Task 8 has already removed `mocha` from the root `package.json` by the time this step runs**, so
+the path above will not exist on a freshly installed tree. This step is conditional — it fires only
+for suites that actually failed in Step 1 — so restore mocha only if you need it, and put the tree
+back afterwards:
 
-In `docs/superpowers/specs/2026-09-08-mocha-to-bun-test-design.md`, replace the sentence
-"The suites that get more expensive are the ones batching 3–8 files." with the measured wall-clock
-per suite from Step 1, against the 1005 s / 802 s / 255 s / 203 s / 538 s / 11 s / 3 s the nightly
-recorded in run `34219846229`.
+```bash
+pnpm add -w -D mocha@10.8.2          # temporary, for the baseline only
+# ... take the baseline ...
+git checkout -- package.json pnpm-lock.yaml
+pnpm install --frozen-lockfile
+git status --porcelain               # must be empty
+```
+
+- [ ] **Step 3: Record both measurements in the spec**
+
+Two edits to `docs/superpowers/specs/2026-09-08-mocha-to-bun-test-design.md`:
+
+1. Replace the sentence "The suites that get more expensive are the ones batching 3–8 files."
+   with the measured wall-clock per suite from Step 1, against the
+   1005 s / 802 s / 255 s / 203 s / 538 s / 11 s / 3 s the nightly recorded in run `34219846229`.
+2. Rewrite the "Process-level isolation, not batches" section from Step 1b's numbers, replacing
+   the retraction blockquote that commit `e38ce045` added. The rewrite states, per package, what
+   both modes cost and whether per-package passes — and it must weigh the one thing per-file still
+   buys with the hook-ordering argument gone: `TEST_ATTEMPTS` retries a **unit**, and bun has no
+   per-test retries, so one flake costs a single file under per-file and the whole package under
+   per-package. Say what that insurance costs in seconds. `.github/scripts/suites.ts`'s docblock
+   carries the same provisional wording — bring it into line with whatever the measurement says.
+
+> **Steps 4-6 leave this worktree.** Pushing the branch, opening the PR and dispatching the
+> nightly are outward-facing side effects. Stop after Step 3's commit and get the user's
+> confirmation before running any of them.
 
 - [ ] **Step 4: Commit and push**
 

@@ -91,10 +91,12 @@ every package depends on, to buy an optimisation nobody has measured.
 > patched `ses`. With both in place, `TEST_MODE_OVERRIDE=per-package` on
 > `utils/core-modules` gives 100 pass / 5 skip / 0 fail in about 7 s, against
 > roughly 48 s for the same package per-file; re-run nine times across two
-> sessions without a failure. The per-file assignment below therefore rests on
-> habit rather than evidence. Task 9 measures both modes for all five per-file
-> packages and rewrites this section from that measurement; the modes
-> themselves do not change before then.
+> sessions without a failure. What per-file still buys, and what that probe
+> never measured, is retry granularity: `TEST_ATTEMPTS` retries a *unit*, and
+> bun has no per-test retries, so one flake costs a single file under per-file
+> and the whole package under per-package. Task 9 measures both modes for all
+> five per-file packages and rewrites this section from that measurement,
+> weighing that trade against the cost; the modes do not change before then.
 
 Instead each suite declares a **mode**:
 
