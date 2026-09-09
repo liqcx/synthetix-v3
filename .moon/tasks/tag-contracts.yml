@@ -82,9 +82,11 @@ tasks:
     options:
       cache: false
 
-  # The same runner the nightly uses. A bare `bun test` here would load every
-  # file of a package into one process, which is what collected 13 tests out of
-  # ~150 in core-modules — and would put moon and CI back out of step.
+  # The same runner the nightly uses, so moon and CI cannot drift back out of
+  # step. It is also what applies each package's mode from
+  # .github/scripts/suites.ts; a bare `bun test` here would run every package
+  # as one process regardless, and markets/perps-market does not complete that
+  # way (Task 9's measurement, 9bae6dca — see suites.ts's docblock).
   # Root runs test with --parallel: no `^` dependency.
   test:
     command: "bun"
