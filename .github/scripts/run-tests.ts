@@ -36,6 +36,24 @@ export function slugFor(unit: string[], mode: Mode): string {
 }
 
 /**
+ * The directory a package's JUnit files land in: the run's base plus the
+ * package's own path, flattened. The namespace is applied **here and nowhere
+ * else**. `run-suites.sh` used to fold the same package path into `JUNIT_DIR`
+ * before handing it over and this then folded it in again, so the nightly
+ * wrote `/tmp/junit/protocol-synthetix/protocol-synthetix/all.xml` — harmless
+ * only because the upload step is recursive, and wrong in both scripts'
+ * comments and in the spec.
+ *
+ * The producer side is the one that had to go, not this one: `moon run
+ * <pkg>:test` invokes this runner directly with no `JUNIT_DIR` at all, so if
+ * this stopped namespacing, every package would write `all.xml` straight into
+ * the base and overwrite the previous package's report.
+ */
+export function junitDirFor(base: string, rel: string): string {
+  return path.join(base, rel.replaceAll('/', '-'));
+}
+
+/**
  * Reads a numeric env knob. `undefined` and `''` — the shape GitHub Actions
  * renders an unset `${{ inputs.x }}` as on a scheduled run, and
  * `nightly-contracts.yml` already passes some of those — mean "unset" and
@@ -211,7 +229,7 @@ async function main() {
   const preloads = [PRELOAD];
   if (needsHardhatRegister(dir)) preloads.push('hardhat/register');
 
-  const junitDir = path.join(junitBase, rel.replaceAll('/', '-'));
+  const junitDir = junitDirFor(junitBase, rel);
   await mkdir(junitDir, { recursive: true });
 
   const units = unitsFor(files, mode);

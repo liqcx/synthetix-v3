@@ -7,6 +7,7 @@ import path from 'node:path';
 import { SUITES, modeFor } from './suites';
 import {
   claimPort,
+  junitDirFor,
   knob,
   needsHardhatRegister,
   portFor,
@@ -36,6 +37,20 @@ describe('.github/scripts/run-tests.ts', function () {
 
   it('names the single per-package unit "all"', function () {
     assert.equal(slugFor(files, 'per-package'), 'all');
+  });
+
+  // slugFor pins the leaf; nothing used to pin the directory, which is how the
+  // package path came to be folded in twice — by run-suites.sh into JUNIT_DIR
+  // and again by the runner — landing the nightly's XML in
+  // /tmp/junit/protocol-synthetix/protocol-synthetix/. One level, applied here
+  // and only here.
+  it('namespaces a package under the base exactly once', function () {
+    assert.equal(junitDirFor('/tmp/junit', 'protocol/synthetix'), '/tmp/junit/protocol-synthetix');
+    assert.equal(junitDirFor('/tmp/junit', 'utils/core-utils'), '/tmp/junit/utils-core-utils');
+  });
+
+  it('flattens every separator, not just the first', function () {
+    assert.equal(junitDirFor('/tmp/junit', 'a/b/c'), '/tmp/junit/a-b-c');
   });
 
   // The name this test used to carry — "knows the mode of every nightly

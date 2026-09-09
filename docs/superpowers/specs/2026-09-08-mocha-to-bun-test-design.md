@@ -298,7 +298,13 @@ Behaviour:
   already landed. A fresh process brings a fresh anvil, which is the honest retry.
 - Exceeding `TEST_WALL_CLOCK` kills the process and fails that unit with an explicit message,
   so a hung hook cannot hold a job for an hour.
-- JUnit goes to `<JUNIT_DIR>/<file-slug>.xml` per unit.
+- JUnit goes to `<JUNIT_DIR>/<package-slug>/<file-slug>.xml` per unit, where `<package-slug>` is
+  the package path with its separators flattened (`junitDirFor`). The runner applies that
+  namespace itself, whether or not `JUNIT_DIR` is set, because `moon run <pkg>:test` invokes it
+  with no `JUNIT_DIR` at all and every package would otherwise write `all.xml` into the same
+  directory. `run-suites.sh` therefore exports the **base** and nothing more — it used to fold the
+  package path in as well, and the two halves stacked into
+  `/tmp/junit/protocol-synthetix/protocol-synthetix/`.
 
 ### `.github/scripts/run-suites.sh`
 

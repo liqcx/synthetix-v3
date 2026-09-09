@@ -79,12 +79,21 @@ export TEST_TIMEOUT="${TEST_TIMEOUT:-120000}"
 export TEST_ATTEMPTS="${TEST_ATTEMPTS:-2}"
 export TEST_WALL_CLOCK="${TEST_WALL_CLOCK:-1200000}"
 
+# The base every suite's JUnit XML lands under. run-tests.ts is what turns it
+# into a per-suite directory (junitDirFor: base + the package path, flattened),
+# and it does so whether or not JUNIT_DIR is set, because `moon run <pkg>:test`
+# calls the runner with no JUNIT_DIR at all. Folding the package path in here
+# too is what produced /tmp/junit/protocol-synthetix/protocol-synthetix/, so
+# this hands over the base and nothing more.
+#
 # The self-hosted runner's filesystem persists between runs (unlike CircleCI,
-# where each suite got a fresh container), so /tmp/junit can hold batches
-# left over from a previous night. Start every run from a clean, empty tree —
-# the upload step at the end of the workflow always points at this whole dir.
-rm -rf /tmp/junit
-mkdir -p /tmp/junit
+# where each suite got a fresh container), so it can hold batches left over
+# from a previous night. Start every run from a clean, empty tree — the upload
+# step at the end of the workflow always points at this whole dir.
+JUNIT_BASE=/tmp/junit
+export JUNIT_DIR="$JUNIT_BASE"
+rm -rf "$JUNIT_BASE"
+mkdir -p "$JUNIT_BASE"
 
 failures=0
 results=()
@@ -114,12 +123,11 @@ for suite in "${SUITES[@]}"; do
   count="$(echo "$files" | wc -w | tr -d ' ')"
   echo "::group::$dir ($count files, $mode)"
   started="$(date +%s)"
-  # Each suite gets its own JUnit subdirectory so suites don't overwrite each
-  # other's XML files; run-tests.ts names each unit's file after the test
-  # file (per-file mode) or "all" (per-package mode).
-  junit_dir="/tmp/junit/${dir//\//-}"
-  mkdir -p "$junit_dir"
-  if TEST_MODE_OVERRIDE="$mode" JUNIT_DIR="$junit_dir" bun "$RUNNER" "$ROOT/$dir"; then
+  # Each suite gets its own JUnit subdirectory under JUNIT_BASE so suites don't
+  # overwrite each other's XML files — run-tests.ts derives it and creates it.
+  # It names each unit's file after the test file (per-file mode) or "all"
+  # (per-package mode).
+  if TEST_MODE_OVERRIDE="$mode" bun "$RUNNER" "$ROOT/$dir"; then
     status=passed
   else
     status=failed
