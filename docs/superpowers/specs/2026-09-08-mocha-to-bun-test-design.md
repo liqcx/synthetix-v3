@@ -85,18 +85,53 @@ of the ~150 mocha runs and failed 8 of them, because `snapshotCheckpoint`'s
 `provider`. bun's hook model is not mocha's, and fixing that means editing the shared bootstrap
 every package depends on, to buy an optimisation nobody has measured.
 
-> **Retracted 2026-09-09.** That measurement came from the design probes, run
+> **Retracted 2026-09-09**, and measured. That measurement came from the design probes, run
 > against a throwaway shim written for the probe — not the preload Task 1
 > shipped (`utils/core-utils/src/utils/bun/preload.ts`) — and before Task 3
-> patched `ses`. With both in place, `TEST_MODE_OVERRIDE=per-package` on
-> `utils/core-modules` gives 100 pass / 5 skip / 0 fail in about 7 s, against
-> roughly 48 s for the same package per-file; re-run nine times across two
-> sessions without a failure. What per-file still buys, and what that probe
-> never measured, is retry granularity: `TEST_ATTEMPTS` retries a *unit*, and
-> bun has no per-test retries, so one flake costs a single file under per-file
-> and the whole package under per-package. Task 9 measures both modes for all
-> five per-file packages and rewrites this section from that measurement,
-> weighing that trade against the cost; the modes do not change before then.
+> patched `ses`. With both in place, Task 9 ran `TEST_MODE_OVERRIDE=per-package` against all five
+> `per-file` packages (`SUITE_FILTER` scoped to one package at a time, mode changed nowhere):
+>
+> | Package | per-file (assigned) | per-package (measured) | Tests collected | Same tests both modes? |
+> | --- | --- | --- | --- | --- |
+> | `protocol/synthetix` | 681 s, 30/31 units, 513 pass/1 fail/7 skip of 521 | 66 s (2 attempts, both fail identically), 513 pass/1 fail/7 skip of 521 | 521 | yes — reconciled test-by-test |
+> | `protocol/oracle-manager` | 50 s, 11/11 units, 54/54 pass | 7 s, 1/1 unit, 54/54 pass | 54 | yes |
+> | `markets/spot-market` | 131 s, 13/13 units, 189/189 pass | 21 s, 1/1 unit, 189/189 pass | 189 | yes |
+> | `markets/perps-market` | 1097 s, 71/71 units, 755 pass/0 fail/1 skip of 756 | **did not complete** — attempt 1 hit `TEST_WALL_CLOCK` (1 200 000 ms) and was killed; attempt 2 stalled the same way and was stopped rather than spend another 20 min confirming it | 756 (per-file only; per-package never collected) | n/a |
+> | `utils/core-modules` | 58 s, 10/10 units, 100 pass/5 skip of 105 | 9 s, 1/1 unit, 100 pass/5 skip of 105 | 105 | yes |
+>
+> Four of the five collect and run the *identical* test set in both modes (reconciled by summing
+> every per-file unit's own `Ran N tests` line and comparing against the per-package run's single
+> line — an exact match on both the total and the pass/fail/skip split, for all four). That settles
+> the thing the retracted probe actually got wrong: the "13 collected instead of ~150" figure was a
+> broken shim losing tests, not a property of running many files in one process. `protocol/synthetix`
+> additionally reproduces its one real failure (`VaultModule`, see below) identically in both modes,
+> which shows that failure is not a mode artifact either.
+>
+> `markets/perps-market` is the standout and the one place per-file is not optional today: per-package
+> does not finish. Wall-clock grows for tens of minutes with the runner's own `bun test` child barely
+> touching CPU (measured: ≈6 s of CPU time accrued over the final 10 minutes of the 20-minute attempt) before the
+> runner's `TEST_WALL_CLOCK` guard fires and kills it — confirmed live, the exact
+> `::error::markets/perps-market all exceeded TEST_WALL_CLOCK (1200000 ms); killing it` line landed in
+> this run's log. This is not the retry-granularity argument below; it is a completeness argument, and
+> it is unexplained — something in the 71-file set does not tolerate running in one process, and per-file's
+> fresh-anvil-per-file isolation happens to route around it. Root-causing which file(s) is out of scope
+> for Task 9 (measurement only); it is the reason per-file cannot be dropped for this package without
+> further work, independent of everything below.
+>
+> For the four packages where per-package *does* work, what per-file still buys is retry granularity:
+> `TEST_ATTEMPTS` retries a whole **unit**, and bun has no per-test retries, so one flake costs a single
+> file under per-file and the whole package under per-package. Priced from the numbers above (a clean
+> per-package run's cost stands in for "one retry attempt", since `protocol/synthetix`'s two identical
+> failing attempts both cost ~33 s each): retrying one unit costs roughly 22 s (synthetix, 681⁄31),
+> 4.5 s (oracle-manager, 50⁄11), 10 s (spot-market, 131⁄13) or 5.8 s (core-modules, 58⁄10) per-file,
+> against 33 s / 7 s / 21 s / 9 s to retry the whole per-package unit — a saving of roughly 11 s, 2.5 s,
+> 11 s and 3.2 s per flake respectively. Buying that saving costs the *whole premium* on every single
+> run, flake or not: per-file runs 648 s, 43 s, 110 s and 49 s slower than per-package for these four
+> packages. per-file was not "just habit" — the isolation argument that motivated it is gone (per-package
+> now collects and runs the same tests), but the retry-granularity argument is real and quantified; it is
+> just small next to what it costs to keep paying for it on every green run. Task 9 does not change any
+> package's mode — `.github/scripts/suites.ts` is untouched — this is the measurement a mode change would
+> be argued from.
 
 Instead each suite declares a **mode**:
 
@@ -104,13 +139,47 @@ Instead each suite declares a **mode**:
   `coreBootstrap`: `protocol/synthetix`, `protocol/oracle-manager`, `markets/spot-market`,
   `markets/perps-market`, `utils/core-modules`.
 - **`per-package`** — one process for the whole package. For `utils/core-contracts` and
-  `utils/core-utils`, which have no bootstrap. The 20-file core-utils run is the evidence that
-  isolation is unnecessary there — 81 tests ran and reported individually, against 13 collected
-  in the batched core-modules run — not evidence that the suite is green; its 4 failures and
-  2 errors are listed under known defects.
+  `utils/core-utils`, which have no bootstrap. The 20-file core-utils probe (design-time,
+  2026-09-08) is the evidence that isolation is unnecessary there — 81 tests ran and reported
+  individually — not evidence that the suite is green; its 4 failures and 2 errors are listed
+  under known defects. (That probe's own comparison point, "13 collected in the batched
+  core-modules run," is the same figure Task 9 later traced to a broken throwaway shim, not to
+  batching itself — see the retraction above; it is not cited as evidence here any more. Task 9's
+  fresh core-utils run below counts 21 files / 105 tests / 2 failures — the count drift from this
+  probe's 20/81/4 is unexplained and out of scope for Task 9's two named edits.)
 
 `markets/perps-market` already runs at batch size 1, so for the largest suite (71 files) this
-changes nothing. The suites that get more expensive are the ones batching 3–8 files.
+changes nothing.
+
+**Measured wall-clock, Task 9 (2026-09-09), full local run of all seven suites, against the
+nightly's own numbers from run `34219846229`:**
+
+| Suite | Local (this run) | Nightly `34219846229` |
+| --- | --- | --- |
+| `protocol/synthetix` | 681 s (30/31 units — see the VaultModule defect below) | 1005 s |
+| `protocol/oracle-manager` | 50 s | 802 s |
+| `markets/spot-market` | 131 s | 255 s |
+| `markets/perps-market` | 1097 s (71/71) | 203 s |
+| `utils/core-modules` | 58 s | 538 s |
+| `utils/core-contracts` | 10 s | 11 s |
+| `utils/core-utils` | 3 s (known defects, see below) | 3 s |
+
+The nightly column is not a clean baseline to read "CI is slower" off of: run `34219846229` was
+the first nightly run to reach the suites after the CircleCI→GitHub Actions move (P3d) — still
+**mocha**, under the old `test-batch.js` path, not bun — and was 6/7 red from a hardcoded
+10 000 ms timeout living in that path plus a Node 24 break in `core-utils`
+(`nightly-suites-first-red`, recorded separately) — most of those packages' tests ask for
+30–120 s each, so a 10 s ceiling means most of that column is *time-to-fail*, not a completed run.
+That is visible directly in the table: `markets/perps-market` finished in 203 s on the nightly
+against 1097 s here for the same 71 files actually completing, and `protocol/oracle-manager` at
+802 s nightly against 50 s here is the opposite direction — both are artifacts of the old timeout,
+not evidence about relative machine speed. Only `utils/core-contracts` (11 s) is genuinely close,
+because its tests finish well under 10 s and so were untouched by the timeout bug. `utils/core-utils`
+(3 s) is not a matching case despite the matching number: that package fails to load at all under
+Node 24 (see below), so its nightly 3 s is *time-to-crash*, not a completed run — it happens to land
+close to this run's own 3 s, which under bun is a real 105-test run. Same number, different cause.
+The honest comparison is this run against itself and against Task 9's own per-package numbers below,
+not against this nightly.
 
 ### Patch `ses`, and say why in the patch
 
@@ -200,7 +269,7 @@ existing convention:
 | --- | --- |
 | `TEST_MODE_OVERRIDE` | forces `per-file` or `per-package`; empty keeps `suites.ts` |
 | `TEST_TIMEOUT` | per-test timeout, default 120 000 |
-| `TEST_ATTEMPTS` | re-runs of a failed unit, default 2 |
+| `TEST_ATTEMPTS` | attempts a failed unit gets, default 2 (i.e. one re-run) |
 | `TEST_WALL_CLOCK` | per-process kill, default 1 200 000 |
 | `JUNIT_DIR` | as today |
 | `BASE_ANVIL_PORT` | floor for a unit's anvil port search (offset by the runner's own pid and the unit's index, then the first candidate that binds, skipping 8545), default 8600 |
@@ -326,6 +395,54 @@ package: `test/fixtures/sample-project` has no `node_modules` of its own, and pn
 linker does not put `@synthetixio/core-contracts` anywhere the walk-up from that directory can see
 it. Yarn's flat layout used to supply it. Not caused by this migration and not fixed by it — but
 recorded here so it is not mistaken for a regression when the counts are compared.
+
+### A migration defect, found by Task 9 (2026-09-09) — not fixed here
+
+`protocol/synthetix/test/integration/modules/core/VaultModule.test.ts` fails one unit under bun,
+reproducibly, in both `per-file` and `per-package` mode: `(fail) VaultModule > delegateCollateral()
+> market debt accumulation > second user delegates > remove exposure > (unnamed) [~15ms]`, throwing
+`InvalidCollateralAmount()` from a `delegateCollateral` call inside a `before('delegate', …)` hook.
+The `(unnamed)` leaf is the tell (see the preload's own docblock): bun attributes a failing **hook**
+to a synthetic testcase, not a test body.
+
+The hook is real (`VaultModule.test.ts:674-684`):
+
+```ts
+describe('remove exposure', async () => {
+  before('delegate', async () => {
+    await systems().Core.connect(user2).delegateCollateral(/* … */);
+  });
+});
+```
+
+— a `describe` with a `before` hook and **zero `it()`s**. Under mocha this suite never runs at all:
+mocha does not execute the hooks of a describe block with no tests in it, so `remove exposure`
+contributes nothing to mocha's tally — confirmed by running just this file under the Task 8 mocha
+baseline (`--no-config --no-package`, dedicated `ANVIL_PORT`): 52 passing / 4 pending / **0
+failing**, and `remove exposure` appears in none of the three. Mocha's 4 pending are only the 4
+real `it()`s inside the two `.skip`'d siblings (`describe.skip('increase exposure', …)` /
+`describe.skip('reduce exposure', …)`, 2 apiece) — mocha's pending list is test-level only and
+never enumerates a skipped suite's hook, so those two suites' `before` hooks contribute nothing to
+mocha's count either.
+
+Under bun, `before(fn)` maps straight to `beforeAll(fn)` (`preload.ts`'s `asHook`), and bun's
+`beforeAll` runs regardless of whether its `describe` contains any tests — so `remove exposure`'s
+hook fires, and the delegate call it makes reverts. bun's own count is 52 pass / 6 skip / 1 fail =
+59, 3 more than mocha's 56: bun's JUnit reporter, unlike mocha, does emit a synthetic `(unnamed)`
+placeholder for each `.skip`'d suite's own hook alongside its real `it()`s — confirmed against the
+per-file JUnit XML, `skipped="3"` on each of `increase exposure` and `reduce exposure` (1 hook
+placeholder + 2 real `it()`s apiece) where mocha counts only the 2 real `it()`s. That accounts for
+2 of the 3 extra; the third is the one new failure, from a hook mocha never ran at all.
+
+This is the case the task brief calls out by name: a suite that mocha never exercises and bun does,
+diverging on a genuine mocha/bun `beforeAll` semantics gap, not a flake and not something that
+fails under both runners. Two live readings, and Task 9 resolves neither (measurement only, and the
+Step 4-6 hard stop keeps this branch un-pushed pending that decision): either the shim should skip a
+`before`/`after` hook when its describe has no reachable tests (matching mocha, at the cost of
+special-casing something bun does not expose a hook for), or `remove exposure` is unfinished test
+code — a `before` hook with no assertions ever written after it, sitting between two `.skip`'d
+siblings that look like its unfinished neighbours — and the fix is finishing or deleting the test,
+not the shim. Either fix is out of this task's scope.
 
 ## Phases
 
