@@ -1214,18 +1214,12 @@ TS_NODE_TRANSPILE_ONLY=true node \
 and loads files you did not ask for. A test that passes here and fails under bun is a migration
 defect and blocks this task; a test that fails both ways is pre-existing and gets recorded.
 
-**Task 8 has already removed `mocha` from the root `package.json` by the time this step runs**, so
-the path above will not exist on a freshly installed tree. This step is conditional — it fires only
-for suites that actually failed in Step 1 — so restore mocha only if you need it, and put the tree
-back afterwards:
-
-```bash
-pnpm add -w -D mocha@10.8.2          # temporary, for the baseline only
-# ... take the baseline ...
-git checkout -- package.json pnpm-lock.yaml
-pnpm install --frozen-lockfile
-git status --porcelain               # must be empty
-```
+Task 8 removes `mocha` from the root `package.json` before this step runs, but **the binary is
+still there and no reinstall is needed**: hardhat depends on `mocha@^10.0.0` itself, so the
+`hardhat@2.28.6 -> mocha@10.8.2` edge survives in the regenerated lockfile and a fully fresh
+`pnpm install --frozen-lockfile` resolves it. Verified against the committed lockfile in a
+zero-state worktree. Use the path as written; if it is somehow absent, say so rather than
+reinstalling on a hunch.
 
 - [ ] **Step 3: Record both measurements in the spec**
 
