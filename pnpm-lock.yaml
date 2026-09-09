@@ -12,7 +12,7 @@ overrides:
   '@types/node': 20.11.17
 
 patchedDependencies:
-  ses@1.15.0: 4bca1f524998c74f57f3ae31d4dafe186f4b35ab762be82a3f8567ba075db42b
+  ses@1.15.0: b1122c34c8a5c1eff503fa8780afa33817b59ff237aa179dc8f62d2785c4614e
 
 importers:
 
@@ -8916,7 +8916,7 @@ snapshots:
       '@usecannon/web-solc': 0.5.1
       acorn: 8.16.0
       axios: 1.16.1(debug@4.4.3)
-      axios-retry: 4.5.0(axios@1.16.1(debug@4.4.3))
+      axios-retry: 4.5.0(axios@1.16.1)
       buffer: 6.0.3
       chalk: 4.1.2
       debug: 4.4.3(supports-color@8.1.1)
@@ -8928,7 +8928,7 @@ snapshots:
       promise-events: 0.2.4
       promise-retry: 2.0.1
       rfdc: 1.4.1
-      ses: 1.15.0(patch_hash=4bca1f524998c74f57f3ae31d4dafe186f4b35ab762be82a3f8567ba075db42b)
+      ses: 1.15.0(patch_hash=b1122c34c8a5c1eff503fa8780afa33817b59ff237aa179dc8f62d2785c4614e)
       typestub-ipfs-only-hash: 4.0.0(encoding@0.1.13)
       viem: 2.51.3(bufferutil@4.1.0)(typescript@5.5.4)(utf-8-validate@5.0.10)(zod@3.25.76)
       zod: 3.25.76
@@ -11080,7 +11080,7 @@ snapshots:
 
   aws4@1.13.2: {}
 
-  axios-retry@4.5.0(axios@1.16.1(debug@4.4.3)):
+  axios-retry@4.5.0(axios@1.16.1):
     dependencies:
       axios: 1.16.1(debug@4.4.3)
       is-retry-allowed: 2.2.0
@@ -17569,7 +17569,7 @@ snapshots:
       - supports-color
     optional: true
 
-  ses@1.15.0(patch_hash=4bca1f524998c74f57f3ae31d4dafe186f4b35ab762be82a3f8567ba075db42b):
+  ses@1.15.0(patch_hash=b1122c34c8a5c1eff503fa8780afa33817b59ff237aa179dc8f62d2785c4614e):
     dependencies:
       '@endo/cache-map': 1.1.0
       '@endo/env-options': 1.1.11

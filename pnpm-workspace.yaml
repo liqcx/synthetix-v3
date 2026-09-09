@@ -83,6 +83,8 @@ overrides:
 # that directive; bun's transpiler drops it, so `bun test` cannot load anything
 # that reaches @usecannon/builder — which is every hardhat.config.ts here. One
 # top-level 'use strict' restores it. ses@2.3.0 fails the same way, so this is not
-# waiting on a version bump; drop the patch when bun preserves the directive.
+# waiting on a version bump; drop the patch when bun preserves the directive. No open bun
+# issue tracks it — the patch file's own header names the two closed reports and the check
+# to re-run in their place.
 patchedDependencies:
   ses@1.15.0: patches/ses@1.15.0.patch
