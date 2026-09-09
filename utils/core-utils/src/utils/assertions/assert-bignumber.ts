@@ -23,7 +23,10 @@ function _createAssertBN(operator: KeysMatching<BigNumber, (v: BigNumberish) => 
   };
 }
 
-export = {
+// `export =` here trips bun's transpiler in any module that also imports a Node
+// builtin (`assert/strict`, above): "Expected CommonJS module to have a function
+// wrapper". `export default` emits the same object for TypeScript consumers.
+export default {
   /**
    * Error thrown when assertion fails
    */

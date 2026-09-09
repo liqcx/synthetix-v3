@@ -1,6 +1,6 @@
 const assert = require('assert/strict');
 const { findEvent } = require('@synthetixio/core-utils/utils/ethers/events');
-const assertBn = require('@synthetixio/core-utils/utils/assertions/assert-bignumber');
+const assertBn = require('@synthetixio/core-utils/utils/assertions/assert-bignumber').default;
 const bootstrap = require('../bootstrap');
 
 describe('SomeModule', function () {

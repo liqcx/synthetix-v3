@@ -25,7 +25,6 @@ async function doForkDeploy() {
 }
 
 describe('LegacyMarket (iosiro)', function () {
-  this.timeout(360000);
   let owner: ethers.Signer;
   let setupAccount: ethers.Signer;
   let attacker: ethers.Signer;

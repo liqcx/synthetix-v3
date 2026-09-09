@@ -23,11 +23,6 @@ tasks:
     options:
       mergeArgs: "replace"
       cache: false
-  test:
-    command: "bun x hardhat test --network hardhat"
-    options:
-      mergeArgs: "replace"
-      cache: false
   coverage:
     command: "bun x hardhat coverage"
     options:

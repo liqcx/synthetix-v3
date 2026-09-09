@@ -67,9 +67,12 @@ pinata) отвечают 504/404. Пакеты cannon в публичный DHT 
 `moon run oracle-manager:build-testable` даёт `Resolving … via local` и читает блоб из
 локального файлового кэша. Шаг добавлен в `nightly-contracts.yml` перед `moon run :build-testable`.
 
-Грабли локально: `utils/common-config/hardhat.config.ts:35` жёстко прописывает
-`http://localhost:8545`, и `ANVIL_PORT` понимает только perps-market — чужой anvil на 8545
-ломает cannon-сборку любого другого пакета.
+Грабли локально: `utils/common-config/hardhat.config.ts:60` — это сеть `local`, к cannon
+отношения не имеет — жёстко прописывает `http://localhost:8545`. `ANVIL_PORT` с 08.09 понимает
+не только perps-market: сеть `cannon` в `common-config` тоже его читает
+(`.github/scripts/run-tests.ts` выдаёт каждому юниту свой порт), так что чужой anvil на 8545
+ломает cannon-сборку только там, где `ANVIL_PORT` не выставлен — например, `build-testable`
+в nightly сегодня (см. его же комментарий про `MOON_CONCURRENCY: "1"`).
 
 Отдельная история — пин версии в provision (cannon сам предупреждает про `latest@main`):
 это чинит воспроизводимость, но не доступность — припиненный CID точно так же некому отдать.

@@ -22,12 +22,13 @@ scripts are thin shims that keep the colon spelling for muscle memory (`pnpm bui
 
 ```bash
 moon run perps-market:build-contracts   # compile + storage dump + cannon build (runs `bun x hardhat` under the hood)
-moon run perps-market:test              # run hardhat tests via `bun x hardhat test`
+moon run perps-market:test              # runs .github/scripts/run-tests.ts, which spawns `bun test`
 ```
 
-JS runtime: moon task bodies invoke `bun x hardhat …` (and `bun x mocha`, `bun …`) the same way the
-package.json scripts they replaced used to. **pnpm 11** is the package manager — install with
-`pnpm install --frozen-lockfile`. Bun 1.3+ for runtime.
+JS runtime: moon task bodies invoke `bun x hardhat …` for compile/build tasks — the same way the
+package.json scripts they replaced used to. `test` is the one deliberate departure: it runs
+`bun ../../.github/scripts/run-tests.ts`, which spawns `bun test` itself, not mocha. **pnpm 11**
+is the package manager — install with `pnpm install --frozen-lockfile`. Bun 1.3+ for runtime.
 
 **Nothing is cached.** `build-ts` was meant to be moon's one cached task; a probe (build, delete
 `dist`, re-run) showed a cache hit reporting success while producing nothing — `2 completed (2
@@ -48,11 +49,19 @@ fails at `moon run :storage-dump` (P3b dependency debt the CI migration uncovere
 caused).
 Workflow layout, the nightly trigger and the fix recipe: skill `ci-pipeline`.
 
-### Single test file (Hardhat/Mocha packages)
+### Single test file (manual, still through Hardhat/Mocha)
 
 ```bash
 CANNON_REGISTRY_PRIORITY=local bun x hardhat test test/integration/Orders/BookOrder.test.ts
 ```
+
+`.github/scripts/run-tests.ts` — what `moon run <pkg>:test` and the nightly actually call — takes
+a package directory, not a file (pass it one and it throws `ENOTDIR`). This manual
+`bun x hardhat test <file>` form is the only way to target a single file, and it reads hardhat's
+own mocha config, including the `mocha: { timeout }` block six packages' `hardhat.config.ts`
+still carry — the same config `pnpm coverage` (`bun x hardhat coverage`) reads too, since that
+task also runs through Hardhat's own `test` task internally; only the `run-tests.ts` path (`moon
+run <pkg>:test`, the nightly) bypasses it.
 
 ### Foundry tests (perps-market, treasury-market, some auxiliary)
 

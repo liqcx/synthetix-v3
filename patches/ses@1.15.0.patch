@@ -1,0 +1,39 @@
+Why this patch exists
+=====================
+
+`ses/dist/ses.cjs` wraps its whole body in `(functors => options => { 'use strict'; … })`,
+and its own `assert-sloppy-mode.js` throws when `this` in a receiverless call is not
+`undefined` — the strict-mode value. Node honours the directive; bun's transpiler drops it,
+so `getThis()` returns `globalThis` and SES refuses to initialise. Nothing that reaches
+`@usecannon/builder` can then load under `bun test`, which is every `hardhat.config.ts` in
+this repository. One top-level `'use strict';` restores the directive at a scope bun keeps.
+
+`ses@2.3.0` fails the same way, so this is not waiting on a version bump. The longer
+explanation, including why the fork's cannon packages make this unavoidable, is in
+`pnpm-workspace.yaml` beside the `patchedDependencies` entry that applies this file.
+
+When to drop it
+---------------
+
+When bun preserves the directive — but note there is **nothing to watch upstream today**.
+The class has been reported twice and both reports are closed as completed:
+
+  https://github.com/oven-sh/bun/issues/5673  ("use strict" doesn't work; bun 1.0, 2023-09)
+  https://github.com/oven-sh/bun/issues/8597  ("use strict" ignored when global "this" is
+                                               used; bun 1.0.25, 2024-01)
+
+Neither is this exact reproduction and both predate the behaviour measured here on bun
+1.3.14 (2026-09), so they are the closest prior art rather than a tracking issue. Anyone
+retiring this patch should re-run the check rather than wait for a notification: delete the
+patch, `pnpm install`, and run any package's `bun test` — if `hardhat.config.ts` loads, bun
+has fixed it. Filing a fresh issue with that reproduction would give this a link to watch.
+
+diff --git a/dist/ses.cjs b/dist/ses.cjs
+index 1c2d9fe44baade42692b2869a514d0412c15a2e0..ec9f684a9c3d005d74af97582808f16c47e05d9a 100644
+--- a/dist/ses.cjs
++++ b/dist/ses.cjs
+@@ -1,3 +1,4 @@
++'use strict';
+ // ses@1.15.0
+ (functors => options => {
+   'use strict';

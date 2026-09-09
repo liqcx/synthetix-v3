@@ -19,9 +19,7 @@ updates:
           - "*eslint*"
           - "*solhint*"
           - "*lint*"
-          - "*mocha*"
           - "*sinon*"
-          - "*nyc*"
           - "*jest*"
       other:
         patterns:
@@ -42,9 +40,7 @@ updates:
           - "*eslint*"
           - "*solhint*"
           - "*lint*"
-          - "*mocha*"
           - "*sinon*"
-          - "*nyc*"
           - "*jest*"
     reviewers:
       - "noisekit"

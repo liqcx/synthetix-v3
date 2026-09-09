@@ -1,6 +1,6 @@
 ---
 name: testing-patterns
-description: Use when writing or modifying tests in synthetix-v3 — Hardhat/Mocha integration tests or Foundry .t.sol tests — or when debugging a contract with console.sol.
+description: Use when writing or modifying tests in synthetix-v3 — Hardhat integration tests (run via bun test) or Foundry .t.sol tests — or when debugging a contract with console.sol.
 ---
 
 # Testing patterns
@@ -8,7 +8,7 @@ description: Use when writing or modifying tests in synthetix-v3 — Hardhat/Moc
 Running the suites end to end (prerequisites, Cannon setup, per-project moon commands, what happens
 during `pnpm test`, troubleshooting): `docs/TESTING.md`.
 
-## Hardhat/Mocha Tests (most packages)
+## Hardhat Tests (most packages)
 
 - Tests in `test/integration/` with `.test.ts` extension
 - Bootstrap helpers: `bootstrap()`, `bootstrapWithStakedPool()`, `bootstrapMarkets()`

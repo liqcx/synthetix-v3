@@ -161,7 +161,18 @@ pnpm build:contracts
 pnpm test
 ```
 
-Это выполняет `CANNON_REGISTRY_PRIORITY=local bun x hardhat test` в каждом workspace параллельно.
+Это `moon run :test`: в каждом пакете с тегом `contracts` запускает
+`bun ../../.github/scripts/run-tests.ts` (общая задача из `.moon/tasks/tag-contracts.yml`;
+`utils/core-utils` держит свой вариант той же команды). Раннер сам находит `test/**/*.test.{ts,js}`
+и прогоняет их через `bun test` с прелоудом mocha-словаря (`utils/core-utils/src/utils/bun/preload.ts`)
+— файл за файлом или весь пакет разом; какой пакет в каком режиме, решает
+`.github/scripts/suites.ts` (Task 9 перемерил оба режима, `9bae6dca`: на четырёх из пяти
+per-file-пакетов per-package собирает и гоняет тот же самый набор тестов в 6-20 раз быстрее, а
+`markets/perps-market` под per-package вообще не доходит до конца — поэтому режимы намеренно не
+меняли; числа и оговорки — в докблоке `suites.ts`). Раннер даёт упавшему юниту до
+`TEST_ATTEMPTS` попыток (по умолчанию 2, то есть один повтор) — это замена старому `--retries`
+из Mocha, которого у `bun test` нет. `bun x hardhat
+test` здесь не участвует — это отдельный ручной путь, см. ниже.
 
 ### Тесты конкретного пакета
 
@@ -175,6 +186,11 @@ moon run perps-market:test
 cd markets/perps-market
 CANNON_REGISTRY_PRIORITY=local bun x hardhat test test/integration/Orders/OffchainAsyncOrder.commit.test.ts
 ```
+
+`.github/scripts/run-tests.ts` (что вызывает `moon run <пакет>:test` выше) принимает только
+каталог пакета, не файл — передать ему файл значит получить `ENOTDIR`. Поэтому запуск одного
+файла или части файлов возможен только этой ручной командой через `bun x hardhat test`, в обход
+раннера и moon.
 
 ### Тесты по каталогам (рекомендуется для perps-market)
 
@@ -268,7 +284,10 @@ Hardhat запускает задачу `cannon:build` с файлом `cannonfi
 coreBootstrap({ cannonfile: 'cannonfile.test.toml' })
 ```
 
-Выполняется в `before()` хуке Mocha:
+Выполняется в хуке `before()`. Это не хук Mocha: тесты запускает `bun test`, а `before()` доходит
+до шима mocha-словаря в прелоуде (`utils/core-utils/src/utils/bun/preload.ts`) — bun называет
+свои хуки `beforeAll`/`afterAll` и `before` не переопределяет, поэтому имя доходит до шима
+нетронутым:
 
 1. Вызывает `hre.run('cannon:build')` — получает outputs с контрактами
 2. Генерирует typechain-типы в `test/generated/typechain/`
@@ -330,7 +349,11 @@ export function bootstrapMarkets(data) {
 | Переменная | Описание | Где используется |
 |------------|----------|-----------------|
 | `CANNON_REGISTRY_PRIORITY=local` | Искать cannon-пакеты сначала в локальном кеше | `pnpm test`, `pnpm build` |
-| `REPORT_GAS=true` | Включить отчет по gas usage | `bun x hardhat test` |
+| `REPORT_GAS=true` | Включить отчет по gas usage. Работает **только** на ручном пути `bun x hardhat test`: hardhat-gas-reporter подменяет репортер mocha в `TASK_TEST_RUN_MOCHA_TESTS`, а `bun test` эту задачу не вызывает вовсе | `bun x hardhat test` |
+| `TEST_TIMEOUT` | Таймаут одного теста, мс (по умолчанию 120000) — это `--timeout` у `bun test`, лимит на тест, а не на юнит целиком | `.github/scripts/run-tests.ts` (`pnpm test`) |
+| `TEST_ATTEMPTS` | Сколько попыток раннер даёт упавшему юниту (по умолчанию 2, то есть один повтор) | `.github/scripts/run-tests.ts` (`pnpm test`) |
+| `TEST_WALL_CLOCK` | Стенные часы на один юнит, мс (по умолчанию 1200000): по истечении раннер убивает процесс `bun test` целиком (SIGKILL по группе) и засчитывает юниту попытку — в отличие от `TEST_TIMEOUT`, это лимит на весь процесс, а не на отдельный тест | `.github/scripts/run-tests.ts` (`pnpm test`) |
+| `BASE_ANVIL_PORT` | Нижняя граница поиска порта для anvil конкретного юнита (по умолчанию 8600): раннер сдвигает её на свой pid и индекс юнита и берёт первый кандидат, который реально биндится; 8545 пропускается всегда — это дефолт hardhat-cannon, где скорее всего слушает чужой anvil | `.github/scripts/run-tests.ts` (`pnpm test`) |
 
 ---
 
@@ -354,6 +377,13 @@ markets/perps-market/
 ├── tests/                        # Foundry-стенд: Bootstrap.t.sol + *.t.sol
 └── generated/                    # Авто-генерация (typechain, deployments)
 ```
+
+Этот `mocha: { timeout }` в `hardhat.config.ts` (он и ещё в пяти пакетах) читают прямые вызовы
+Hardhat — ручной `bun x hardhat test <file>` и `pnpm coverage` (`bun x hardhat coverage`, который
+внутри сам вызывает hardhat-задачу `test`). Раннер (`moon run <пакет>:test`, ночной прогон) его
+не читает вовсе: таймаут теста там берётся из `TEST_TIMEOUT` (по умолчанию 120000 мс) — той же
+природы, что и mocha-таймаут, лимит на один тест, а не на юнит целиком — и передаётся `bun test`
+как `--timeout`.
 
 ---
 

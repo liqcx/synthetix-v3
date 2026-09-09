@@ -4,13 +4,23 @@ tags: ["ts-lib"]
 
 tasks:
   test:
-    command: "bun x mocha --require ts-node/register"
+    command: "bun"
+    args: ["../../.github/scripts/run-tests.ts"]
     options:
       mergeArgs: "replace"
       cache: false
-  # `nyc yarn test` inlined: Task 4 deletes the `test` script this used to call.
   coverage:
-    script: "nyc bun x mocha --require ts-node/register"
+    command: "bun"
+    args:
+      - "test"
+      - "--coverage"
+      - "--preload"
+      - "./src/utils/bun/preload.ts"
+      # `./` is load-bearing: bun reads a bare positional as a filter string,
+      # not a path. It happens to select the same 21 files here (every one of
+      # their paths contains "test"), which is exactly why the trap survives
+      # review — the same spelling in `ci.yml` collected zero and exited 1.
+      - "./test"
     deps: ["^:coverage"]
     options:
       mergeArgs: "replace"

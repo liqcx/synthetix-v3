@@ -16,13 +16,18 @@ module.exports = [
   {
     ignores: [
       '!**/.*',
-      '!.github/scripts/test-batch.js',
+      '!.github/scripts/*.ts',
       '.yarn',
       // Git-ignored (.gitignore:7). Holds Claude Code state and, when one is
       // active, a sibling branch's git worktree — another branch's sources are
       // never this checkout's code to lint.
       '.claude/**',
       'auxiliary/TrustedMulticallForwarder/lib',
+      // Same class as its neighbour above: vendored on 2026-09-08, excluded
+      // from git by auxiliary/MintableToken/.gitignore:6, and otherwise
+      // caught by no ignore pattern in this file — nothing here should lint
+      // a third-party lib this repo never checked in.
+      'auxiliary/MintableToken/lib',
       '**/coverage',
       '**/dist',
       'utils/*/utils',
