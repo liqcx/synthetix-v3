@@ -1,4 +1,4 @@
-name = "megaeth-gas-price-oracle"
+name = "liq-megaeth-gas-price-oracle"
 version = "<%= package.version %>"
 description = "MegaETH Gas Price Oracle Node"
 
