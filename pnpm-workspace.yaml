@@ -137,8 +137,8 @@ catalogs:
   # this migration that script rewrites these two entries rather than the
   # manifests.
   cannon:
-    "@usecannon/builder": npm:@alxwlw/cannon-builder@2.26.1-nonce.1
-    "@usecannon/cli": npm:@alxwlw/cannon-cli@2.26.1-nonce.1
+    "@usecannon/builder": npm:@alxwlw/cannon-builder@2.26.1-nonce.2
+    "@usecannon/cli": npm:@alxwlw/cannon-cli@2.26.1-nonce.2
 
   # Onchain client stack. ethers v5 is the chain library across this repo (viem
   # belongs to `monorepo`; the single entry here is `utils/core-utils` alone),
