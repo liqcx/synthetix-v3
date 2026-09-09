@@ -140,19 +140,38 @@ Contract:
    with a `[create the account]` prefix. This matters because bun attributes a failing hook to a
    synthetic `(unnamed)` testcase in its JUnit output — verified — leaving only the file name to
    go on otherwise.
-4. **Mocha `this`.** Hook and `describe` bodies are invoked with a context object exposing
-   `timeout()`, `retries()`, `slow()` and `skip()`. Both call sites exist: inside a `describe`
-   body (`protocol/synthetix/test/integration/modules/core/RewardsManagerModule.test.ts:18`,
-   `markets/legacy-market/test/integration/LegacyMarket.ts:33`) and inside a hook
-   (`utils/core-utils/src/utils/bootstrap/tests.ts:23`).
-5. **`this.timeout(n)` is a documented no-op.** bun accepts a timeout only as a registration-time
-   argument, when the value is not yet known. Hooks are instead registered with a single generous
-   budget from `BUN_HOOK_TIMEOUT` (default 600 000 ms); tests run under the runner's `--timeout`.
-   This is a deliberate behaviour change: `prepareNode` asks for 900 000 and gets 600 000. The
-   number is chosen against measurement — the cold cannon build for `protocol/synthetix` in run
-   `34219846229` took 2 m 40 s on the contended runner — and it must stay below the runner's
-   per-process wall clock, or it is dead code. A hook that hangs is caught by that wall clock,
-   not by mocha semantics.
+4. **Mocha `this`.** Hook and `describe`/`it` bodies are invoked with a context object exposing
+   `timeout()`, `retries()`, `slow()` and `skip()` — but only a `before`/`after` hook body can
+   actually reach it. bun's transpiler injects a lexical binding for every one of its own test
+   globals a file references; of the eight names the shim assigns, `bun:test` itself auto-globals
+   exactly `describe`, `it`, `beforeEach` and `afterEach` (it also auto-globals `test`, `expect`
+   and others the shim never touches) — so a file that calls any of those four gets bun's own
+   version, shadowing the shim installed on `globalThis`; inside such a body `this` is `undefined`
+   and `this.timeout(n)` throws. `before`/`after` are the only hooks unaffected — bun's own hooks
+   are named `beforeAll`/`afterAll` instead, so there is no bun global to inject for
+   `before`/`after`, the shim's `globalThis` assignment is the only binding in scope, and the
+   chainable `this` resolves correctly there
+   (`utils/core-utils/src/utils/bootstrap/tests.ts:23`). A shadowed `beforeEach`/`afterEach` still
+   registers and runs correctly, including with a leading label — bun's runtime accepts one,
+   undocumented in its own types — but bypasses the shim's `asHook` entirely: it loses both the
+   `[label]` error prefix and the `HOOK_TIMEOUT` budget, running under bun's own hook default
+   instead. No in-scope call site uses `this` inside a `beforeEach`/`afterEach` body today, so this
+   has no `this.timeout()`-shaped consequence, but it is a real gap in the shim's coverage, not
+   only a cosmetic one.
+5. **`this.timeout(n)` is a documented no-op in a `before`/`after` hook — and unreachable in a
+   `describe`/`it` body.** bun accepts a timeout only as a registration-time argument, when the
+   value is not yet known. `before`/`after` hooks are instead registered with a single generous
+   budget from `BUN_HOOK_TIMEOUT` (default 600 000 ms) — a shadowed `beforeEach`/`afterEach` never
+   reaches this, per point 4 above; tests run under the runner's `--timeout`. This is a deliberate
+   behaviour
+   change: `prepareNode` asks for 900 000 and gets 600 000. The number is chosen against
+   measurement — the cold cannon build for `protocol/synthetix` in run `34219846229` took 2 m 40 s
+   on the contended runner — and it must stay below the runner's per-process wall clock, or it is
+   dead code. A hook that hangs is caught by that wall clock, not by mocha semantics. The three
+   `describe`-body call sites (`protocol/synthetix/test/integration/modules/core/RewardsManagerModule.test.ts:18`,
+   `markets/legacy-market/test/integration/LegacyMarket.test.ts:33`,
+   `markets/legacy-market/test/integration/LegacyMarket.iosiroInfiniteMoney.test.ts:28`) throw
+   rather than no-op, per point 4 above, so they are deleted outright instead of shimmed.
 
 Types keep coming from `@types/mocha`, which becomes a types-only devDependency. No hand-written
 `.d.ts`.

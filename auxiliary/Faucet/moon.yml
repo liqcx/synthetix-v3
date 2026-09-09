@@ -13,6 +13,8 @@ tasks:
     command: "forge clean"
     options:
       cache: false
+  # Deliberately its own: this is Foundry, never mocha, so the shared
+  # bun-test runner (tag-contracts' `test`) has nothing to do here.
   test:
     command: "forge test -vv"
     options:

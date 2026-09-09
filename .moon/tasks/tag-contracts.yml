@@ -85,6 +85,7 @@ tasks:
   # The same runner the nightly uses. A bare `bun test` here would load every
   # file of a package into one process, which is what collected 13 tests out of
   # ~150 in core-modules — and would put moon and CI back out of step.
+  # Root runs test with --parallel: no `^` dependency.
   test:
     command: "bun"
     args: ["../../.github/scripts/run-tests.ts"]

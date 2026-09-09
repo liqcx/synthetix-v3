@@ -14,11 +14,6 @@ tasks:
     deps: ["^:publish-contracts"]
     options:
       cache: false
-  test:
-    script: "CANNON_REGISTRY_PRIORITY=local bun x hardhat test; pnpm run anvil-clean"
-    options:
-      mergeArgs: "replace"
-      cache: false
   coverage:
     command: "bun x hardhat test"
     options:

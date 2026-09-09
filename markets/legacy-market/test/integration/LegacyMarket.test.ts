@@ -30,7 +30,6 @@ async function doForkDeploy() {
 }
 
 describe('LegacyMarket', function () {
-  this.timeout(360000);
   let owner: ethers.Signer, snxStaker: ethers.Signer;
 
   let snxStakerAddress: string;

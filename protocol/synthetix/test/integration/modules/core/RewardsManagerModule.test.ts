@@ -15,7 +15,6 @@ import { verifyUsesFeatureFlag } from '../../verifications';
 // ---------------------------------------
 
 describe('RewardsManagerModule', function () {
-  this.timeout(120000);
   const { provider, signers, systems, poolId, collateralAddress, accountId } =
     bootstrapWithStakedPool();
 

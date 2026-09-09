@@ -15,9 +15,32 @@ import {
  * Loaded through `bun test --preload`, this module puts that surface back, so
  * the test files this fork shares with upstream stay byte-identical and
  * cherry-picks stay cheap.
+ *
+ * Four of the eight assigned globals are unreachable from a test file: bun's
+ * transpiler injects a lexical binding for every one of its own test globals
+ * a file actually references, so a file that calls `describe`/`it`/
+ * `beforeEach`/`afterEach` gets bun's own version, shadowing what this module
+ * assigned onto `globalThis` — of the eight names this module assigns,
+ * `bun:test` itself auto-globals exactly these four (it also auto-globals
+ * `test`, `expect` and others this module never touches). `before`/`after`
+ * are NOT shadowed: bun's own hooks are named `beforeAll`/`afterAll`, so
+ * there is no bun global by those names to inject, and the bare identifier
+ * still resolves to this module's shim; `context`/`specify` reach the shim
+ * for the same reason (bun defines neither). This is also why `this.timeout(n)`
+ * no-ops correctly inside a `before`/`after` hook but throws (`this` is
+ * `undefined`) inside a `describe`/`it` body. A shadowed `beforeEach`/
+ * `afterEach` still runs correctly — bun's runtime accepts a leading label
+ * string undocumented in its own types — but bypasses `asHook` below
+ * entirely: a thrown error there loses the `[label]` prefix `before`/`after`
+ * get, and the hook runs under bun's own default timeout rather than
+ * `HOOK_TIMEOUT`.
  */
 
-/** Hooks get one budget; per-test time comes from the runner's --timeout. */
+/**
+ * `before`/`after` hooks get one budget; per-test time comes from the
+ * runner's --timeout. A shadowed `beforeEach`/`afterEach` (see the docblock
+ * above) never reaches this — it runs under bun's own hook default instead.
+ */
 const HOOK_TIMEOUT =
   process.env.BUN_HOOK_TIMEOUT !== undefined && process.env.BUN_HOOK_TIMEOUT !== ''
     ? Number(process.env.BUN_HOOK_TIMEOUT)

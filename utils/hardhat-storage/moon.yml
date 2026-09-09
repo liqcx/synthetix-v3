@@ -3,6 +3,8 @@ $schema: "https://moonrepo.dev/schemas/project.json"
 tags: ["ts-lib"]
 
 tasks:
+  # Deliberately its own: this package is `ts-lib`-tagged, not `contracts`,
+  # runs a third test runner (jest), and is out of the mocha-to-bun migration.
   test:
     command: "jest"
     options:
