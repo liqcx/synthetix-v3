@@ -53,7 +53,8 @@ allowBuilds:
 # future edit here should preserve.
 #
 # Two spec shapes stay literal in the manifests and are absent here on purpose:
-#   * `workspace:*` — the 15 in-repo packages; catalogs cannot hold that protocol.
+#   * `workspace:*` — links between the 32 in-repo packages (15 of them are
+#     depended on by another); catalogs cannot hold that protocol.
 #   * `peerDependencies` — `utils/core-utils` publishes deliberately WIDER ranges
 #     (`@usecannon/{builder,cli} >=2.16.2-0`, `solidity-ast ^0.4.0`) than the
 #     versions it develops against. A peer range is a compatibility contract with
