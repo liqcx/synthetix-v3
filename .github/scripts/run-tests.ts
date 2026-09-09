@@ -68,6 +68,20 @@ export function stringKnob(raw: string | undefined, fallback: string): string {
 }
 
 /**
+ * Whether a package dir needs `hardhat/register` preloaded before its tests
+ * run. `hardhat.config.ts` is the common case; `hardhat.config.js` is real
+ * too — `utils/sample-project` ships one, and its `test/bootstrap.js` calls
+ * `coreBootstrap()`, which needs `hre` — so both extensions count. A dir with
+ * neither has no hardhat runtime to preload at all.
+ */
+export function needsHardhatRegister(dir: string): boolean {
+  return (
+    existsSync(path.join(dir, 'hardhat.config.ts')) ||
+    existsSync(path.join(dir, 'hardhat.config.js'))
+  );
+}
+
+/**
  * The anvil port a unit gets: a base plus an index, so a single runner's own
  * units don't collide with each other. Never 8545 — that is hardhat-cannon's
  * own default, so it is where a developer's own, unrelated anvil is likely to
@@ -195,7 +209,7 @@ async function main() {
   }
 
   const preloads = [PRELOAD];
-  if (existsSync(path.join(dir, 'hardhat.config.ts'))) preloads.push('hardhat/register');
+  if (needsHardhatRegister(dir)) preloads.push('hardhat/register');
 
   const junitDir = path.join(junitBase, rel.replaceAll('/', '-'));
   await mkdir(junitDir, { recursive: true });

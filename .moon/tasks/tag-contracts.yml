@@ -82,9 +82,12 @@ tasks:
     options:
       cache: false
 
-  # Root runs test with --parallel: no `^` dependency.
+  # The same runner the nightly uses. A bare `bun test` here would load every
+  # file of a package into one process, which is what collected 13 tests out of
+  # ~150 in core-modules — and would put moon and CI back out of step.
   test:
-    command: "bun x hardhat test"
+    command: "bun"
+    args: ["../../.github/scripts/run-tests.ts"]
     env:
       CANNON_REGISTRY_PRIORITY: "local"
     options:

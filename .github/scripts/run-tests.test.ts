@@ -1,11 +1,19 @@
 import assert from 'assert/strict';
 import { type ChildProcess, spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { modeFor } from './suites';
-import { claimPort, knob, portFor, slugFor, stringKnob, unitsFor } from './run-tests';
+import {
+  claimPort,
+  knob,
+  needsHardhatRegister,
+  portFor,
+  slugFor,
+  stringKnob,
+  unitsFor,
+} from './run-tests';
 
 describe('.github/scripts/run-tests.ts', function () {
   const files = [
@@ -95,6 +103,32 @@ describe('stringKnob', function () {
 
   it('passes a real value through unchanged', function () {
     assert.equal(stringKnob('/tmp/junit-probe', '/tmp/junit'), '/tmp/junit-probe');
+  });
+});
+
+describe('needsHardhatRegister', function () {
+  // A fresh temp dir per test, not the fixture tree: the property under test
+  // is which file EXISTS in the dir, and a shared fixture would make the
+  // three cases interfere with each other across test order.
+  function tempDir(): string {
+    return mkdtempSync(path.join(tmpdir(), 'run-tests-hardhat-config-'));
+  }
+
+  it('is true for a dir with hardhat.config.ts', function () {
+    const dir = tempDir();
+    writeFileSync(path.join(dir, 'hardhat.config.ts'), 'export default {};\n');
+    assert.equal(needsHardhatRegister(dir), true);
+  });
+
+  it('is true for a dir with hardhat.config.js', function () {
+    const dir = tempDir();
+    writeFileSync(path.join(dir, 'hardhat.config.js'), 'module.exports = {};\n');
+    assert.equal(needsHardhatRegister(dir), true);
+  });
+
+  it('is false for a dir with neither', function () {
+    const dir = tempDir();
+    assert.equal(needsHardhatRegister(dir), false);
   });
 });
 
