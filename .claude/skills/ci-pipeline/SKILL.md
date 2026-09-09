@@ -41,3 +41,11 @@ Two of the imports could not be declared: `oracle-manager` -> `main` and `spot-m
 
 If a contracts package is added and `storage-dump` fails with HH411, that is this same class: add
 the `workspace:*` entry and the `depcheck.ignoreMatches` entry together, never one alone.
+
+**`lint` went red again from #44 to #46** at `Test .github/scripts`: bun exposes `describe.only` /
+`it.only` as a getter that _throws_ when `CI` is set, and the mocha shim
+(`utils/core-utils/src/utils/bun/preload.ts`) read all three modifiers while installing itself, so
+loading the preload killed every unit on the runner. The modifiers are now bound at call time. Same
+trap for anything else the shim reads off `bun:test` at import: probe it with `CI=true` locally,
+because an unset `CI` hides the whole class — and note that steps 14–17 were skipped, not passing,
+for those two merges.
