@@ -468,6 +468,44 @@ it. Yarn's flat layout used to supply it. Not caused by this migration and not f
 recorded here so it is not mistaken for a regression when the counts are compared.
 
 
+### A disk leak this migration inherits and makes nightly (open)
+
+Every `bun test` unit that reaches `hardhat cannon:build` leaves a directory behind under
+`$HOME/.foundry/anvil/tmp`, and nothing removes it. Measured on the development machine on
+2026-09-09:
+
+- the directory holds **86 subdirectories, 94 GB**;
+- **9** of them were created that day, totalling **15 GB**; the seven attributable to one full
+  seven-suite `run-suites.sh` run come to **≈14 GB** — 3.2, 3.1 and 3.0 GB for the heavy suites,
+  ~0.5 GB each for the light ones.
+
+`run-suites.sh` says in its own header comment that the self-hosted runner's filesystem persists
+between runs — that is why the script starts by `rm -rf /tmp/junit`. 14 GB a night onto a
+persistent 4-runner pool is a disk incident measured in weeks, and it will not present as a disk
+incident: it presents as a suite that mysteriously starts failing.
+
+This is not new to the migration — 77 of the 86 predate this branch — but the migration is what
+puts a seven-suite run on a nightly schedule.
+
+**The lead, and its limit.** anvil exposes `--prune-history` and `--max-persisted-states`, and
+cannon's CLI exposes `--anvil.prune-history`. Whether `hardhat-cannon` plumbs `networks.cannon.*`
+through to either is **unverified**. If it does, one more key beside the `port`/`url` this branch
+already added at `utils/common-config/hardhat.config.ts:68` removes the leak at its source, with no
+delete of any kind — which is the only shape of fix worth having here.
+
+What it is **not**: a SIGTERM-first reap in `run-tests.ts`. All 77 pre-branch directories date from
+the old graceful-teardown path, when `hardhat test` tore its own anvil down, so graceful teardown
+did not clean up either. Sequencing the kill differently would not have prevented a single one of
+them.
+
+**Deleting is not the fix, and one deletion has been removed.** `markets/perps-market`'s
+`anvil-clean` script (`rm -rf $HOME/.foundry/anvil/tmp`) lost its only caller when `248b7a82`
+pointed the moon `test` task at the shared runner; it is deleted here rather than left callable by
+hand, because it is a global delete that would destroy the state of any anvil running on the
+machine, including one that is not this repository's. `markets/perps-market/scripts/test-isolated.sh:25`
+still does the same `rm -rf` and still has a caller (`test:isolated`); it is out of scope here and
+carries the same hazard.
+
 ## Phases
 
 1. **Patch and shim.** `patchedDependencies` for `ses@1.15.0`, the preload, the `@types/mocha`
