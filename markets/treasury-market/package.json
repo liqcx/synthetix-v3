@@ -25,10 +25,10 @@
     "@synthetixio/docgen": "workspace:*",
     "@synthetixio/main": "workspace:*",
     "@synthetixio/oracle-manager": "workspace:*",
-    "@usecannon/cli": "npm:@alxwlw/cannon-cli@2.26.1-nonce.1",
-    "forge-std": "github:foundry-rs/forge-std#v1.9.7",
-    "hardhat": "^2.28.0",
-    "solidity-docgen": "^0.6.0-beta.36"
+    "@usecannon/cli": "catalog:cannon",
+    "forge-std": "catalog:testing",
+    "hardhat": "catalog:hardhat",
+    "solidity-docgen": "catalog:solidity"
   },
   "depcheck": {
     "ignoreMatches": [
