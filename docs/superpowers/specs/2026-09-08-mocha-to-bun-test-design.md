@@ -145,8 +145,11 @@ Instead each suite declares a **mode**:
   under known defects. (That probe's own comparison point, "13 collected in the batched
   core-modules run," is the same figure Task 9 later traced to a broken throwaway shim, not to
   batching itself — see the retraction above; it is not cited as evidence here any more. Task 9's
-  fresh core-utils run below counts 21 files / 105 tests / 2 failures — the count drift from this
-  probe's 20/81/4 is unexplained and out of scope for Task 9's two named edits.)
+  fresh core-utils run below counts 21 files / 105 tests / 2 failures — one file more than the
+  probe's 20, from Task 1's `71880625` adding `preload.test.ts`, and two fewer failures than the
+  probe's 4, from Task 2's `d27be579` fixing the `export =` module that had been killing
+  `bignumber.test.ts` and `assert-bignumber.test.ts` at load. Not investigated further here — out
+  of scope for Task 9's two named edits.)
 
 `markets/perps-market` already runs at batch size 1, so for the largest suite (71 files) this
 changes nothing.
@@ -371,10 +374,11 @@ export = { E };                    // fails; `export default { E }` passes
 
 Neither ingredient alone reproduces it — `export =` with no builtin import is fine, and
 `export default` with the builtin is fine — and the `node:` prefix does not help.
-`utils/core-utils/src/utils/assertions/assert-bignumber.ts:26` is the **only** `export =` in the
-repository, so the fix is one line there plus the two plain-JS consumers that `require()` it
-(`utils/sample-project/test/contracts/SettingsModule.test.js:2` and `SomeModule.test.js:3`), which
-under `module: "Node16"` start receiving `{ default: … }`.
+`utils/core-utils/src/utils/assertions/assert-bignumber.ts:26` was the **only** `export =` in the
+repository. The fix landed in `d27be579` (Task 2, 2026-09-08): `export =` there became `export
+default`, and the two plain-JS consumers that `require()` it
+(`utils/sample-project/test/contracts/SettingsModule.test.js:2` and `SomeModule.test.js:3`) were
+updated to read `.default`, matching what `module: "Node16"` hands them.
 
 ### A pre-existing failure, recorded and out of scope
 
