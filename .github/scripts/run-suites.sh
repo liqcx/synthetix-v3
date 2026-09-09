@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
 # Runs the hardhat integration suites one package at a time, in whichever
 # mode (per-file or per-package) .github/scripts/suites.ts assigns it: one
-# process per test file for packages whose tests go through coreBootstrap
-# (bun loading many files into one process breaks snapshotCheckpoint's
-# provider hookup), one process for the whole package otherwise. suites.ts is
-# also what moon's own test task reads, so the nightly and moon cannot drift
-# apart the way run-suites.sh and the old test-batch.js once did.
+# process per test file for packages whose tests go through coreBootstrap,
+# one process for the whole package otherwise. suites.ts is also what moon's
+# own test task reads, so the nightly and moon cannot drift apart the way
+# run-suites.sh and the old test-batch.js once did.
+#
+# The per-file assignment is provisional. It comes from a design-phase probe
+# that loaded a whole package into one process and lost most of its tests —
+# but that probe ran against a throwaway shim, not the preload in
+# utils/core-utils/src/utils/bun/preload.ts, and predates the ses patch. With
+# both in place, per-package passes cleanly on utils/core-modules, which is a
+# coreBootstrap package. Do not read per-file here as a measured requirement
+# until the full run re-measures both modes.
 #
 # A failing suite does not stop the ones after it — every suite's status is
 # collected and reported, and the script exits non-zero at the end. Failing

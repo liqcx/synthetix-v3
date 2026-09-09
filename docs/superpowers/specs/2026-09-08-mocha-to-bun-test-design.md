@@ -36,7 +36,7 @@ Every number below was measured in this repository on 2026-09-08 with bun 1.3.14
 | Same, with `'use strict';` prepended to `ses/dist/ses.cjs` | Loads; 86 hardhat tasks registered |
 | `utils/core-contracts/test/contracts/utils/RevertUtil.test.ts` under `bun test` | 5 pass / 0 fail, 3.67 s |
 | `utils/core-modules/test/contracts/modules/DecayTokenModule.test.ts` (cannon + anvil) | **35 pass / 0 fail, 6.01 s** |
-| All 9 `utils/core-modules` files in one `bun test` process | 13 tests collected, 0 pass, 5 skip, 8 fail, 13.03 s |
+| All 9 `utils/core-modules` files in one `bun test` process | 13 tests collected, 0 pass, 5 skip, 8 fail, 13.03 s — **retracted**, see the note in "Process-level isolation, not batches" |
 | All 20 `utils/core-utils` files in one process (no hardhat) | 81 pass / 4 fail / 2 errors, 1.33 s |
 | `--reporter=junit --reporter-outfile=…` | Produces valid JUnit; real test names survive |
 
@@ -84,6 +84,17 @@ of the ~150 mocha runs and failed 8 of them, because `snapshotCheckpoint`'s
 `before('create snapshot')` executed before `coreBootstrap`'s `prepareNode` had assigned
 `provider`. bun's hook model is not mocha's, and fixing that means editing the shared bootstrap
 every package depends on, to buy an optimisation nobody has measured.
+
+> **Retracted 2026-09-09.** That measurement came from the design probes, run
+> against a throwaway shim written for the probe — not the preload Task 1
+> shipped (`utils/core-utils/src/utils/bun/preload.ts`) — and before Task 3
+> patched `ses`. With both in place, `TEST_MODE_OVERRIDE=per-package` on
+> `utils/core-modules` gives 100 pass / 5 skip / 0 fail in about 7 s, against
+> roughly 48 s for the same package per-file; re-run nine times across two
+> sessions without a failure. The per-file assignment below therefore rests on
+> habit rather than evidence. Task 9 measures both modes for all five per-file
+> packages and rewrites this section from that measurement; the modes
+> themselves do not change before then.
 
 Instead each suite declares a **mode**:
 
