@@ -33,13 +33,23 @@ import {
  * string undocumented in its own types — but bypasses `asHook` below
  * entirely: a thrown error there loses the `[label]` prefix `before`/`after`
  * get, and the hook runs under bun's own default timeout rather than
- * `HOOK_TIMEOUT`.
+ * `HOOK_TIMEOUT`. Eleven labelled `beforeEach`/`afterEach` call sites already
+ * exist in the tree (`protocol/synthetix` 2, `markets/spot-market` 1,
+ * `markets/perps-market` 2, `utils/core-contracts` 4, `utils/core-utils` 2)
+ * and fall back this way today; measured directly, the fallback is not a
+ * fixed bun hook constant but whatever `--timeout` `bun test` was invoked
+ * with — a 6 s hook passes under `--timeout 120000` (this runner's value,
+ * `.github/scripts/run-tests.ts:260-262`) and fails at bun's unflagged 5 s
+ * test default — so here the gap is `HOOK_TIMEOUT`'s 600 000 ms narrowing to
+ * 120 000 ms, not to some smaller undocumented bun constant.
  */
 
 /**
  * `before`/`after` hooks get one budget; per-test time comes from the
  * runner's --timeout. A shadowed `beforeEach`/`afterEach` (see the docblock
- * above) never reaches this — it runs under bun's own hook default instead.
+ * above) never reaches this — eleven call sites already fall back instead to
+ * whatever `--timeout` `bun test` was invoked with (120 000 ms here,
+ * measured), not a separate "bun hook default".
  */
 const HOOK_TIMEOUT =
   process.env.BUN_HOOK_TIMEOUT !== undefined && process.env.BUN_HOOK_TIMEOUT !== ''

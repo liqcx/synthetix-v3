@@ -157,7 +157,14 @@ Contract:
    `[label]` error prefix and the `HOOK_TIMEOUT` budget, running under bun's own hook default
    instead. No in-scope call site uses `this` inside a `beforeEach`/`afterEach` body today, so this
    has no `this.timeout()`-shaped consequence, but it is a real gap in the shim's coverage, not
-   only a cosmetic one.
+   only a cosmetic one. Eleven labelled `beforeEach`/`afterEach` call sites already exist across
+   five packages (`protocol/synthetix` 2, `markets/spot-market` 1, `markets/perps-market` 2,
+   `utils/core-contracts` 4, `utils/core-utils` 2) and hit this gap today; measured directly, they
+   do not fall back to an undocumented bun hook constant but to whatever `--timeout` `bun test` was
+   invoked with (120 000 ms in this runner, `.github/scripts/run-tests.ts:260-262`, against
+   `HOOK_TIMEOUT`'s 600 000 ms for an unshadowed hook). Closing it — routing a shadowed
+   `beforeEach`/`afterEach` through the shim's `asHook` too — is a follow-up outside this plan's
+   scope, not an oversight.
 5. **`this.timeout(n)` is a documented no-op in a `before`/`after` hook — and unreachable in a
    `describe`/`it` body.** bun accepts a timeout only as a registration-time argument, when the
    value is not yet known. `before`/`after` hooks are instead registered with a single generous
