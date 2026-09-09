@@ -10,7 +10,7 @@ workspace:
 
 tasks:
   publish-contracts:
-    script: "cannon publish synthetix-spot-market:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\\d+\\.\\d+\\.\\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')"
+    script: "cannon publish liq-spot-market:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\\d+\\.\\d+\\.\\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')"
     deps: ["^:publish-contracts"]
     options:
       cache: false

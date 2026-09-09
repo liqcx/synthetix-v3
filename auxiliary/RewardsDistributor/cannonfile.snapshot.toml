@@ -3,7 +3,7 @@ version = "<%= package.version %>"
 description = "Maintains snapshots of account balances in a pool"
 
 [setting.synthetixPackage]
-defaultValue = "synthetix:latest@main"
+defaultValue = "liq-synthetix:latest@main"
 
 [setting.servicePoolId]
 defaultValue = "0"

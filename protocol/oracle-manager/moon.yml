@@ -4,7 +4,7 @@ tags: ["contracts"]
 
 tasks:
   publish-contracts:
-    script: "cannon publish oracle-manager:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\\d+\\.\\d+\\.\\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')"
+    script: "cannon publish liq-oracle-manager:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\\d+\\.\\d+\\.\\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')"
     deps: ["^:publish-contracts"]
     options:
       cache: false

@@ -165,7 +165,7 @@ bun x hardhat storage:dump --output storage.new.dump.json
 CANNON_REGISTRY_PRIORITY=local bun x hardhat cannon:build
 # Step 4 is `publish-contracts` itself:
 # 4. Publish given package to the cannon registry
-pnpm exec cannon publish synthetix:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
+pnpm exec cannon publish liq-synthetix:$(node -p 'require(`./package.json`).version') --chain-id 13370 --quiet --tags $(node -p '/^\d+\.\d+\.\d+$/.test(require(`./package.json`).version) ? `latest` : `dev`')
 ```
 
 Before publishing an official release, confirm you're on an up-to-date `main` with a clean tree:

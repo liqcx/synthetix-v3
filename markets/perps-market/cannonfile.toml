@@ -1,4 +1,4 @@
-name = "synthetix-perps-market"
+name = "liq-perps-market"
 version = "<%= package.version %>"
 description = "Perps market implementation"
 
@@ -15,7 +15,7 @@ description = "who may settle the book: allowlisted for settleBookOrders. The ow
 defaultValue = "<%= settings.owner %>"
 
 [setting.synthetixPackage]
-defaultValue = "synthetix:latest"
+defaultValue = "liq-synthetix:latest"
 
 [setting.synthetixPreset]
 defaultValue = "main"
@@ -24,7 +24,7 @@ defaultValue = "main"
 defaultValue = "main"
 
 [setting.spotMarketPackage]
-defaultValue = "synthetix-spot-market:latest"
+defaultValue = "liq-spot-market:latest"
 
 [setting.salt]
 defaultValue = "snax"

@@ -1,4 +1,4 @@
-name = "synthetix"
+name = "liq-synthetix"
 version = "<%= package.version %>"
 description = "Core synthetix system"
 
@@ -16,7 +16,7 @@ description = "Admin user for the system"
 defaultValue = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 
 [setting.oracle_manager_package]
-defaultValue = "oracle-manager"
+defaultValue = "liq-oracle-manager"
 
 [setting.usd_token_name]
 defaultValue = "Synthetic USD Token v3"

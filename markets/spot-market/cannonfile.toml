@@ -1,4 +1,4 @@
-name = "synthetix-spot-market"
+name = "liq-spot-market"
 version = "<%= package.version %>"
 description = "Spot market implementation"
 
@@ -7,7 +7,7 @@ description = "spot market owner"
 defaultValue = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 
 [setting.synthetixPackage]
-defaultValue = "synthetix"
+defaultValue = "liq-synthetix"
 
 [setting.synthetixPreset]
 defaultValue = "main"

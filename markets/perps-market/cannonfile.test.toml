@@ -1,4 +1,4 @@
-name = "synthetix-perps-market"
+name = "liq-perps-market"
 version = "<%= package.version %>-testable"
 description = "Perps market implementation"
 
@@ -18,11 +18,11 @@ defaultValue = "<%= settings.owner %>"
 defaultValue = ""
 
 [setting.synthetixPackage]
-defaultValue = "synthetix:3.13.1-testable"
+defaultValue = "liq-synthetix:3.13.1-testable"
 depends = []
 
 [setting.spotMarketPackage]
-defaultValue = "synthetix-spot-market:3.13.1-testable"
+defaultValue = "liq-spot-market:3.13.1-testable"
 depends = []
 
 [import.synthetix]

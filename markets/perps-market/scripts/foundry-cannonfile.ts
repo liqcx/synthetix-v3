@@ -22,7 +22,7 @@ let toml = readFileSync(SOURCE, 'utf8');
 // A different package name, so the clone build does not overwrite the Hardhat testable
 // package in the local registry. Cannon names the cloned core's preset `with-<name>` and caps
 // presets at 24 characters, hence the short name.
-toml = replaceOnce(toml, 'name = "synthetix-perps-market"\n', 'name = "snx-perps-foundry"\n');
+toml = replaceOnce(toml, 'name = "liq-perps-market"\n', 'name = "snx-perps-foundry"\n');
 toml = replaceOnce(toml, '[import.synthetix]\n', '[clone.synthetix]\n');
 
 const header =
