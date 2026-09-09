@@ -23,10 +23,10 @@
     "@synthetixio/core-utils": "workspace:*",
     "@synthetixio/docgen": "workspace:*",
     "@synthetixio/main": "workspace:*",
-    "@synthetixio/wei": "^2.74.4",
-    "ethers": "^5.7.2",
-    "hardhat": "^2.28.0",
-    "solidity-docgen": "^0.6.0-beta.36"
+    "@synthetixio/wei": "catalog:eth",
+    "ethers": "catalog:eth",
+    "hardhat": "catalog:hardhat",
+    "solidity-docgen": "catalog:solidity"
   },
   "depcheck": {
     "ignoreMatches": [

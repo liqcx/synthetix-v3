@@ -33,12 +33,12 @@
     "@synthetixio/rewards-dist-ext": "workspace:*",
     "@synthetixio/rewards-distributor": "workspace:*",
     "@synthetixio/spot-market": "workspace:*",
-    "@synthetixio/wei": "^2.74.4",
-    "@usecannon/cli": "npm:@alxwlw/cannon-cli@2.26.1-nonce.1",
-    "ethers": "^5.7.2",
-    "hardhat": "^2.28.0",
-    "solidity-docgen": "^0.6.0-beta.36",
-    "typescript": "^5.5.4"
+    "@synthetixio/wei": "catalog:eth",
+    "@usecannon/cli": "catalog:cannon",
+    "ethers": "catalog:eth",
+    "hardhat": "catalog:hardhat",
+    "solidity-docgen": "catalog:solidity",
+    "typescript": "catalog:build"
   },
   "depcheck": {
     "ignoreMatches": [

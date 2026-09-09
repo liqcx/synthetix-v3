@@ -16,22 +16,22 @@
   "author": "Synthetix",
   "license": "MIT",
   "devDependencies": {
-    "@openzeppelin/contracts": "4.9.3",
+    "@openzeppelin/contracts": "catalog:solidity",
     "@synthetixio/common-config": "workspace:*",
     "@synthetixio/core-utils": "workspace:*",
     "@synthetixio/docgen": "workspace:*",
     "@synthetixio/main": "workspace:*",
     "@synthetixio/oracle-manager": "workspace:*",
-    "@synthetixio/wei": "^2.74.4",
-    "@types/lodash": "^4.14.199",
-    "@types/mocha-each": "^2.0.1",
-    "@usecannon/cli": "npm:@alxwlw/cannon-cli@2.26.1-nonce.1",
-    "ethers": "^5.7.2",
-    "hardhat": "^2.28.0",
-    "lodash": "^4.17.21",
-    "mocha-each": "^2.0.1",
-    "solidity-docgen": "^0.6.0-beta.36",
-    "typescript": "^5.5.4"
+    "@synthetixio/wei": "catalog:eth",
+    "@types/lodash": "catalog:utils",
+    "@types/mocha-each": "catalog:testing",
+    "@usecannon/cli": "catalog:cannon",
+    "ethers": "catalog:eth",
+    "hardhat": "catalog:hardhat",
+    "lodash": "catalog:utils",
+    "mocha-each": "catalog:testing",
+    "solidity-docgen": "catalog:solidity",
+    "typescript": "catalog:build"
   },
   "depcheck": {
     "ignoreMatches": [

@@ -40,6 +40,174 @@ allowBuilds:
   utf-8-validate: true
   web3: true
 
+# Named catalogs — every third-party version in this workspace lives here, once.
+# A manifest references one via `catalog:<name>` (e.g. `"hardhat": "catalog:hardhat"`).
+# There is deliberately no default `catalog:` — an unnamed entry hides which
+# domain a dependency belongs to, and these groups map onto real build stages
+# (compile / lint / test / deploy).
+#
+# Every spec below was copied VERBATIM out of the manifests it replaced: same
+# `^`, same exact pins, same `npm:`/`github:` shapes. The migration moved where
+# a version is written, not which version resolves — the lockfile's `packages:`
+# and `snapshots:` sections were unchanged by it, and that is the invariant any
+# future edit here should preserve.
+#
+# Two spec shapes stay literal in the manifests and are absent here on purpose:
+#   * `workspace:*` — links between the 32 in-repo packages (15 of them are
+#     depended on by another); catalogs cannot hold that protocol.
+#   * `peerDependencies` — `utils/core-utils` publishes deliberately WIDER ranges
+#     (`@usecannon/{builder,cli} >=2.16.2-0`, `solidity-ast ^0.4.0`) than the
+#     versions it develops against. A peer range is a compatibility contract with
+#     the consumer, not a pin; `catalog:` would narrow it to whatever this
+#     workspace happens to install today.
+catalogs:
+  # TypeScript toolchain + runtime types.
+  #
+  # typescript and @types/node are ALSO named in `overrides` below, pinned there
+  # to exact 5.5.4 / 20.11.17. The catalog carries the `^` ranges the manifests
+  # have always declared; the override is what actually holds the resolution
+  # down. Both must move together — see the override's own comment for why the
+  # pin exists at all.
+  build:
+    typescript: ^5.5.4
+    ts-node: ^10.9.2
+    "@types/node": ^20.11.17
+    bun-types: ^1.4.2
+
+  # Lint / format / static-analysis toolchain — everything the `lint` CI job
+  # runs: eslint 9 (flat config, `eslint.config.js`), prettier plus its
+  # solidity/toml plugins, solhint plus the two Synthetix solhint plugins,
+  # markdownlint, the pre-commit/lint-staged pair, depcheck (behind `pnpm deps`)
+  # and the @liqcx canon syncer.
+  lint:
+    eslint: ^9.9.1
+    "@eslint/js": ^9.9.1
+    "@eslint/eslintrc": ^3.1.0
+    "@typescript-eslint/eslint-plugin": ^8.4.0
+    "@typescript-eslint/parser": ^8.4.0
+    eslint-plugin-no-only-tests: ^3.1.0
+    globals: ^15.9.0
+    prettier: ^3.2.5
+    prettier-plugin-solidity: ^1.3.1
+    prettier-plugin-toml: ^2.0.1
+    solhint: ^5.0.3
+    solhint-plugin-meta-transactions: ^0.1.0
+    solhint-plugin-numcast: ^1.0.0
+    markdownlint-cli2: ^0.22.0
+    lint-staged: ^15.2.10
+    pre-commit: ^1.2.2
+    depcheck: ^1.4.7
+    "@liqcx/tooling-sync": ^0.7.0
+
+  # Test runners and harnesses. Two stacks live side by side: the mocha types
+  # the Hardhat integration suites still carry, and jest, used by exactly one
+  # package (`utils/hardhat-storage`). forge-std is Foundry's Solidity test
+  # library — a git specifier, which a catalog holds like any other.
+  testing:
+    "@types/mocha": ^10.0.6
+    mocha-each: ^2.0.1
+    "@types/mocha-each": ^2.0.1
+    jest: ^29.7.0
+    ts-jest: ^29.1.2
+    "@types/jest": ^29.5.12
+    sinon: ^18.0.0
+    forge-std: github:foundry-rs/forge-std#v1.9.7
+
+  # Hardhat and every plugin a `hardhat.config.ts` here loads. Grouped by what
+  # loads them rather than by what they do, so a hardhat major bump has one
+  # place to check for plugin compatibility. TypeChain's hardhat plugin is the
+  # one exception — it sits in `eth` with the rest of the TypeChain stack, which
+  # moves as a unit.
+  hardhat:
+    hardhat: ^2.28.0
+    hardhat-cannon: 2.25.1
+    hardhat-contract-sizer: ^2.10.0
+    hardhat-gas-reporter: ^1.0.10
+    hardhat-ignore-warnings: ^0.2.9
+    solidity-coverage: ^0.8.7
+    "@nomiclabs/hardhat-ethers": ^2.2.3
+    "@nomiclabs/hardhat-etherscan": ^3.1.8
+    "@foundry-rs/hardhat-anvil": ^0.1.7
+
+  # Cannon — a FORK. Read the `overrides` block below before touching these two:
+  # the `npm:` alias is what installs alxwlw/cannon under the upstream names,
+  # and the specifier must stay single or a second copy of the builder lands in
+  # one process (`require('ses')` → a second `lockdown()`). Never `pnpm up
+  # @usecannon/...`; the one supported mover is `pnpm cannon:update`, and after
+  # this migration that script rewrites these two entries rather than the
+  # manifests.
+  cannon:
+    "@usecannon/builder": npm:@alxwlw/cannon-builder@2.26.1-nonce.1
+    "@usecannon/cli": npm:@alxwlw/cannon-cli@2.26.1-nonce.1
+
+  # Onchain client stack. ethers v5 is the chain library across this repo (viem
+  # belongs to `monorepo`; the single entry here is `utils/core-utils` alone),
+  # and the loose @ethersproject/* packages are v5 sub-packages imported
+  # directly, so they track the ethers line. TypeChain generates the ethers-v5
+  # bindings — all three of its packages sit here rather than in `hardhat`.
+  eth:
+    ethers: ^5.7.2
+    "@ethersproject/abi": ^5.7.0
+    "@ethersproject/abstract-provider": ^5.7.0
+    "@ethersproject/bignumber": ^5.7.0
+    "@ethersproject/providers": ^5.7.2
+    "@synthetixio/wei": ^2.74.4
+    viem: ^2.29.4
+    ethereumjs-util: ^7.1.5
+    typechain: ^8.3.2
+    "@typechain/ethers-v5": ^11.1.2
+    "@typechain/hardhat": ^9.1.0
+
+  # Solidity compiler + AST tooling. `solc` is EXACT and load-bearing:
+  # `utils/core-utils/src/utils/solidity/compiler.ts` reads the installed
+  # version at runtime (`import { version } from 'solc/package.json'`) and it
+  # has to agree with the `version: '0.8.34'` compiler setting in
+  # `utils/common-config/hardhat.config.ts` — a `^` would let the two drift.
+  # @openzeppelin/contracts is exact for the same shape of reason: it ships
+  # .sol sources, and `markets/bfp-market` compiles its
+  # `PerpRewardDistributor*.sol` against the 4.9.3 tree.
+  solidity:
+    solc: 0.8.34
+    solidity-ast: ^0.4.55
+    "@solidity-parser/parser": ^0.18.0
+    solidity-docgen: ^0.6.0-beta.36
+    "@openzeppelin/contracts": 4.9.3
+
+  # The Graph — the three `*/subgraph` packages only. They are workspace members
+  # (matched by the `markets/**` and `protocol/**` globs above) but share no
+  # toolchain with the contract packages beyond prettier and the Cannon CLI.
+  subgraph:
+    "@graphprotocol/graph-cli": ^0.81.0
+    "@graphprotocol/graph-ts": ^0.35.1
+    matchstick-as: ^0.6.0
+
+  # Generic Node helpers — fs/glob, CLI output, templating, misc — each kept
+  # adjacent to its @types sibling so a bump moves both. Consumed almost
+  # entirely by `utils/core-utils` and `utils/hardhat-storage`.
+  utils:
+    chalk: ^4.1.2
+    cli-table3: ^0.6.5
+    dotenv: ^16.4.3
+    fast-glob: ^3.3.2
+    get-port: ^7.0.0
+    handlebars: ^4.7.8
+    lodash: ^4.17.21
+    "@types/lodash": ^4.14.199
+    lodash.memoize: ^4.1.2
+    "@types/lodash.memoize": ^4.1.9
+    micromatch: 4.0.8
+    "@types/micromatch": ^4
+    mustache: ^4.2.0
+    "@types/mustache": ^4.2.5
+    node-fetch: ^2.7.0
+    "@types/node-fetch": ^2.6.11
+    prompts: ^2.4.2
+    "@types/prompts": ^2.4.9
+    rfdc: ^1.3.1
+    "@types/debug": ^4.1.12
+    "@types/fs-extra": ^11.0.4
+    "@types/semver": ^7.5.8
+
 # pnpm 11's blockExoticSubdeps (default on) rejects ANY git-sourced override as
 # an exotic subdependency — the block is git-vs-registry, independent of the
 # transport — so it must be off for the upstream-inherited eth-gas-reporter fork
@@ -66,6 +234,10 @@ overrides:
   # живёт единственный раз, и `pnpm cannon:update` двигает его один. Продублируй
   # версию сюда — и оверрайд начнёт молча побеждать обновлённую зависимость,
   # то есть команда обновления станет пустышкой.
+  # После перехода на каталоги в корневом манифесте стоит `catalog:cannon`, так
+  # что ссылка идёт на один шаг дальше — в каталог `cannon` выше. Проверено:
+  # pnpm резолвит каталог ДО записи оверрайда, и в локфайле `overrides:` по
+  # прежнему литерал `npm:@alxwlw/cannon-builder@…`, а не `catalog:cannon`.
   "@usecannon/builder": "$@usecannon/builder"
   "@usecannon/cli": "$@usecannon/cli"
   "hardhat-gas-reporter>eth-gas-reporter": "git+https://github.com/dbeal-eth/eth-gas-reporter.git#1772400f123bb9ddda777170f53594205fffda87"

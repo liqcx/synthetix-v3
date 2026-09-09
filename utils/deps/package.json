@@ -11,8 +11,8 @@
     "deps-mismatched": "./mismatched.js"
   },
   "devDependencies": {
-    "depcheck": "^1.4.7",
-    "prettier": "^3.2.5",
-    "typescript": "^5.5.4"
+    "depcheck": "catalog:lint",
+    "prettier": "catalog:lint",
+    "typescript": "catalog:build"
   }
 }

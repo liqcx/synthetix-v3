@@ -28,22 +28,22 @@
     "prepublishOnly": "bun x tsc --noEmit false --project src/tsconfig.json"
   },
   "dependencies": {
-    "@solidity-parser/parser": "^0.18.0",
+    "@solidity-parser/parser": "catalog:solidity",
     "@synthetixio/core-utils": "workspace:*",
-    "chalk": "^4.1.2",
-    "cli-table3": "^0.6.5",
-    "lodash.memoize": "^4.1.2",
-    "mustache": "^4.2.0",
-    "solidity-ast": "^0.4.55"
+    "chalk": "catalog:utils",
+    "cli-table3": "catalog:utils",
+    "lodash.memoize": "catalog:utils",
+    "mustache": "catalog:utils",
+    "solidity-ast": "catalog:solidity"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.12",
-    "@types/lodash.memoize": "^4.1.9",
-    "@types/mustache": "^4.2.5",
-    "hardhat": "^2.28.0",
-    "jest": "^29.7.0",
-    "micromatch": "4.0.8",
-    "ts-jest": "^29.1.2",
-    "typescript": "^5.5.4"
+    "@types/jest": "catalog:testing",
+    "@types/lodash.memoize": "catalog:utils",
+    "@types/mustache": "catalog:utils",
+    "hardhat": "catalog:hardhat",
+    "jest": "catalog:testing",
+    "micromatch": "catalog:utils",
+    "ts-jest": "catalog:testing",
+    "typescript": "catalog:build"
   }
 }
