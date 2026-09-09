@@ -1,49 +1,61 @@
 ---
 name: bun-test-migration
-description: Миграция mocha → bun test, ветка feat-cld/bun-test-migration — спека и план на 9 задач согласованы 08.09; ключевые находки зондов (bun x hardhat = node, патч ses, export = ломает транспайлер bun) лежат в спеке в репозитории
+description: Миграция mocha → bun test, ветка feat-cld/bun-test-migration — все 9 задач сделаны и отревьюены (42 коммита, не запушено); ждёт решения по пушу/PR/ночному. Замер показал, что per-package быстрее в 6–20 раз на 4 из 5 пакетов, но режимы не меняли
 metadata:
   type: project
 ---
 
 08.09 «мигрируй mocha на bun test» → архитектурный трек. Ветка
 **`feat-cld/bun-test-migration`**, спека
-`docs/superpowers/specs/2026-09-08-mocha-to-bun-test-design.md` (коммиты `6a4794a1`, `ade3d743`,
-`8b5d5ae7`), план `docs/superpowers/plans/2026-09-08-mocha-to-bun-test.md` (`4917b104`).
-Спека и план вычитаны и одобрены; реализация ещё не начиналась.
+`docs/superpowers/specs/2026-09-08-mocha-to-bun-test-design.md`, план
+`docs/superpowers/plans/2026-09-08-mocha-to-bun-test.md`.
+
+09.09: **все 9 задач закрыты**, каждая с ревью; плюс финальное ревью всей ветки (1 блокер,
+6 should-fix, 5 нитов) и раунд правок по нему. **Ветка не запушена, PR не открыт, ночной прогон не
+запускался** — это решение пользователя.
 
 Поводом был ночной ран [[nightly-suites-first-red]].
 
-## Что решено (детали и числа — в спеке, тут только развилки)
+## Что работает
 
-- **Шим в preload, не кодмод.** 440 тестовых файлов не редактируются: репозиторий — вечный форк,
-  cherry-pick из upstream должен оставаться дешёвым.
-- **Изоляция процессом, не батчами.** `per-file` для всех, кто ходит через `coreBootstrap`;
-  `per-package` для core-contracts и core-utils.
-- **Один раннер** `.github/scripts/run-tests.ts` и для moon, и для CI — иначе `moon run <pkg>:test`
-  и ночной снова разойдутся, как разошлись `bun x hardhat test` и `test-batch.js`.
-- Ретраи на тест исчезают (у bun их нет), остаётся перезапуск файла в новом процессе.
+Семь сюит локально: 5 зелёных, `utils/core-utils` красная двумя унаследованными HH411 (долг
+pnpm-линкера, вне объёма). Время: synthetix 681 с, oracle-manager 50, spot-market 131,
+perps-market 1097, core-modules 58, core-contracts 10, core-utils 3.
 
 ## Три факта, которые дорого добывались зондами
 
-1. **`bun x hardhat` — это node.** `bun x hardhat run` печатает `runtime: node v24.14.0`: bunx
-   уважает шебанг `#!/usr/bin/env node`. Все hardhat-задачи репозитория всегда шли под node, и
-   именно поэтому блокер SES не был виден.
-2. **`ses` не грузится рантаймом bun** (`SES_NO_SLOPPY`): bun теряет `'use strict'` внутри функтора
-   `ses/dist/ses.cjs`. Лечится одной строкой через `pnpm patch`; `ses@2.3.0` падает так же, так что
-   бампом версии не чинится. Без патча под bun не грузится ни один `hardhat.config.ts` (все они
-   тянут `hardhat-cannon` → `@usecannon/builder` → `ses`).
-3. **`export =` ломает транспайлер bun**, но только в модуле, который вдобавок импортирует
-   node-builtin (`Expected CommonJS module to have a function wrapper`). По отдельности ни одно из
-   двух не воспроизводит, префикс `node:` не помогает. В репозитории ровно один такой модуль —
-   `utils/core-utils/src/utils/assertions/assert-bignumber.ts:26`.
+1. **`bun x hardhat` — это node.** bunx уважает шебанг. Все hardhat-задачи всегда шли под node —
+   поэтому блокер SES не был виден.
+2. **`ses` не грузится рантаймом bun** (`SES_NO_SLOPPY`): теряется `'use strict'` внутри функтора.
+   Лечится одной строкой через `pnpm patch`. Открытого issue в bun нет.
+3. **`export =` ломает транспайлер bun**, но только вместе с импортом node-builtin. Починено в
+   `d27be579`.
 
-## Ловушка при снятии базлайна mocha
+## Что вскрыла миграция (не сломала)
 
-`mocha <файл>` **не** запускает только этот файл: конфиг `spec` подмешивается к позиционным
-аргументам. Для честного базлайна нужен `--no-config --no-package`. Из-за этого же
-`utils/core-utils/.mocharc.json` тянул сломанный `contracts.test.ts` в каждый батч.
+**bun затеняет `describe`, `it`, `beforeEach`, `afterEach`** своими лексическими привязками; до шима
+из preload доходят только `before`, `after`, `context`, `specify` — у bun свои хуки зовутся
+`beforeAll`/`afterAll`, инжектить поверх нечего. Следствия:
 
-Так выяснилось, что четыре AST-теста core-utils падают **и под mocha** (HH411: у
-`test/fixtures/sample-project` нет своего `node_modules`, изолированный линкер pnpm не кладёт
-`@synthetixio/core-contracts` туда, куда смотрит walk-up). Это долг pnpm-миграции, а не регрессия
-bun — из объёма исключён.
+- `this.timeout()` бросает в теле `describe` и молча ничего не делает в хуке. Три места удалены.
+- **Mocha не выполняет хуки бездетной сюиты, а bun выполняет.** `VaultModule` падал на хуке,
+  который за всю историю репозитория не запускался ни разу. Починено `describe.skip`. AST-обход
+  606 файлов: такое место в дереве **одно**, две соседние формы дают ноль.
+- 11 помеченных `beforeEach`/`afterEach` теряют префикс `[label]` и идут под 120 с вместо 600 с.
+
+## Открытые хвосты
+
+- **Режимы.** `per-package` собирает идентичный набор тестов в 6–20 раз быстрее на 4 из 5 пакетов;
+  `markets/perps-market` под ним не завершается, причина не найдена. Режимы **не меняли**: замер
+  сделан на этой машине, а цель — 4×(2 CPU, 4 ГБ). Сначала реальный базлайн на CI, потом смена.
+- **Течь диска.** `~/.foundry/anvil/tmp` — 86 каталогов, 94 ГБ; полный прогон семи сюит добавляет
+  ~14 ГБ. Единственная уборка (`anvil-clean` у perps-market) удалена как глобальный `rm -rf`.
+  Зацепка: `--anvil.prune-history` / `--max-persisted-states`; пробрасывает ли их `hardhat-cannon`
+  через `networks.cannon.*` — **не проверено**.
+- Любой ручной `bun test --preload …` оставляет anvil: группу реапит только `run-tests.ts`.
+
+## Грабли
+
+`mocha <файл>` **не** запускает только этот файл — нужен `--no-config --no-package`.
+Правка `patches/*.patch` меняет content hash → пересборка lockfile → дрейф peer-суффиксов:
+после такого обязателен `pnpm dedupe`, а `--frozen-lockfile` этого не ловит.
