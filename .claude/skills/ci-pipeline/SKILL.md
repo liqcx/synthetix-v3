@@ -6,13 +6,14 @@ description: Use when a CI job in liqcx/synthetix-v3 is red, when triggering or 
 # CI pipeline
 
 **CI** runs on GitHub Actions on the org's self-hosted runners (P3d; CircleCI is gone). Two
-workflows: `ci.yml` gates every PR — `lint` (prettier/eslint/solhint/dedupe/deps + the canon set:
-actionlint, gitleaks, yamllint, markdownlint, `liqcx-tooling-sync --check`) and `contracts`
+workflows: `ci.yml` gates every PR — `lint` (prettier/eslint/solhint/dedupe/deps, `bun test
+.github/scripts/run-tests.test.ts` + the canon set: actionlint, gitleaks, yamllint, markdownlint,
+`liqcx-tooling-sync --check`) and `contracts`
 (`build:ts`, storage dump/check/verify-against-merge-base, `size-contracts`, and the Foundry
 suites that need no Cannon build). `nightly-contracts.yml` runs the heavy path at 03:00 UTC —
 `generate-testable`, `build-testable`, the seven hardhat integration suites one package at a time,
 and the perps-market Foundry stand. Trigger it by hand with
-`gh workflow run nightly-contracts.yml --repo liqcx/synthetix-v3` (inputs: `suite`, `batch_size`).
+`gh workflow run nightly-contracts.yml --repo liqcx/synthetix-v3` (inputs: `suite`, `mode`).
 The runner pool is 4 x (2 CPU, 4 GB) shared org-wide on the production host — that budget, not
 taste, is why the heavy suites are nightly rather than per-PR.
 

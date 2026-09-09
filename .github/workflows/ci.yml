@@ -47,6 +47,21 @@ jobs:
       - run: pnpm deps:circular
       - run: pnpm exec liqcx-tooling-sync --check --type=contracts
 
+      # .github/scripts/run-tests.test.ts is the nightly's own test runner's
+      # unit suite (anvil-port claiming, process-group reaping, the mode
+      # table) — no contracts build needed, so it belongs with the other
+      # static gates that run on every PR, not with nightly-contracts.yml.
+      # The `./` is load-bearing: bun's test scanner skips dot-directories,
+      # so a bare `.github/scripts` (no leading `./`) is read as a filter
+      # string, not a path, and matches nothing. Named to the one file, not
+      # the directory: `./.github/scripts` also sweeps up
+      # __fixtures__/leaky-child/test/leak.test.ts, which run-tests.test.ts
+      # spawns itself (with LEAK_PID_FILE set) to prove the anvil-reap works;
+      # invoked bare like that it fails its own guard on purpose rather than
+      # leaking the process it would otherwise spawn.
+      - name: Test .github/scripts
+        run: bun test ./.github/scripts/run-tests.test.ts
+
       # actionlint spawns one shellcheck child per workflow file in parallel,
       # and every proto shim invocation rewrites the same temp plugin file —
       # they collide. setup-liqcx resolves both real binaries into the env for

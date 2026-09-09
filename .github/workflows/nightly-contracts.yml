@@ -14,8 +14,8 @@ on:
         required: false
         default: ""
         type: string
-      batch_size:
-        description: "Override the per-suite batch size; empty keeps the defaults"
+      mode:
+        description: "Override the per-suite mode: per-file or per-package; empty keeps the defaults"
         required: false
         default: ""
         type: string
@@ -121,7 +121,7 @@ jobs:
       - name: Hardhat integration suites
         env:
           SUITE_FILTER: ${{ inputs.suite }}
-          BATCH_SIZE_OVERRIDE: ${{ inputs.batch_size }}
+          TEST_MODE_OVERRIDE: ${{ inputs.mode }}
         run: .github/scripts/run-suites.sh
 
       # perps-market's Foundry stand reads script/Deploy.sol, which

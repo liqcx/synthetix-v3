@@ -181,7 +181,9 @@ async function main() {
 
   const dir = path.resolve(process.argv[2] ?? process.cwd());
   const rel = path.relative(ROOT, dir);
-  const mode = modeFor(rel);
+  const override = process.env.TEST_MODE_OVERRIDE;
+  const mode: Mode =
+    override === 'per-file' || override === 'per-package' ? override : modeFor(rel);
 
   const files = [...new Glob('test/**/*.test.{ts,js}').scanSync({ cwd: dir })].sort();
   if (files.length === 0) {

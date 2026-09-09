@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Runs the hardhat integration suites one package at a time, batching the test
-# files within each package.
-#
-# Batching is not an optimisation: docs/TESTING.md records that Anvil degrades
-# after ~30 test files in one process, which is why test-batch.js exists. The
-# per-suite batch sizes are the ones CircleCI had tuned.
+# Runs the hardhat integration suites one package at a time, in whichever
+# mode (per-file or per-package) .github/scripts/suites.ts assigns it: one
+# process per test file for packages whose tests go through coreBootstrap
+# (bun loading many files into one process breaks snapshotCheckpoint's
+# provider hookup), one process for the whole package otherwise. suites.ts is
+# also what moon's own test task reads, so the nightly and moon cannot drift
+# apart the way run-suites.sh and the old test-batch.js once did.
 #
 # A failing suite does not stop the ones after it — every suite's status is
 # collected and reported, and the script exits non-zero at the end. Failing
@@ -12,20 +13,27 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-RUNNER="$ROOT/.github/scripts/test-batch.js"
+RUNNER="$ROOT/.github/scripts/run-tests.ts"
 
-SUITES=(
-  "protocol/synthetix:8"
-  "protocol/oracle-manager:5"
-  "markets/spot-market:3"
-  "markets/perps-market:1"
-  "utils/core-modules:5"
-  "utils/core-contracts:5"
-  "utils/core-utils:5"
-)
+# The mode table lives in .github/scripts/suites.ts, which run-tests.ts and
+# moon's test task also read. A second copy here is how the nightly and moon
+# drifted apart before.
+SUITES=()
+while IFS= read -r line; do
+  SUITES+=("$line")
+done < <(bun "$ROOT/.github/scripts/suites.ts" --list)
 
 FILTER="${SUITE_FILTER:-}"
-OVERRIDE="${BATCH_SIZE_OVERRIDE:-}"
+OVERRIDE="${TEST_MODE_OVERRIDE:-}"
+
+# run-tests.ts's own TEST_MODE_OVERRIDE check falls back to modeFor(rel) for
+# anything that isn't exactly "per-file" or "per-package" — silently, with no
+# error, under a group header that would still claim the bogus value. Reject
+# it here instead, the same way SUITE_FILTER is rejected below.
+if [ -n "$OVERRIDE" ] && [ "$OVERRIDE" != "per-file" ] && [ "$OVERRIDE" != "per-package" ]; then
+  echo "::error::TEST_MODE_OVERRIDE '$OVERRIDE' is not a valid mode. Valid values: per-file per-package"
+  exit 1
+fi
 
 # A SUITE_FILTER that matches nothing in SUITES would otherwise make every
 # suite below skip, leaving `failures` at 0 and the job exiting green having
@@ -55,8 +63,9 @@ export CANNON_REGISTRY_PRIORITY=local
 export REPORT_GAS=true
 export TS_NODE_TRANSPILE_ONLY=true
 export TS_NODE_TYPE_CHECK=false
-export MOCHA_RETRIES="${MOCHA_RETRIES:-2}"
-export BATCH_RETRIES="${BATCH_RETRIES:-5}"
+export TEST_TIMEOUT="${TEST_TIMEOUT:-120000}"
+export TEST_ATTEMPTS="${TEST_ATTEMPTS:-2}"
+export TEST_WALL_CLOCK="${TEST_WALL_CLOCK:-1200000}"
 
 # The self-hosted runner's filesystem persists between runs (unlike CircleCI,
 # where each suite got a fresh container), so /tmp/junit can hold batches
@@ -70,16 +79,16 @@ results=()
 
 for suite in "${SUITES[@]}"; do
   dir="${suite%%:*}"
-  batch="${suite##*:}"
+  mode="${suite##*:}"
 
   if [ -n "$FILTER" ] && [ "$FILTER" != "$dir" ]; then
     continue
   fi
   if [ -n "$OVERRIDE" ]; then
-    batch="$OVERRIDE"
+    mode="$OVERRIDE"
   fi
 
-  files="$(cd "$ROOT/$dir" && find test -name '*.test.ts' 2>/dev/null | sort | tr '\n' ' ')"
+  files="$(cd "$ROOT/$dir" && find test \( -name '*.test.ts' -o -name '*.test.js' \) 2>/dev/null | sort | tr '\n' ' ')"
   if [ -z "$files" ]; then
     # Every entry in SUITES is here because it has tests; zero files means
     # something moved (renamed/deleted test dir), not that there is nothing
@@ -91,13 +100,14 @@ for suite in "${SUITES[@]}"; do
   fi
 
   count="$(echo "$files" | wc -w | tr -d ' ')"
-  echo "::group::$dir ($count files, batch size $batch)"
+  echo "::group::$dir ($count files, $mode)"
   started="$(date +%s)"
   # Each suite gets its own JUnit subdirectory so suites don't overwrite each
-  # other's batch-N.xml files (test-batch.js numbers batches from 1 every run).
+  # other's XML files; run-tests.ts names each unit's file after the test
+  # file (per-file mode) or "all" (per-package mode).
   junit_dir="/tmp/junit/${dir//\//-}"
   mkdir -p "$junit_dir"
-  if (cd "$ROOT/$dir" && TEST_FILES="$files" BATCH_SIZE="$batch" JUNIT_DIR="$junit_dir" bun "$RUNNER"); then
+  if TEST_MODE_OVERRIDE="$mode" JUNIT_DIR="$junit_dir" bun "$RUNNER" "$ROOT/$dir"; then
     status=passed
   else
     status=failed
