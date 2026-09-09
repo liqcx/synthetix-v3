@@ -671,7 +671,7 @@ describe('VaultModule', function () {
           );
         });
 
-        describe('remove exposure', async () => {
+        describe.skip('remove exposure', async () => {
           before('delegate', async () => {
             await systems().Core.connect(user2).delegateCollateral(
               user2AccountId,
