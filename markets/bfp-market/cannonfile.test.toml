@@ -11,7 +11,7 @@ defaultValue = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 defaultValue = "main"
 
 [setting.synthetixPackage]
-defaultValue = "synthetix:latest"
+defaultValue = "liq-synthetix:latest"
 
 [setting.salt]
 defaultValue = "snax"

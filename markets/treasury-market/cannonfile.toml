@@ -15,7 +15,7 @@ defaultValue = "1"
 defaultValue = "<%= imports.v3.contracts.USDProxy.address %>"
 
 [setting.v3_package]
-defaultValue = "synthetix:latest"
+defaultValue = "liq-synthetix:latest"
 
 [setting.aux_token]
 defaultValue = "<%= AddressZero %>"

@@ -4,12 +4,12 @@ include = ["cannonfile.common.toml"]
 
 # use the testable oracle manager
 [setting.oracle_manager_source]
-defaultValue = "oracle-manager:<%= package.version %>-testable"
+defaultValue = "liq-oracle-manager:<%= package.version %>-testable"
 depends = []
 
 [clone.oracle_manager]
 source = "<%= settings.oracle_manager_source %>"
-target = "oracle-manager@synthetix-test"
+target = "liq-oracle-manager@synthetix-test"
 
 # Test Modules
 [contract.TestableAccountStorage]

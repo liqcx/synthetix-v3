@@ -1,4 +1,4 @@
-name = "oracle-manager"
+name = "liq-oracle-manager"
 version = "<%= package.version %>"
 description = "Core synthetix oracle manager"
 

@@ -4,7 +4,7 @@ version = "<%= package.version %>-testable"
 # --- Imports --- #
 
 [import.synthetix]
-source = "synthetix:latest"
+source = "liq-synthetix:latest"
 
 # --- wstETH mock (Lido contracts) --- #
 

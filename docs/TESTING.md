@@ -128,7 +128,7 @@ pnpm build-testable
 
 Собирает testable-версии из `cannonfile.test.toml` в топологическом порядке — с моками, тестовыми оракулами, FeeCollectorMock и т.д. Внутри каждого пакета `cannon:build` автоматически вызывает `hardhat compile`, поэтому отдельная компиляция не нужна.
 
-Без этого шага тесты не найдут зависимости (например `synthetix:3.13.1-testable`) и упадут с ошибкой `could not find package`.
+Без этого шага тесты не найдут зависимости (например `liq-synthetix:3.13.1-testable`) и упадут с ошибкой `could not find package`.
 
 Порядок сборки определяется зависимостями между пакетами:
 
@@ -406,7 +406,7 @@ ipfs daemon
 ### Cannon не находит пакет
 
 ```text
-Error: could not find package synthetix:3.13.1-testable
+Error: could not find package liq-synthetix:3.13.1-testable
 ```
 
 **Решение:** Сначала собрать зависимости:

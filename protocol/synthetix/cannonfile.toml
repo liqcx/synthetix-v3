@@ -1,4 +1,4 @@
-name = "synthetix"
+name = "liq-synthetix"
 version = "<%= package.version %>"
 description = "Core synthetix system"
 
