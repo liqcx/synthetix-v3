@@ -11,6 +11,7 @@ import {
   knob,
   needsHardhatRegister,
   portFor,
+  resolveMode,
   slugFor,
   stringKnob,
   unitsFor,
@@ -108,6 +109,36 @@ describe('knob', function () {
 
   it('treats unset (undefined) as unset and returns the fallback', function () {
     assert.equal(knob('TEST_ATTEMPTS', undefined, 2), 2);
+  });
+});
+
+describe('resolveMode', function () {
+  // The shell rejects a bogus TEST_MODE_OVERRIDE loudly; the runner used to
+  // fold it back to the table silently, so `TEST_MODE_OVERRIDE=perpackage moon
+  // run perps-market:test` ran the other mode with no message. moon never goes
+  // through run-suites.sh, so the shell's guard was unreachable from there.
+
+  it('takes a valid override over the table', function () {
+    assert.equal(resolveMode('per-package', 'per-file'), 'per-package');
+    assert.equal(resolveMode('per-file', 'per-package'), 'per-file');
+  });
+
+  it('treats an empty string as unset — the shape a scheduled GHA run renders', function () {
+    assert.equal(resolveMode('', 'per-file'), 'per-file');
+  });
+
+  it('treats unset (undefined) as unset and returns the table\u2019s mode', function () {
+    assert.equal(resolveMode(undefined, 'per-package'), 'per-package');
+  });
+
+  it('rejects a near-miss loudly, naming the bad value and both valid modes', function () {
+    assert.throws(() => resolveMode('perpackage', 'per-file'), /TEST_MODE_OVERRIDE/);
+    assert.throws(() => resolveMode('perpackage', 'per-file'), /"perpackage"/);
+    assert.throws(() => resolveMode('perpackage', 'per-file'), /per-file or per-package/);
+  });
+
+  it('rejects a value that merely contains a valid mode', function () {
+    assert.throws(() => resolveMode('per-file ', 'per-package'), /"per-file "/);
   });
 });
 

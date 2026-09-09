@@ -38,10 +38,11 @@ done < <(bun "$ROOT/.github/scripts/suites.ts" --list)
 FILTER="${SUITE_FILTER:-}"
 OVERRIDE="${TEST_MODE_OVERRIDE:-}"
 
-# run-tests.ts's own TEST_MODE_OVERRIDE check falls back to modeFor(rel) for
-# anything that isn't exactly "per-file" or "per-package" — silently, with no
-# error, under a group header that would still claim the bogus value. Reject
-# it here instead, the same way SUITE_FILTER is rejected below.
+# run-tests.ts rejects a bogus TEST_MODE_OVERRIDE too (resolveMode), so this is
+# no longer the only guard — it is the early one, and worth keeping as such.
+# Failing here fails before the JUnit tree below is wiped and before the first
+# suite's cannon build, and it names the typo once instead of once per suite,
+# the same way SUITE_FILTER is rejected below.
 if [ -n "$OVERRIDE" ] && [ "$OVERRIDE" != "per-file" ] && [ "$OVERRIDE" != "per-package" ]; then
   echo "::error::TEST_MODE_OVERRIDE '$OVERRIDE' is not a valid mode. Valid values: per-file per-package"
   exit 1

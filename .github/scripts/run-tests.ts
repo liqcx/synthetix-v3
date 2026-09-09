@@ -85,6 +85,36 @@ export function stringKnob(raw: string | undefined, fallback: string): string {
   return raw === undefined || raw === '' ? fallback : raw;
 }
 
+/** The only two values `TEST_MODE_OVERRIDE` may carry. */
+const MODES: readonly Mode[] = ['per-file', 'per-package'];
+
+/**
+ * The mode a package actually runs in: `TEST_MODE_OVERRIDE` if it names one,
+ * otherwise whatever `suites.ts` assigns.
+ *
+ * `undefined` and `''` mean unset and fold to `fallback`, the same fold the
+ * numeric knobs do and for the same reason — `nightly-contracts.yml` passes
+ * `TEST_MODE_OVERRIDE: ${{ inputs.mode }}`, which a scheduled run renders as
+ * `''`. Anything else throws, naming the bad value and both valid ones, the
+ * way `knob` does.
+ *
+ * This used to fold a bogus value back to the table silently, so
+ * `TEST_MODE_OVERRIDE=perpackage moon run perps-market:test` ran the other
+ * mode with no message anywhere. `run-suites.sh` rejects the same typo up
+ * front, but moon never goes through `run-suites.sh` — validating an input is
+ * the job of whoever reads it, which is here.
+ */
+export function resolveMode(raw: string | undefined, fallback: Mode): Mode {
+  if (raw === undefined || raw === '') return fallback;
+  const mode = MODES.find((candidate) => candidate === raw);
+  if (mode === undefined) {
+    throw new Error(
+      `Invalid TEST_MODE_OVERRIDE: ${JSON.stringify(raw)} (expected ${MODES.join(' or ')})`
+    );
+  }
+  return mode;
+}
+
 /**
  * Whether a package dir needs `hardhat/register` preloaded before its tests
  * run. `hardhat.config.ts` is the common case; `hardhat.config.js` is real
@@ -213,9 +243,7 @@ async function main() {
 
   const dir = path.resolve(process.argv[2] ?? process.cwd());
   const rel = path.relative(ROOT, dir);
-  const override = process.env.TEST_MODE_OVERRIDE;
-  const mode: Mode =
-    override === 'per-file' || override === 'per-package' ? override : modeFor(rel);
+  const mode = resolveMode(process.env.TEST_MODE_OVERRIDE, modeFor(rel));
 
   const files = [...new Glob('test/**/*.test.{ts,js}').scanSync({ cwd: dir })].sort();
   if (files.length === 0) {
