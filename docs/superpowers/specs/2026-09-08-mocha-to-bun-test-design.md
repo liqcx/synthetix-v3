@@ -357,10 +357,10 @@ The migration is judged against the current mocha results, not against green.
 
 ## Known defects
 
-### A migration defect, to be fixed here
+### A migration defect, fixed in Task 2 (2026-09-08)
 
 `utils/core-utils/test/utils/ethers/bignumber.test.ts` and
-`test/utils/assertions/assert-bignumber.test.ts` fail with
+`test/utils/assertions/assert-bignumber.test.ts` failed at load with
 `TypeError: Expected CommonJS module to have a function wrapper`.
 
 Bisected to a two-ingredient trigger in bun's transpiler: a TypeScript export assignment
