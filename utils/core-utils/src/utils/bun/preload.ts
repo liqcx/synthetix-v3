@@ -126,8 +126,12 @@ function asSuite(target: Suite): Suite {
   const bound = bind(target) as Suite & Record<string, Suite>;
   const modifiers = target as unknown as Record<string, Suite | undefined>;
   for (const key of ['skip', 'only', 'todo']) {
-    const modifier = modifiers[key];
-    if (modifier) bound[key] = bind(modifier);
+    // bun exposes `.only` as a getter that throws under CI=true, so reading it
+    // here would kill every preloaded run in CI. Reach for the modifier when it
+    // is called instead: the guard then fires on an actual `.only(...)`, which
+    // is what it is there for.
+    bound[key] = (name: string, body?: Body, timeout?: number) =>
+      bind(modifiers[key] as Suite)(name, body, timeout);
   }
   return bound;
 }
