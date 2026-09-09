@@ -349,7 +349,7 @@ export function bootstrapMarkets(data) {
 | Переменная | Описание | Где используется |
 |------------|----------|-----------------|
 | `CANNON_REGISTRY_PRIORITY=local` | Искать cannon-пакеты сначала в локальном кеше | `pnpm test`, `pnpm build` |
-| `REPORT_GAS=true` | Включить отчет по gas usage | `bun x hardhat test` |
+| `REPORT_GAS=true` | Включить отчет по gas usage. Работает **только** на ручном пути `bun x hardhat test`: hardhat-gas-reporter подменяет репортер mocha в `TASK_TEST_RUN_MOCHA_TESTS`, а `bun test` эту задачу не вызывает вовсе | `bun x hardhat test` |
 | `TEST_TIMEOUT` | Таймаут одного теста, мс (по умолчанию 120000) — это `--timeout` у `bun test`, лимит на тест, а не на юнит целиком | `.github/scripts/run-tests.ts` (`pnpm test`) |
 | `TEST_ATTEMPTS` | Сколько попыток раннер даёт упавшему юниту (по умолчанию 2, то есть один повтор) | `.github/scripts/run-tests.ts` (`pnpm test`) |
 | `TEST_WALL_CLOCK` | Стенные часы на один юнит, мс (по умолчанию 1200000): по истечении раннер убивает процесс `bun test` целиком (SIGKILL по группе) и засчитывает юниту попытку — в отличие от `TEST_TIMEOUT`, это лимит на весь процесс, а не на отдельный тест | `.github/scripts/run-tests.ts` (`pnpm test`) |

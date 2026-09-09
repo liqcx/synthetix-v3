@@ -16,7 +16,11 @@ tasks:
       - "--coverage"
       - "--preload"
       - "./src/utils/bun/preload.ts"
-      - "test"
+      # `./` is load-bearing: bun reads a bare positional as a filter string,
+      # not a path. It happens to select the same 21 files here (every one of
+      # their paths contains "test"), which is exactly why the trap survives
+      # review — the same spelling in `ci.yml` collected zero and exited 1.
+      - "./test"
     deps: ["^:coverage"]
     options:
       mergeArgs: "replace"

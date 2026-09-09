@@ -73,9 +73,12 @@ fi
 
 export PATH="$PATH:$ROOT/node_modules/.bin"
 export CANNON_REGISTRY_PRIORITY=local
-export REPORT_GAS=true
-export TS_NODE_TRANSPILE_ONLY=true
-export TS_NODE_TYPE_CHECK=false
+# REPORT_GAS, TS_NODE_TRANSPILE_ONLY and TS_NODE_TYPE_CHECK used to be exported
+# here and are all mocha-era residue. hardhat-gas-reporter reports by overriding
+# TASK_TEST_RUN_MOCHA_TESTS, a task `bun test` never invokes, so REPORT_GAS
+# printed nothing; and hardhat already loads ts-node/register/transpile-only by
+# default (typescript-support.js's loadTsNode, shouldTypecheck = false), so the
+# other two asked for what it does anyway — on a path bun does not take either.
 export TEST_TIMEOUT="${TEST_TIMEOUT:-120000}"
 export TEST_ATTEMPTS="${TEST_ATTEMPTS:-2}"
 export TEST_WALL_CLOCK="${TEST_WALL_CLOCK:-1200000}"
