@@ -42,8 +42,15 @@ forge script script/Deploy.s.sol:DeployDelegate7702 \
   --broadcast
 ```
 
-One deployment per chain serves every environment (prod and staging share chainId 6343). The
-address is recorded in `monorepo/packages/liq-onchain/src/delegate7702.ts`
+One deployment per chain serves every environment (prod and staging share chainId 6343).
+
+| Chain                  | Address                                      | Deployed                                                                            |
+| ---------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------- |
+| MegaETH testnet (6343) | `0x49E36A50Bae8Be715dB17c0fE2C569aA656cC856` | 2026-09-10, tx `0x384c4ebe9840ba8f517bbe1667dc21f9d5687fda3a40c39bafa9dae476fe2c69` |
+
+MegaETH prices gas in two components, and the local simulation undershoots it (`intrinsic gas
+too low` on broadcast) — pass `--skip-simulation` so forge takes `eth_estimateGas` from the RPC.
+The address is also recorded in `monorepo/packages/liq-onchain/src/delegate7702.ts`
 (`DELEGATE7702_ADDRESS`) and `monorepo/docs/protocols/synthetix-v3/contracts.md`.
 
 ## Tests
