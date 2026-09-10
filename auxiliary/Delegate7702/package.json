@@ -1,0 +1,10 @@
+{
+  "name": "@synthetixio/delegate7702",
+  "version": "3.13.1",
+  "description": "EIP-7702 delegate — an EOA executes owner-signed batches submitted and paid for by anyone",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "fmt": "forge fmt"
+  }
+}

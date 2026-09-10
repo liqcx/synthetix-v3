@@ -165,4 +165,4 @@ jobs:
         # -vvvvv.
         env:
           FOUNDRY_VERBOSITY: "3"
-        run: moon run treasury-market:forge-test Faucet:test
+        run: moon run treasury-market:forge-test Faucet:test Delegate7702:test
