@@ -425,6 +425,8 @@ importers:
         specifier: 5.5.4
         version: 5.5.4
 
+  auxiliary/Delegate7702: {}
+
   auxiliary/ERC4626ToAssetsRatioOracle:
     devDependencies:
       '@synthetixio/common-config':
