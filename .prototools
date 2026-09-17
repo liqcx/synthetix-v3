@@ -17,7 +17,9 @@ gitleaks = "8.30.1"
 # uv runs `pnpm lint:yaml` (yamllint via `uv tool run`) in the lint job.
 uv = "0.11.6"
 
+# Vendored: github.com/Phault/proto-toml-plugins удалён (2026-09-13), его main-URL отдают 404 и любой
+# proto-шим этих трёх инструментов падал. TOML — последние кэшированные копии, байт в байт.
 [plugins]
-actionlint = "https://raw.githubusercontent.com/Phault/proto-toml-plugins/main/actionlint/plugin.toml"
-shellcheck = "https://raw.githubusercontent.com/Phault/proto-toml-plugins/main/shellcheck/plugin.toml"
-gitleaks = "https://raw.githubusercontent.com/Phault/proto-toml-plugins/main/gitleaks/plugin.toml"
+actionlint = "file://./.moon/proto-plugins/actionlint.toml"
+shellcheck = "file://./.moon/proto-plugins/shellcheck.toml"
+gitleaks = "file://./.moon/proto-plugins/gitleaks.toml"
