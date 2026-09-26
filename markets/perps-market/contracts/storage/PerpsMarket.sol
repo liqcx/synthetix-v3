@@ -11,7 +11,7 @@ import {PerpsMarketConfiguration} from "./PerpsMarketConfiguration.sol";
 import {MarketUpdate} from "./MarketUpdate.sol";
 import {MathUtil} from "../utils/MathUtil.sol";
 import {PerpsPrice} from "./PerpsPrice.sol";
-import {Liquidation} from "./Liquidation.sol";
+import {LiquidationWindow} from "./LiquidationWindow.sol";
 import {KeeperCosts} from "./KeeperCosts.sol";
 import {InterestRate} from "./InterestRate.sol";
 
@@ -63,7 +63,7 @@ library PerpsMarket {
         // accountId => position
         mapping(uint256 => Position.Data) positions;
         // liquidation amounts
-        Liquidation.Data[] liquidationData;
+        LiquidationWindow.Data[] liquidationData;
     }
 
     function load(uint128 marketId) internal pure returns (Data storage market) {
@@ -180,7 +180,7 @@ library PerpsMarket {
             self.liquidationData[liquidationDataLength - 1].amount += liquidationAmount;
         } else {
             self.liquidationData.push(
-                Liquidation.Data({amount: liquidationAmount, timestamp: block.timestamp})
+                LiquidationWindow.Data({amount: liquidationAmount, timestamp: block.timestamp})
             );
         }
     }
