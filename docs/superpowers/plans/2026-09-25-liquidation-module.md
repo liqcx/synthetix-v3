@@ -1289,12 +1289,15 @@ Expected: every `Suite result: ok`; `Ran N test suites … M tests passed, 0 fai
 The same three loops over `Liquidation/` as Task 0 Step 4 (the first run of the first file rebuilds the Cannon package — rerun it), then:
 
 ```bash
-PROTO_LOG=off CANNON_REGISTRY_PRIORITY=local bun x hardhat test $(ls test/integration/KeeperRewards/*.test.ts) 2>&1 | grep -E "passing|failing|pending"
-PROTO_LOG=off CANNON_REGISTRY_PRIORITY=local bun x hardhat test $(ls test/integration/Account/*.test.ts) 2>&1 | grep -E "passing|failing|pending"
-PROTO_LOG=off CANNON_REGISTRY_PRIORITY=local bun x hardhat test test/integration/Position/PositionChange.gate.test.ts test/integration/Position/PositionChange.quote.test.ts 2>&1 | grep -E "passing|failing|pending"
+for f in $(ls test/integration/KeeperRewards/*.test.ts); do PROTO_LOG=off CANNON_REGISTRY_PRIORITY=local bun x hardhat test $f 2>&1 | grep -E "passing|failing|pending|^\s+[0-9]+\) " | sed "s|^|$(basename $f): |"; done
+for f in $(ls test/integration/Account/*.test.ts | sed -n 1,6p); do PROTO_LOG=off CANNON_REGISTRY_PRIORITY=local bun x hardhat test $f 2>&1 | grep -E "passing|failing|pending|^\s+[0-9]+\) " | sed "s|^|$(basename $f): |"; done
+for f in $(ls test/integration/Account/*.test.ts | sed -n 7,12p); do PROTO_LOG=off CANNON_REGISTRY_PRIORITY=local bun x hardhat test $f 2>&1 | grep -E "passing|failing|pending|^\s+[0-9]+\) " | sed "s|^|$(basename $f): |"; done
+for f in PositionChange.gate PositionChange.quote; do PROTO_LOG=off CANNON_REGISTRY_PRIORITY=local bun x hardhat test test/integration/Position/$f.test.ts 2>&1 | grep -E "passing|failing|pending|^\s+[0-9]+\) " | sed "s|^|$f: |"; done
 ```
 
-Expected: the same `passing` counts as `guard.base.txt`, `0 failing`. A red file: rerun alone; if still red, read the assertion — a changed number outside the spec's one edge is a defect of this task, stop and report it with the file and line.
+Every file runs alone (the manual `bun x hardhat test` path reads `hardhat.config.ts`'s 30 s mocha timeout, and several heavy files in one process trip it in a later file's before-all hook); one loop per Bash call, timeout 600000.
+
+**Expected: the same per-file `passing`/`failing` counts and the same failing test names as `guard.base.txt`.** The base is red on this machine and on the nightly (Task 0 measured it): `Liquidation.flag` 15/1, `Liquidation.flaggedLiquidation` 7/4, `Liquidation.marginOnly` 6/1, `Liquidation.marginOnly.feeds` 5/1 or 4/2 (non-deterministic), `KeeperRewards.Caps` 6/7, `PositionChange.gate` 33/1, `PositionChange.quote` 21/1; every other file 0 failing. A file with **fewer** passing or a **new** failing test name is a regression of this task: rerun it alone; if it stays, read the assertion — a changed number outside the spec's one edge is a defect of this task, stop and report the file and line. A file with **more** passing than the base is the hidden remainder behind a base-red before-all hook surfacing — note it in the report, it is not a defect. `Account/` was not measured in Task 0: record its counts as measured now and rerun any red file alone; a red that repeats is a base problem, note it.
 
 - [ ] **Step 10: Storage dump and verify**
 
@@ -1383,7 +1386,9 @@ PROTO_LOG=off CANNON_REGISTRY_PRIORITY=local bun x hardhat test $(ls test/integr
 PROTO_LOG=off CANNON_REGISTRY_PRIORITY=local bun x hardhat test $(ls test/integration/*.test.ts) 2>&1 | grep -E "passing|failing|pending"
 ```
 
-Expected: `0 failing` everywhere (the known base flakes — `OffchainAsyncOrder.cancel`'s `InvalidId("2")` in before-all, a `cannot estimate gas` in a before-all — are rerun alone and, if green alone, counted green). Write every count into the report.
+Run `Market/`, `Position/` and the root files **file by file** as well (one loop per Bash call, `for f in $(ls test/integration/Market/*.test.ts); do … done` etc.) — the batched form trips the manual path's 30 s mocha timeout.
+
+Expected: **the same per-file `passing`/`failing` counts and failing test names as the base.** `Orders/`, `Market/` and the root files were not measured in Task 0, and the nightly on `main @ c59d8204` (run 36112820296, 2026-09-25) is red in `Orders/BookOrder`, `BookOrderPerOrder`, `OffchainAsyncOrder.{fees,pending,price,settle}`, `Market/CreateMarket`, `Market.RewardDistributor`, `Market.minimumCredit`, `MarketDebt`, `MarketDebt.withFunding`, `PerpsMarketModule`, `Markets/GlobalPerpsMarket`, `Position/InterestRate`, `InterestRate.reset`: so for each red file, rerun it alone and, if it stays red, **read every failing test's name and assertion and compare with the base**: check out the base's numbers by running the same file once on `origin/main` in a scratch worktree (`git worktree add /tmp/claude-1000/-home-alex-Work-perps-synthetix-v3/078ac799-54d5-4976-8bed-9f37f70b3e96/scratchpad/base-probe origin/main`, `pnpm install --frozen-lockfile` there, the same command; remove the worktree after). A failing test name present after and absent on the base is a regression of this branch: stop and report it. Write every count and every failing test name into the report, before and after.
 
 - [ ] **Step 5: The two amendment notes**
 
