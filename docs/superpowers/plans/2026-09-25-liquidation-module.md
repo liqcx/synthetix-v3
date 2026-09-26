@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** One library, `Liquidation`, owns the liquidation of an account — the requirement the gate asks, the judgement, the flag raised and lowered, what the windows admit, the payout in one text; `LiquidationModule` becomes the keeper's door of eight one-line functions; the keeper's costs are read once per entry (four oracle calls become two, in `liquidate` and in `assess`); no selector, event, error or slot changes; one number changes in an edge no stand or contour reaches, and three new Foundry pins fix the rule.
+**Goal:** One library, `Liquidation`, owns the liquidation of an account — the requirement the gate asks, the judgement, the flag raised and lowered, what the windows admit, the payout in one text; `LiquidationModule` becomes the keeper's door of eight entries that ask the library (the four liquidating ones behind the feature flag); the keeper's costs are read once per entry (four oracle calls become two, in `liquidate` and in `assess`); no selector, event, error or slot changes; one number changes in an edge no stand or contour reaches, and three new Foundry pins fix the rule.
 
 **Architecture:** `contracts/storage/Liquidation.sol` owns no storage. It takes the eleven liquidation functions of `PerpsAccount` (with `getAccountRequiredMargins`, which becomes `requirement`), the three window functions of `PerpsMarket` (operating on `PerpsMarket.Data storage` in place) and `_liquidateAccount`/`_liquidatePositions`/`_processLiquidationRewards` of the module. It composes `LiquidationFlag`, which stays its own library and whose `flag` now returns the seized value alone. The 18-line window type `storage/Liquidation.sol` is renamed `storage/LiquidationWindow.sol` first, in its own commit. Events are emitted from the library by qualified name; the keeper is a parameter everywhere below the module.
 
@@ -19,7 +19,7 @@
 - The `rtk` hook summarises tool output: read exit codes (`; echo rc=$?`), not summary lines. Foundry prints suites in completion order — never cut its output with `tail`; read the `Ran N test suites … tests passed` line and the per-test `[PASS] name() (gas: N)` lines.
 - Foundry: after any contract edit regenerate the stand with `PROTO_LOG=off CANNON_REGISTRY_PRIORITY=local pnpm build-testable:foundry` (writes `script/Deploy.sol`, gitignored), then `forge test`. The regeneration spawns an anvil on 8545.
 - Storage layout is checked through moon, from the worktree root or the package dir: `PROTO_LOG=off moon run perps-market:storage-dump` (writes `storage.new.dump.json`), `PROTO_LOG=off moon run perps-market:storage-verify` (compares the two; logs added/deleted libraries, errors on a slot/offset/size change), then — when the dump is meant to change — `cp storage.new.dump.json storage.dump.json`, **re-run `storage-dump`** and `PROTO_LOG=off moon run perps-market:check-storage` (it is `diff -uw storage.dump.json storage.new.dump.json` and needs both files); `rm storage.new.dump.json` last (not committed). The package has no `pnpm storage:*` scripts (Task 2 found this). A `jq -S` diff of the two dumps mis-pairs lines when a library's sort position moves (Task 2: `LiquidationWindow` sorts after `LiquidationAssetManager`) — compare per library, not by raw line diff.
-- Lint: `.ts` → `PROTO_LOG=off pnpm exec prettier --write <file>` from the package, then `PROTO_LOG=off pnpm exec eslint --max-warnings=0 markets/perps-market/<file>` **from the worktree root**; `.sol` → `PROTO_LOG=off pnpm exec prettier --write <file>` and `PROTO_LOG=off pnpm exec solhint <file>` from the package; `.md` → `PROTO_LOG=off pnpm exec prettier --write <file>` and `PROTO_LOG=off pnpm exec markdownlint-cli2 <file>` from the worktree root (`docs/superpowers/**` is ignored by markdownlint; prettier still applies).
+- Lint: `.ts` → `PROTO_LOG=off pnpm exec prettier --write <file>` from the package, then `PROTO_LOG=off pnpm exec eslint --max-warnings=0 markets/perps-market/<file>` **from the worktree root**; `.sol` → `PROTO_LOG=off pnpm exec prettier --write <file>` from the package and `PROTO_LOG=off pnpm exec solhint markets/perps-market/<file>` **from the worktree root** — `.solhint.json` lives there; from the package solhint reads no config and passes everything (Task 3 found this; Tasks 1–2's `.sol` gates were vacuous and were re-run from the root in Task 3's review); `.md` → `PROTO_LOG=off pnpm exec prettier --write <file>` and `PROTO_LOG=off pnpm exec markdownlint-cli2 <file>` from the worktree root (`docs/superpowers/**` is ignored by markdownlint; prettier still applies). The pre-commit hook is not installed on agentbox (`.git/hooks` holds samples only): run lint-staged's commands by hand before every commit.
 - **Visible through the proxy, one number changes, in one edge** (spec, decision 5 and "Visible through the proxy"): the requirement where the liquidate cost is 0 and `minKeeperRewardUsd` is not — it drops to what the keeper is paid. Every selector, type, event, error, slot and every other answer stays; `storage.dump.json` changes in the name of the window type only. A task that finds itself changing anything else has misread the spec: stop and say so.
 - Names new in this PR, used exactly like this in every task: library `Liquidation` in `contracts/storage/Liquidation.sol` with `struct Costs { uint256 flag; uint256 liquidate; }`, `function costs(PerpsAccount.Data storage account) internal view returns (Costs memory)`, `function requirement(PerpsAccount.Valuation memory v, Costs memory c) internal view returns (uint256 initialMargin, uint256 maintenanceMargin, uint256 liquidationPayout)` and its one-argument twin `requirement(v)`, `function payout(uint256 rewards, uint256 c, uint256 capBase) internal view returns (uint256)`, `function liquidate(uint128 accountId, address keeper) internal returns (uint256)`, `function liquidateMarginOnly(uint128 accountId, address keeper) internal returns (uint256)`, `function liquidateFlagged(uint128 accountId, address keeper) internal returns (uint256)`, `function canLiquidate(uint128 accountId) internal view returns (bool)`, `function canLiquidateMarginOnly(uint128 accountId) internal view returns (bool)`, `function flagged() internal view returns (uint256[] memory)`, `function isFlagged(uint128 accountId) internal view returns (bool)`, `function capacity(uint128 marketId) internal view returns (uint256, uint256, uint256)`; library `LiquidationWindow` in `contracts/storage/LiquidationWindow.sol` (the renamed window type); `LiquidationFlag.flag(uint128 accountId) internal returns (uint256 seizedMarginValue)`.
 - Measurements and counts go to `$TMPDIR/liquidation-module/` (`TMPDIR=/tmp/claude-1000/-home-alex-Work-perps-synthetix-v3/078ac799-54d5-4976-8bed-9f37f70b3e96/scratchpad`; create the subdirectory) and into the task's report verbatim; the controller journals them and Task 4 puts them in the PR body.
@@ -1330,9 +1330,11 @@ git commit -m "refactor(perps-market): Liquidation — the liquidation of an acc
 
 The requirement the gate asks, the judgement, the flag up and down, what the windows admit and
 the payout in one text move into one library next to the storage; LiquidationModule is the
-keeper's door, eight one-line functions. The keeper's costs are read once per entry: four
+keeper's door, eight entries that ask the library, the four liquidating ones behind the feature
+flag. The keeper's costs are read once per entry: four
 oracle calls become two in liquidate, liquidateMarginOnly and assess. The keeper is a
-parameter; no storage library reads the sender. Selectors, events, errors and slots are the
+parameter; nothing below the door on the liquidation path reads the sender. Selectors, events,
+errors and slots are the
 base's; one number changes where the liquidate cost is zero and the minimum reward is not — the
 requirement now equals what is paid.
 
@@ -1342,7 +1344,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ### Task 4: Three mutation probes, the rest of the guard, the two amendment notes, the PR
 
 **Files:**
-- Modify: `docs/superpowers/specs/2026-09-04-account-valuation-design.md` (an amendment note under the title), `docs/superpowers/specs/2026-09-06-liquidation-flag-design.md` (same)
+- Modify: `docs/superpowers/specs/2026-09-04-account-valuation-design.md` (an amendment note under the title), `docs/superpowers/specs/2026-09-06-liquidation-flag-design.md` (same), `docs/book-order-module-audit.md` (HIGH-3's Recommendation snippet names a deleted function)
 - Probes: `contracts/storage/Liquidation.sol` is mutated three times and restored with `git checkout --` each time; nothing of it is committed.
 
 **Interfaces:**
@@ -1422,17 +1424,28 @@ and lowers it with the last position; the module no longer reads the set. The do
 spec's Out of scope named is closed.
 ```
 
+In `docs/book-order-module-audit.md`, HIGH-3's **Recommendation** snippet still reads `(bool isEligible, , , , ) = PerpsAccount.isEligibleForLiquidation(...);` — a function Task 3 deleted. Replace that one line with:
+
+```solidity
+(bool isEligible, , , ) = Liquidation.isEligibleForLiquidation(v, c);
+```
+
+(the `require` line below it stays; `v` is the account's valuation, `c` the keeper's costs read once — the gate `PerpsAccount.assess` does exactly this since Task 3, so the recommendation is met; do not rewrite the item's status or any other line).
+
 ```bash
 cd /home/alex/Work/perps/synthetix-v3/.claude/worktrees/feat-cld+liquidation-module
-PROTO_LOG=off pnpm exec prettier --write docs/superpowers/specs/2026-09-04-account-valuation-design.md docs/superpowers/specs/2026-09-06-liquidation-flag-design.md
+PROTO_LOG=off pnpm exec prettier --write docs/superpowers/specs/2026-09-04-account-valuation-design.md docs/superpowers/specs/2026-09-06-liquidation-flag-design.md docs/book-order-module-audit.md
+PROTO_LOG=off pnpm exec markdownlint-cli2 docs/book-order-module-audit.md; echo rc=$?
 cd markets/perps-market
 ```
+
+(`docs/book-order-module-audit.md` is not under `docs/superpowers/`, so markdownlint applies to it; a finding on a line you did not touch is pre-existing — note it, do not fix it here.)
 
 - [ ] **Step 6: Commit the notes**
 
 ```bash
-git add ../../docs/superpowers/specs/2026-09-04-account-valuation-design.md ../../docs/superpowers/specs/2026-09-06-liquidation-flag-design.md
-git commit -m "docs(perps-market): the valuation and flag specs point at the Liquidation library
+git add ../../docs/superpowers/specs/2026-09-04-account-valuation-design.md ../../docs/superpowers/specs/2026-09-06-liquidation-flag-design.md ../../docs/book-order-module-audit.md
+git commit -m "docs(perps-market): the valuation and flag specs and the audit's HIGH-3 point at the Liquidation library
 
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ```
@@ -1446,7 +1459,7 @@ Write `$TMPDIR/liquidation-module/pr-body.md` from the report's numbers — this
 
 Spec: `docs/superpowers/specs/2026-09-25-liquidation-module-design.md` (review card 1 of 2026-09-25). Plan: `docs/superpowers/plans/2026-09-25-liquidation-module.md`.
 
-One library next to the storage owns the requirement the gate asks, the judgement, the flag up and down, what the windows admit and the payout in one text; `LiquidationModule` is the keeper's door — eight one-line functions. The keeper's costs are read once per entry: four oracle calls become two in `liquidate`, `liquidateMarginOnly` and `assess`. The keeper is a parameter; no storage library reads the sender. `CONTEXT.md` is new: the glossary the specs have spoken for a month.
+One library next to the storage owns the requirement the gate asks, the judgement, the flag up and down, what the windows admit and the payout in one text; `LiquidationModule` is the keeper's door — eight entries that ask the library, the four liquidating ones behind the feature flag. The keeper's costs are read once per entry: four oracle calls become two in `liquidate`, `liquidateMarginOnly` and `assess`. The keeper is a parameter; nothing below the door on the liquidation path reads the sender (`Settlement` and `CollateralChange` read it for their own doors, as before). `CONTEXT.md` is new: the glossary the specs have spoken for a month.
 
 ### Visible through the proxy
 
@@ -1471,9 +1484,11 @@ Foundry `LiquidationReward.t.sol`: two windows — `held == paid₁ + paid₂ ==
 | batch 25 matches, two sellers | <N> | <N> |
 | batch 100 matches | <N> | <N> |
 
+The two-sellers batch drops the most: its two sellers are assessed 12–13 times each with a position already open — the case where the base read the keeper's costs four times per `assess` and the branch reads them twice; every other batch assesses new openers only, where the base's pre-change check returned early. <Keep or reword per the Task 3 review's trace count.>
+
 ### Guard
 
-Hardhat: `Liquidation/` <n> files / <N> passing, `KeeperRewards/` <N>, `Account/` <N>, `Position/` <N>, `Orders/` <N>, `Market/` <N>, root <N>; 0 failing (reruns noted: <…>). Foundry: <N> suites, <M> tests, 0 failed. `storage:verify` clean.
+Hardhat, file by file: `Liquidation/` <n> files / <N> passing, `KeeperRewards/` <N>, `Account/` <N>, `Position/` <N>, `Orders/` <N>, `Market/` <N>, root <N>. The base is red on Linux (`main @ c59d8204`; nightly run 36112820296 of 2026-09-25: 386/2350 — a separate incident): the failing files and the failing test names after are the base's, none new to this branch (<the red files with their counts>; reruns and the two wobbling files, `KeeperRewards.Caps` and `Liquidation.marginOnly.feeds`, noted: <…>). Foundry: <N> suites, <M> tests, 0 failed. `storage:verify` clean.
 
 ### Deployment
 
@@ -1502,7 +1517,7 @@ Expected: the PR URL. Put it in the report.
 | 1 | three Foundry pins in `LiquidationReward.t.sol` | two windows (green), the edge (red), the oracle count (red) |
 | 2 | `LiquidationWindow` — the window type out of the name | `storage:verify` logs, no error |
 | 3 | `Liquidation`; the door; the deletions in `PerpsAccount`, `PerpsMarket`, `LiquidationFlag`; `getRequiredMargins` | ABI identical; the two pins green; `Liquidation/`, `KeeperRewards/`, `Account/`, gate and quote green; gas after |
-| 4 | three mutation probes; `Orders/`, `Market/`, `Position/`, root green; the two amendment notes; the draft PR | each probe reddens its pin |
+| 4 | three mutation probes; `Orders/`, `Market/`, `Position/`, root at the base's counts and failing names; the two amendment notes and the audit's HIGH-3 snippet; the draft PR | each probe reddens its pin |
 
 ## Self-review against the spec
 
