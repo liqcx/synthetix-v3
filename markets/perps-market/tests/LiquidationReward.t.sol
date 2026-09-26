@@ -6,6 +6,7 @@ pragma solidity >=0.8.11 <0.9.0;
 import {Vm} from "forge-std/Vm.sol";
 import {BootstrapTest} from "./Bootstrap.t.sol";
 import {ILiquidationModule} from "../contracts/interfaces/ILiquidationModule.sol";
+import {INodeModule} from "@synthetixio/oracle-manager/contracts/interfaces/INodeModule.sol";
 
 /**
  * @title The reward the account must hold is the reward the keeper is paid
@@ -51,6 +52,13 @@ contract LiquidationRewardTest is BootstrapTest {
         crash(ethMarketId, CRASH);
         assertTrue(perps.canLiquidate(ACCOUNT));
         assertEq(perps.flaggedAccounts().length, 0);
+    }
+
+    /// @dev A window of 5.5 ETH: (3 + 8) bps × 100,000 skew scale × 0.005 × 10 s. The position of
+    ///      10 ETH needs two calls — 5.5, then 4.5 once the window has passed.
+    function narrowToTwoWindows() internal {
+        vm.prank(perps.owner());
+        perps.setMaxLiquidationParameters(ethMarketId, 0.005e18, 10, 0, address(0));
     }
 
     struct Compared {
@@ -122,5 +130,59 @@ contract LiquidationRewardTest is BootstrapTest {
         assertEq(r.paid, COSTS);
         assertEq(r.gain, COSTS);
         assertTrue(r.full);
+    }
+
+    /// @dev The requirement is the sum of the payouts: what the account held before the flag is
+    ///      what the first call paid (the flag reward and both costs) plus what the second paid
+    ///      (the liquidate cost alone), and the keeper gained exactly that.
+    function test_twoWindows_heldIsTheSumOfThePayouts() public {
+        narrowToTwoWindows();
+        sink();
+        Compared memory first = liquidateAndCompare();
+        assertEq(first.paid, POSITION_REWARD + COSTS);
+        assertFalse(first.full);
+        assertEq(perps.getOpenPositionSize(ACCOUNT, ethMarketId), int128(4.5e18));
+        assertEq(perps.flaggedAccounts().length, 1);
+
+        warp(11); // the window has passed; the feeds are re-pinned
+        Compared memory second = liquidateAndCompare();
+        assertEq(second.promised, 0); // no second flag
+        assertEq(second.paid, 15e18); // the liquidate cost alone: payout(0, 15, 0)
+        assertTrue(second.full);
+        assertEq(perps.flaggedAccounts().length, 0);
+
+        assertEq(first.held, first.paid + second.paid);
+        assertEq(first.held, first.gain + second.gain);
+    }
+
+    /// @dev The one edge where the base's requirement over-states the payout: a liquidate cost of
+    ///      zero and a minimum reward of one. The second call pays nothing (rewards and costs are
+    ///      both zero), and the account must not have been told to hold the minimum for it.
+    function test_zeroLiquidateCost_heldIsWhatIsPaid() public {
+        keeperCostNode.setCosts(10e18, 20e18, 0);
+        vm.prank(perps.owner());
+        perps.setKeeperRewardGuards(1e18, 0, 10_000e18, 1e18);
+        narrowToTwoWindows();
+        sink();
+        Compared memory first = liquidateAndCompare();
+        assertEq(first.paid, POSITION_REWARD + 20e18); // the flag cost; no liquidate cost
+        warp(11);
+        Compared memory second = liquidateAndCompare();
+        assertEq(second.paid, 0);
+        assertTrue(second.full);
+
+        assertEq(first.held, first.paid + second.paid); // base: 421 against 420
+    }
+
+    /// @dev One `liquidate` asks the cost node twice — the flag cost and the liquidate cost —
+    ///      not four times. The price feeds go through `process`, another selector.
+    function test_liquidate_asksTheKeeperCostsTwice() public {
+        sink();
+        vm.expectCall(
+            address(oracleManager),
+            abi.encodeWithSelector(INodeModule.processWithRuntime.selector),
+            2
+        );
+        perps.liquidate(ACCOUNT);
     }
 }
