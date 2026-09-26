@@ -102,7 +102,7 @@ Expected: `0 failing` everywhere (the first run of the first file rebuilds the C
 ```bash
 PROTO_LOG=off CANNON_REGISTRY_PRIORITY=local pnpm build-testable:foundry 2>&1 | tail -3
 forge test 2>&1 | grep -E "Suite result|FAIL|Ran [0-9]+ test suites"
-forge test --match-contract "OrderbookTest|LiquidationRewardTest" -vv 2>&1 | grep -E "^\[PASS\]|^\[FAIL\]" | tee "$TMPDIR/liquidation-module/gas.base.txt"
+forge test --match-contract "OrderbookTest|LiquidationRewardTest" -vv 2>&1 | grep -E "^\[PASS\]|^\[FAIL" | tee "$TMPDIR/liquidation-module/gas.base.txt"
 ```
 
 Expected: every `Suite result: ok`, the runner's `Ran N test suites … M tests passed, 0 failed`; `[PASS] testSettleBookOrders_1_Match() (gas: N)`, `_10_Matches`, `_25_UniqueMatches`, `_25_MatchesTwoSellers`, `_100_Matches`, and the three `LiquidationRewardTest` lines with their gas. Copy the lines into the report.
@@ -222,7 +222,7 @@ After `test_endorsedKeeper_isPaidTheCostsAlone` (after line 125, before the clos
 ```bash
 PROTO_LOG=off pnpm exec prettier --write tests/LiquidationReward.t.sol
 PROTO_LOG=off pnpm exec solhint tests/LiquidationReward.t.sol; echo rc=$?
-forge test --match-contract LiquidationRewardTest -vv 2>&1 | grep -E "^\[PASS\]|^\[FAIL\]|Suite result|revert|expected call|called .* time"
+forge test --match-contract LiquidationRewardTest -vv 2>&1 | grep -E "^\[PASS\]|^\[FAIL|Suite result|revert|expected call|called .* time"
 ```
 
 Expected: solhint `rc=0`; `[PASS] test_positionReward_…`, `[PASS] test_collateralReward_…`, `[PASS] test_endorsedKeeper_…`, `[PASS] test_twoWindows_heldIsTheSumOfThePayouts`; `[FAIL] test_zeroLiquidateCost_heldIsWhatIsPaid` with `assertion failed: 421000000000000000000 != 420000000000000000000` (the base holds one `minKeeperRewardUsd` more than it pays); `[FAIL] test_liquidate_asksTheKeeperCostsTwice` with `expected call to 0x… with data 0x… to be called 2 time(s), but was called 4 time(s)`. Any other red is a defect of the pin, not of the base: fix the pin (the numbers in this task are derived in the spec's decision 5 and Task 0's stand; the stand's `LiquidationRewardTest.setUp` gives 2,000 snxUSD, 10 ETH at 1,000, costs 10/20/15, guards 0/0/10,000/1).
@@ -1279,10 +1279,10 @@ Expected: solhint `rc=0` (fix any `no-unused-import` by deleting the import it n
 ```bash
 PROTO_LOG=off CANNON_REGISTRY_PRIORITY=local pnpm build-testable:foundry 2>&1 | tail -3
 forge test 2>&1 | grep -E "Suite result|FAIL|Ran [0-9]+ test suites"
-forge test --match-contract "OrderbookTest|LiquidationRewardTest" -vv 2>&1 | grep -E "^\[PASS\]|^\[FAIL\]" | tee "$TMPDIR/liquidation-module/gas.after.txt"
+forge test --match-contract "OrderbookTest|LiquidationRewardTest" -vv 2>&1 | grep -E "^\[PASS\]|^\[FAIL" | tee "$TMPDIR/liquidation-module/gas.after.txt"
 ```
 
-Expected: every `Suite result: ok`; `Ran N test suites … M tests passed, 0 failed` with M two more than Task 0's (the two pins of Task 1 that were red); the six `LiquidationRewardTest` lines `[PASS]`; the batch lines with their gas — expected **lower** than `gas.base.txt` for every batch size (two oracle calls fewer per order in `assess`). Copy both tables into the report.
+Expected: every `Suite result: ok`; `Ran N test suites … M tests passed, 0 failed` with M two more than Task 0's (the two pins of Task 1 that were red); the six `LiquidationRewardTest` lines `[PASS]`; the batch lines with their gas — expected **lower** than `gas.base.txt` where the batch assesses an account that already holds a position (two oracle calls fewer per such `assess`); a batch of new openers reads the costs at the same point as the base and lands within a fraction of a percent either way (memory layout of the batch frame). Copy both tables into the report.
 
 - [ ] **Step 9: The Hardhat guard, first half — `Liquidation/` file by file, `KeeperRewards/`, `Account/`, the gate and quote tables**
 
@@ -1356,7 +1356,8 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 In `contracts/storage/Liquidation.sol`, `payout`: delete the three lines `if (rewards + c == 0) { return 0; }`.
 
 ```bash
-forge test --match-contract LiquidationRewardTest -vv 2>&1 | grep -E "^\[PASS\]|^\[FAIL\]|assertion failed"
+PROTO_LOG=off CANNON_REGISTRY_PRIORITY=local pnpm build-testable:foundry 2>&1 | tail -1   # Deploy.sol embeds the modules' bytecode: regenerate after every edit
+forge test --match-contract LiquidationRewardTest -vv 2>&1 | grep -E "^\[PASS\]|^\[FAIL|assertion failed"
 git checkout -- contracts/storage/Liquidation.sol
 ```
 
@@ -1367,20 +1368,23 @@ Expected: `[FAIL] test_zeroLiquidateCost_heldIsWhatIsPaid` with `assertion faile
 In `liquidate`, after `PerpsAccount.Valuation memory v = account.valuation(PerpsPrice.Tolerance.STRICT);` insert `c = costs(account);`.
 
 ```bash
-forge test --match-contract LiquidationRewardTest -vv 2>&1 | grep -E "^\[PASS\]|^\[FAIL\]|called .* time"
+PROTO_LOG=off CANNON_REGISTRY_PRIORITY=local pnpm build-testable:foundry 2>&1 | tail -1   # Deploy.sol embeds the modules' bytecode: regenerate after every edit
+forge test --match-contract LiquidationRewardTest -vv 2>&1 | grep -E "^\[PASS\]|^\[FAIL|called .* time"
 git checkout -- contracts/storage/Liquidation.sol
 ```
 
-Expected: `[FAIL] test_liquidate_asksTheKeeperCostsTwice` with `… to be called 2 time(s), but was called 4 time(s)`; the other seven `[PASS]`.
+Expected: `[FAIL: …] test_liquidate_asksTheKeeperCostsTwice()` with `… to be called 2 time(s), but was called 4 time(s)`, and `[FAIL: …] test_emptyAccountLiquidate_isRefusedWithoutTheKeeperCosts()` too — the mutation's unconditional read reaches the empty account, so the node's `stale` arrives instead of `NotEligibleForLiquidation` (the pin of the fix round catching the hoisted read); the other six `[PASS]`.
 
 - [ ] **Step 3: Probe three — every window counted in the requirement: the two-window pin reddens**
 
 In `_requiredPayout`, replace `* (windows - 1)` with `* windows`.
 
 ```bash
-forge test --match-contract LiquidationRewardTest -vv 2>&1 | grep -E "^\[PASS\]|^\[FAIL\]|assertion failed"
+PROTO_LOG=off CANNON_REGISTRY_PRIORITY=local pnpm build-testable:foundry 2>&1 | tail -1   # Deploy.sol embeds the modules' bytecode: regenerate after every edit
+forge test --match-contract LiquidationRewardTest -vv 2>&1 | grep -E "^\[PASS\]|^\[FAIL|assertion failed"
 git checkout -- contracts/storage/Liquidation.sol
 git status --short   # empty
+PROTO_LOG=off CANNON_REGISTRY_PRIORITY=local pnpm build-testable:foundry 2>&1 | tail -1   # the stand back on HEAD before anything else runs forge
 ```
 
 Expected: `[FAIL] test_twoWindows_heldIsTheSumOfThePayouts` with `assertion failed: 465000000000000000000 != 450000000000000000000` (one liquidate cost too many in the requirement); `test_positionReward_isWhatTheAccountHeld`, `test_collateralReward_isWhatTheAccountHeld` and `test_endorsedKeeper_isPaidTheCostsAlone` also `[FAIL]` on their `held` (their one window is now charged once more: 450 against 435) — four red, four green (the edge pin: `payout(0, 0, 0)` is 0 either way; the count pin; the two empty-account pins, which never reach a window); then the tree clean.
@@ -1484,7 +1488,7 @@ Foundry `LiquidationReward.t.sol`: two windows — `held == paid₁ + paid₂ ==
 | batch 25 matches, two sellers | <N> | <N> |
 | batch 100 matches | <N> | <N> |
 
-The two-sellers batch drops the most: 23 of its 50 assesses (12 and 11) find a position already open — the case where the base read the keeper's costs four times per `assess` and the branch reads them twice; every other batch assesses new openers only, where the base's pre-change check returned early. Traced in Task 3's review: 100 cost calls after (2 per assess) against 146 derived for the base — 46 fewer, about 21.5k gas each.
+The two-sellers batch drops the most: 23 of its 50 assesses (12 and 11) find a position already open — the case where the base read the keeper's costs four times per `assess` and the branch reads them twice; every other batch assesses new openers only, where the base's pre-change check returned early. Traced in Task 3's review: 100 cost calls after (2 per assess) against 146 derived for the base — 46 fewer, about 21.5k gas each. A batch of new openers reads the costs at the same point as the base did and lands within a fraction of a percent of it either way (1, 10 and 25 matches a little below; 100 matches <N> above, +0.26 %): no call is added — the difference is the batch frame's memory, a `Costs` struct and its copies allocated late in a frame whose expansion cost already dominates the batch.
 
 ### Guard
 
