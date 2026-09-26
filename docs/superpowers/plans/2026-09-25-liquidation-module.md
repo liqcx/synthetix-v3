@@ -18,7 +18,7 @@
 - Hardhat test command: `PROTO_LOG=off CANNON_REGISTRY_PRIORITY=local bun x hardhat test <files>` with explicit file paths (no quoted globs; `$(ls dir/*.test.ts)` is fine). **The first run after a contract edit rebuilds the Cannon package (the log says `Building the chain (ID 13370)`) and is not to be trusted; run the files twice and read the second.** Run suites by directory, never everything at once; `Liquidation/` and `Orders/` file by file. Port 8545 must be free (`ss -ltn | grep 8545`; use `ANVIL_PORT=8555` if it is not). Bash timeout 300000–600000 ms; one directory run per Bash call. A file that is red on the base is a base problem — rerun it alone before treating it as a regression; note it, do not fix it here.
 - The `rtk` hook summarises tool output: read exit codes (`; echo rc=$?`), not summary lines. Foundry prints suites in completion order — never cut its output with `tail`; read the `Ran N test suites … tests passed` line and the per-test `[PASS] name() (gas: N)` lines.
 - Foundry: after any contract edit regenerate the stand with `PROTO_LOG=off CANNON_REGISTRY_PRIORITY=local pnpm build-testable:foundry` (writes `script/Deploy.sol`, gitignored), then `forge test`. The regeneration spawns an anvil on 8545.
-- `hardhat storage:verify` needs `storage.new.dump.json` to exist: `PROTO_LOG=off pnpm storage:dump`, `PROTO_LOG=off pnpm storage:verify`, then `PROTO_LOG=off pnpm check:storage`; copy over `storage.dump.json` when the diff is non-empty (Task 2 expects exactly the type's name to change); `rm storage.new.dump.json` afterwards (it is not committed).
+- Storage layout is checked through moon, from the worktree root or the package dir: `PROTO_LOG=off moon run perps-market:storage-dump` (writes `storage.new.dump.json`), `PROTO_LOG=off moon run perps-market:storage-verify` (compares the two; logs added/deleted libraries, errors on a slot/offset/size change), then — when the dump is meant to change — `cp storage.new.dump.json storage.dump.json`, **re-run `storage-dump`** and `PROTO_LOG=off moon run perps-market:check-storage` (it is `diff -uw storage.dump.json storage.new.dump.json` and needs both files); `rm storage.new.dump.json` last (not committed). The package has no `pnpm storage:*` scripts (Task 2 found this). A `jq -S` diff of the two dumps mis-pairs lines when a library's sort position moves (Task 2: `LiquidationWindow` sorts after `LiquidationAssetManager`) — compare per library, not by raw line diff.
 - Lint: `.ts` → `PROTO_LOG=off pnpm exec prettier --write <file>` from the package, then `PROTO_LOG=off pnpm exec eslint --max-warnings=0 markets/perps-market/<file>` **from the worktree root**; `.sol` → `PROTO_LOG=off pnpm exec prettier --write <file>` and `PROTO_LOG=off pnpm exec solhint <file>` from the package; `.md` → `PROTO_LOG=off pnpm exec prettier --write <file>` and `PROTO_LOG=off pnpm exec markdownlint-cli2 <file>` from the worktree root (`docs/superpowers/**` is ignored by markdownlint; prettier still applies).
 - **Visible through the proxy, one number changes, in one edge** (spec, decision 5 and "Visible through the proxy"): the requirement where the liquidate cost is 0 and `minKeeperRewardUsd` is not — it drops to what the keeper is paid. Every selector, type, event, error, slot and every other answer stays; `storage.dump.json` changes in the name of the window type only. A task that finds itself changing anything else has misread the spec: stop and say so.
 - Names new in this PR, used exactly like this in every task: library `Liquidation` in `contracts/storage/Liquidation.sol` with `struct Costs { uint256 flag; uint256 liquidate; }`, `function costs(PerpsAccount.Data storage account) internal view returns (Costs memory)`, `function requirement(PerpsAccount.Valuation memory v, Costs memory c) internal view returns (uint256 initialMargin, uint256 maintenanceMargin, uint256 liquidationPayout)` and its one-argument twin `requirement(v)`, `function payout(uint256 rewards, uint256 c, uint256 capBase) internal view returns (uint256)`, `function liquidate(uint128 accountId, address keeper) internal returns (uint256)`, `function liquidateMarginOnly(uint128 accountId, address keeper) internal returns (uint256)`, `function liquidateFlagged(uint128 accountId, address keeper) internal returns (uint256)`, `function canLiquidate(uint128 accountId) internal view returns (bool)`, `function canLiquidateMarginOnly(uint128 accountId) internal view returns (bool)`, `function flagged() internal view returns (uint256[] memory)`, `function isFlagged(uint128 accountId) internal view returns (bool)`, `function capacity(uint128 marketId) internal view returns (uint256, uint256, uint256)`; library `LiquidationWindow` in `contracts/storage/LiquidationWindow.sol` (the renamed window type); `LiquidationFlag.flag(uint128 accountId) internal returns (uint256 seizedMarginValue)`.
@@ -1302,12 +1302,21 @@ Every file runs alone (the manual `bun x hardhat test` path reads `hardhat.confi
 - [ ] **Step 10: Storage dump and verify**
 
 ```bash
-PROTO_LOG=off pnpm storage:dump 2>&1 | tail -2
-PROTO_LOG=off pnpm storage:verify 2>&1 | tail -8; echo rc=$?
-diff <(jq -S . storage.dump.json) <(jq -S . storage.new.dump.json) | head -30
+PROTO_LOG=off moon run perps-market:storage-dump 2>&1 | tail -2; echo rc=$?
+PROTO_LOG=off moon run perps-market:storage-verify 2>&1 | grep -E "Added|Deleted|Renamed|Invalid|error|No storage mutations" ; echo rc=$?
+python3 -c "import json;a=json.load(open('storage.dump.json'));b=json.load(open('storage.new.dump.json'));ka=set(a);kb=set(b);print('added:',sorted(kb-ka));print('removed:',sorted(ka-kb));print('changed:',sorted(k for k in ka&kb if a[k]!=b[k]))"
 ```
 
-Expected: `rc=0`; the log has `Added library Liquidation at contracts/storage/Liquidation.sol` (its memory struct `Costs` is dumped like any struct) and no `error`; the diff adds the `Liquidation` entry and changes nothing under `PerpsMarket`, `PerpsAccount` or `GlobalPerpsMarket`. Then `cp storage.new.dump.json storage.dump.json && rm storage.new.dump.json && PROTO_LOG=off pnpm check:storage 2>&1 | tail -1; echo rc=$?`.
+Expected: both `rc=0`; the verify log has `Added library Liquidation at contracts/storage/Liquidation.sol` (its memory struct `Costs` is dumped like any struct) and no `error`; the python comparison prints `added: ['contracts/storage/Liquidation.sol:Liquidation']`, `removed: []`, `changed: []` — nothing under `PerpsMarket`, `PerpsAccount` or `GlobalPerpsMarket` changes. Then:
+
+```bash
+cp storage.new.dump.json storage.dump.json
+PROTO_LOG=off moon run perps-market:storage-dump 2>&1 | tail -1
+PROTO_LOG=off moon run perps-market:check-storage 2>&1 | tail -2; echo rc=$?
+rm storage.new.dump.json
+```
+
+(`check-storage` diffs the committed dump against a fresh one, so the dump is regenerated after the copy; `rc=0` and no diff lines.)
 
 - [ ] **Step 11: The Hardhat gas after — the two temporary lines of Task 0 Step 6, then reverted**
 
