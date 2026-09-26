@@ -182,7 +182,7 @@ Code comment: "skip verifications for the account having minimum collateral." Ne
 **Recommendation:**
 
 ```solidity
-(bool isEligible, , , , ) = PerpsAccount.isEligibleForLiquidation(...);
+(bool isEligible, , , ) = Liquidation.isEligibleForLiquidation(v, c);
 require(!isEligible, "Settlement would make account liquidatable");
 ```
 

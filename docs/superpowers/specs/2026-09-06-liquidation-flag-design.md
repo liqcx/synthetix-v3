@@ -1,5 +1,11 @@
 # The liquidation flag is one module: `LiquidationFlag`
 
+**Amended 2026-09-25** (review card 1 of 25.09, `2026-09-25-liquidation-module-design.md`):
+`flag(accountId)` returns the seized value alone; the flag cost is the caller's, read by
+`Liquidation.costs` before the seizure (decision 2). `Liquidation` raises the flag in its entries
+and lowers it with the last position; the module no longer reads the set. The double call this
+spec's Out of scope named is closed.
+
 **Date:** 2026-09-06
 **Status:** Design approved (the defaults of the card-1 analysis, `card1-liquidation-flag-20260906.html`)
 **Context:** `markets/perps-market/contracts/storage/{PerpsAccount,GlobalPerpsMarket}.sol`,
