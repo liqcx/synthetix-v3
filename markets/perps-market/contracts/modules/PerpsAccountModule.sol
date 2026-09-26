@@ -7,6 +7,7 @@ import {AccountRBAC} from "@synthetixio/main/contracts/storage/AccountRBAC.sol";
 import {SetUtil} from "@synthetixio/core-contracts/contracts/utils/SetUtil.sol";
 import {IPerpsAccountModule} from "../interfaces/IPerpsAccountModule.sol";
 import {PerpsAccount} from "../storage/PerpsAccount.sol";
+import {Liquidation} from "../storage/Liquidation.sol";
 import {CollateralChange} from "../storage/CollateralChange.sol";
 import {OrderMode} from "../storage/OrderMode.sol";
 import {Position} from "../storage/Position.sol";
@@ -217,11 +218,9 @@ contract PerpsAccountModule is IPerpsAccountModule {
             uint256 maxLiquidationReward
         )
     {
-        // no positions: the account's side answers zeros itself
-        (requiredInitialMargin, requiredMaintenanceMargin, maxLiquidationReward) = PerpsAccount
-            .getAccountRequiredMargins(
-                PerpsAccount.load(accountId).valuation(PerpsPrice.Tolerance.DEFAULT)
-            );
+        // no positions: the liquidation answers zeros itself
+        (requiredInitialMargin, requiredMaintenanceMargin, maxLiquidationReward) = Liquidation
+            .requirement(PerpsAccount.load(accountId).valuation(PerpsPrice.Tolerance.DEFAULT));
 
         // Include liquidation rewards to required initial margin and required maintenance margin
         requiredInitialMargin += maxLiquidationReward;
