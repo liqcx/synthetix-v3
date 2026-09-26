@@ -31,8 +31,11 @@ import {Settlement} from "./Settlement.sol";
  * @dev Owns no storage. Owns `PerpsMarket.Data.liquidationData` (the windows) in place;
  * composes `LiquidationFlag`, which owns the flagged set. The keeper is a parameter throughout:
  * no function here reads the sender. The keeper's costs are read once per entry, before the
- * seizure that empties the feeds the flag cost counts, and only when the account holds a
- * position or is to be flagged: an empty account is judged without the node.
+ * seizure that empties the feeds the flag cost counts. The position entries — the gate's
+ * `assess`, `requirement(v)`, `canLiquidate`, `liquidate` — ask the node only for an account
+ * that holds a position, and `liquidate` for an empty account it judged eligible, to flag it:
+ * an empty account is judged for a position liquidation without the node. The margin-only
+ * entries, `canLiquidateMarginOnly` and `liquidateMarginOnly`, always ask it.
  */
 library Liquidation {
     using DecimalMath for uint256;
@@ -74,10 +77,10 @@ library Liquidation {
      * the guards, plus the payout of each further window the position needing the most windows
      * takes. One walk over the positions. Zeros for an account without positions.
      * @dev `liquidationPayout` equals the sum of what `liquidate` and the following
-     * `liquidateFlagged` calls pay a keeper endorsed nowhere, valued as `v` values the account —
-     * the identity `LiquidationReward.t.sol` pins over two windows. The flag cost is priced on
-     * the feeds the account holds in storage; in an assessment `v` holds the positions with the
-     * change made, the costs do not.
+     * `liquidateFlagged` calls pay a keeper endorsed nowhere when each further call takes a full
+     * window, valued as `v` values the account — the identity `LiquidationReward.t.sol` pins over
+     * two windows. The flag cost is priced on the feeds the account holds in storage; in an
+     * assessment `v` holds the positions with the change made, the costs do not.
      */
     function requirement(
         PerpsAccount.Valuation memory v,
@@ -260,8 +263,8 @@ library Liquidation {
     // ---------------------------------------------------------------------- the verbs
 
     /**
-     * @notice A flagged account: the rest. Otherwise: the costs read once (for an account without
-     * positions, only once it is judged eligible), the account valued strictly, judged
+     * @notice A flagged account: the rest. Otherwise: the account valued strictly, the costs read
+     * once (for an account without positions, only once it is judged eligible), judged
      * (`NotEligibleForLiquidation`), flagged, `AccountFlaggedForLiquidation`,
      * then the rest — what the windows admit of each position, the payout to `keeper`, the flag
      * lowered with the last position, `AccountLiquidationAttempt`.
@@ -276,11 +279,11 @@ library Liquidation {
         }
 
         PerpsAccount.Data storage account = PerpsAccount.load(accountId);
+        PerpsAccount.Valuation memory v = account.valuation(PerpsPrice.Tolerance.STRICT);
         Costs memory c;
-        if (account.hasOpenPositions()) {
+        if (v.ctx.positions.length != 0) {
             c = costs(account);
         }
-        PerpsAccount.Valuation memory v = account.valuation(PerpsPrice.Tolerance.STRICT);
         // no positions: the requirement is zeros and `c` is not read
         (
             bool isEligible,
@@ -322,8 +325,8 @@ library Liquidation {
             revert ILiquidationModule.AccountHasOpenPositions(accountId);
         }
 
-        Costs memory c = costs(account);
         PerpsAccount.Valuation memory v = account.valuation(PerpsPrice.Tolerance.STRICT);
+        Costs memory c = costs(account);
         if (!isEligibleForMarginLiquidation(v, c)) {
             revert ILiquidationModule.NotEligibleForMarginLiquidation(accountId);
         }
@@ -343,22 +346,19 @@ library Liquidation {
      * @notice The rest of a flagged account: what the windows admit of each position, the payout
      * of the liquidate cost, the flag off with the last position. The two walks of the module
      * call it per account; `liquidate` on a flagged account is this.
+     * @dev The liquidate cost is read after the strict prices and before the position writes,
+     * where the base read it after the writes: the order relative to a price refusal is the
+     * base's, the order relative to a revert inside the writes is not.
      */
     function liquidateFlagged(
         uint128 accountId,
         address keeper
     ) internal returns (uint256 liquidationPayout) {
+        PerpsAccount.MemoryContext memory ctx = PerpsAccount
+            .load(accountId)
+            .getOpenPositionsAndCurrentPrices(PerpsPrice.Tolerance.STRICT);
         Costs memory c = Costs({flag: 0, liquidate: KeeperCosts.load().getLiquidateKeeperCosts()});
-        return
-            _rest(
-                PerpsAccount.load(accountId).getOpenPositionsAndCurrentPrices(
-                    PerpsPrice.Tolerance.STRICT
-                ),
-                keeper,
-                c,
-                0,
-                false
-            );
+        return _rest(ctx, keeper, c, 0, false);
     }
 
     // ---------------------------------------------------------------------- the payout
