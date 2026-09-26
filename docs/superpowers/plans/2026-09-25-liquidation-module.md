@@ -1360,7 +1360,7 @@ forge test --match-contract LiquidationRewardTest -vv 2>&1 | grep -E "^\[PASS\]|
 git checkout -- contracts/storage/Liquidation.sol
 ```
 
-Expected: `[FAIL] test_zeroLiquidateCost_heldIsWhatIsPaid` with `assertion failed: 1000000000000000000 != 0` (the second call paid one `minKeeperRewardUsd` for nothing — both sides of the identity move together, the pin on the payout itself catches it); the other five `[PASS]`. Write the `[FAIL]` line into the report.
+Expected: `[FAIL] test_zeroLiquidateCost_heldIsWhatIsPaid` with `assertion failed: 1000000000000000000 != 0` (the second call paid one `minKeeperRewardUsd` for nothing — both sides of the identity move together, the pin on the payout itself catches it); the other seven `[PASS]`. Write the `[FAIL]` line into the report.
 
 - [ ] **Step 2: Probe two — the costs read twice in `liquidate`: the count pin reddens**
 
@@ -1371,7 +1371,7 @@ forge test --match-contract LiquidationRewardTest -vv 2>&1 | grep -E "^\[PASS\]|
 git checkout -- contracts/storage/Liquidation.sol
 ```
 
-Expected: `[FAIL] test_liquidate_asksTheKeeperCostsTwice` with `… to be called 2 time(s), but was called 4 time(s)`; the other five `[PASS]`.
+Expected: `[FAIL] test_liquidate_asksTheKeeperCostsTwice` with `… to be called 2 time(s), but was called 4 time(s)`; the other seven `[PASS]`.
 
 - [ ] **Step 3: Probe three — every window counted in the requirement: the two-window pin reddens**
 
@@ -1383,7 +1383,7 @@ git checkout -- contracts/storage/Liquidation.sol
 git status --short   # empty
 ```
 
-Expected: `[FAIL] test_twoWindows_heldIsTheSumOfThePayouts` with `assertion failed: 465000000000000000000 != 450000000000000000000` (one liquidate cost too many in the requirement); `test_positionReward_isWhatTheAccountHeld`, `test_collateralReward_isWhatTheAccountHeld` and `test_endorsedKeeper_isPaidTheCostsAlone` also `[FAIL]` on their `held` (their one window is now charged once more: 450 against 435) — four red, two green (the edge pin: `payout(0, 0, 0)` is 0 either way; the count pin); then the tree clean.
+Expected: `[FAIL] test_twoWindows_heldIsTheSumOfThePayouts` with `assertion failed: 465000000000000000000 != 450000000000000000000` (one liquidate cost too many in the requirement); `test_positionReward_isWhatTheAccountHeld`, `test_collateralReward_isWhatTheAccountHeld` and `test_endorsedKeeper_isPaidTheCostsAlone` also `[FAIL]` on their `held` (their one window is now charged once more: 450 against 435) — four red, four green (the edge pin: `payout(0, 0, 0)` is 0 either way; the count pin; the two empty-account pins, which never reach a window); then the tree clean.
 
 - [ ] **Step 4: The guard, second half — `Orders/` file by file, `Market/`, `Position/`, the root files**
 
@@ -1459,17 +1459,17 @@ Write `$TMPDIR/liquidation-module/pr-body.md` from the report's numbers — this
 
 Spec: `docs/superpowers/specs/2026-09-25-liquidation-module-design.md` (review card 1 of 2026-09-25). Plan: `docs/superpowers/plans/2026-09-25-liquidation-module.md`.
 
-One library next to the storage owns the requirement the gate asks, the judgement, the flag up and down, what the windows admit and the payout in one text; `LiquidationModule` is the keeper's door — eight entries that ask the library, the four liquidating ones behind the feature flag. The keeper's costs are read once per entry: four oracle calls become two in `liquidate`, `liquidateMarginOnly` and `assess`. The keeper is a parameter; nothing below the door on the liquidation path reads the sender (`Settlement` and `CollateralChange` read it for their own doors, as before). `CONTEXT.md` is new: the glossary the specs have spoken for a month.
+One library next to the storage owns the requirement the gate asks, the judgement, the flag up and down, what the windows admit and the payout in one text; `LiquidationModule` is the keeper's door — eight entries that ask the library, the four liquidating ones behind the feature flag. The keeper's costs are read once per entry: four oracle calls become two in `liquidate`, `liquidateMarginOnly` and — for an account that already holds a position — `assess`; an empty account is quoted and judged without the node, as before. The keeper is a parameter; nothing below the door on the liquidation path reads the sender (`Settlement` and `CollateralChange` read it for their own doors, as before). `CONTEXT.md` is new: the glossary the specs have spoken for a month.
 
 ### Visible through the proxy
 
 - Selectors, events, errors: unchanged — the ABI listings of `LiquidationModule` and `PerpsAccountModule` are identical before and after (`jq` over the artifacts).
 - Storage layout: unchanged; `storage:verify` logs the renamed window type (`Liquidation.Data` → `LiquidationWindow.Data`) and the new library, no error.
-- **One number changes, in one edge:** where the liquidate cost is 0 and `minKeeperRewardUsd` is not, the requirement of a position needing more than one window drops by `(windows − 1) × min(minKeeperRewardUsd, maxKeeperRewardUsd)` — to what the keeper is paid. No stand pinned the edge (costs 5555 / 15 / 0-with-zero-guards); the contours' cost node prices gas. Pinned now by `test_zeroLiquidateCost_heldIsWhatIsPaid` (red on the base: 421 against 420).
+- **One number changes, in one edge:** where the liquidate cost is 0 and `minKeeperRewardUsd` is not, the requirement of a position needing more than one window drops by `(windows − 1) × min(minKeeperRewardUsd, maxKeeperRewardUsd)` — to what the keeper is paid. No stand asserted the edge: the Hardhat `KeeperRewards.Caps` stand reaches it (its cost node answers 0) and its `AccountFlaggedForLiquidation` payout field now reads 0 where the base read the minimum reward — a field no test asserts; the other stands' costs (5555 / 15 / 0-with-zero-guards) and the contours' gas-priced cost node never reach it. Pinned now by `test_zeroLiquidateCost_heldIsWhatIsPaid` (red on the base: 421 against 420).
 
 ### Pins
 
-Foundry `LiquidationReward.t.sol`: two windows — `held == paid₁ + paid₂ == gain` (green on the base, a pin); the zero-cost edge (red on the base); the oracle-call count, 2 per `liquidate` (red on the base: 4). Three mutation probes each redden their pin: the guard removed → `second.paid` 1 ≠ 0; the costs read twice → called 4 times; `(windows − 1)` → `windows` → 465 ≠ 450.
+Foundry `LiquidationReward.t.sol`: two windows — `held == paid₁ + paid₂ == gain` (green on the base, a pin); the zero-cost edge (red on the base); the oracle-call count, 2 per `liquidate` (red on the base: 4); an empty account quoted and refused without the keeper-cost node (two pins with the node reverting — green on the base, red on Task 3's first cut, which read the costs eagerly). Three mutation probes each redden their pin: the guard removed → `second.paid` 1 ≠ 0; the costs read twice → called 4 times; `(windows − 1)` → `windows` → 465 ≠ 450.
 
 ### Gas
 
@@ -1484,7 +1484,7 @@ Foundry `LiquidationReward.t.sol`: two windows — `held == paid₁ + paid₂ ==
 | batch 25 matches, two sellers | <N> | <N> |
 | batch 100 matches | <N> | <N> |
 
-The two-sellers batch drops the most: its two sellers are assessed 12–13 times each with a position already open — the case where the base read the keeper's costs four times per `assess` and the branch reads them twice; every other batch assesses new openers only, where the base's pre-change check returned early. <Keep or reword per the Task 3 review's trace count.>
+The two-sellers batch drops the most: 23 of its 50 assesses (12 and 11) find a position already open — the case where the base read the keeper's costs four times per `assess` and the branch reads them twice; every other batch assesses new openers only, where the base's pre-change check returned early. Traced in Task 3's review: 100 cost calls after (2 per assess) against 146 derived for the base — 46 fewer, about 21.5k gas each.
 
 ### Guard
 
