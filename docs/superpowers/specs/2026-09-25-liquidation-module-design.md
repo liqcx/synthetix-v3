@@ -55,8 +55,9 @@ admit, pay — written across five files, each owning a piece and none owning th
   `liquidate*`. The requirement is pinned against the payout in one case (one window, non-zero
   costs); the number of oracle calls is pinned nowhere.
 
-The deletion test: delete the eleven functions and the two compositions of the cap, and they
-reappear in `LiquidationModule` alone — one module in five files.
+The deletion test: delete nine of the eleven functions (`seizeCollateral` and `hasOpenPositions`
+stay in `PerpsAccount`, decision 1) and the two compositions of the cap, and they reappear in
+`LiquidationModule` alone — one module in five files.
 
 ## Decision
 
@@ -66,17 +67,18 @@ the payout in one text. `LiquidationModule` is the keeper's door — eight exter
 each one line into the library. Selectors, events, errors, storage slots and — save one edge
 named below — the numbers do not change.**
 
-1. **`Liquidation`** (`contracts/storage/Liquidation.sol`) owns no storage. It takes the eleven
-   functions from `PerpsAccount` and `_liquidateAccount`, `_liquidatePositions`,
-   `_processLiquidationRewards` from the module. `PerpsAccount` keeps the ledger and the
-   valuation: `valuation`, `getAvailableMargin`, `seizeCollateral` (called by the flag),
+1. **`Liquidation`** (`contracts/storage/Liquidation.sol`) owns no storage. It takes nine of the
+   eleven functions from `PerpsAccount` (all but the two kept below) and `_liquidateAccount`,
+   `_liquidatePositions`, `_processLiquidationRewards` from the module. `PerpsAccount` keeps the
+   ledger and the valuation: `valuation`, `getAvailableMargin`, `seizeCollateral` (called by the flag),
    `getNumberOfUpdatedFeedsRequired` (a property of the holdings, read by `KeeperCosts`),
    `applyPositionChange` (the position write), `hasOpenPositions`.
 2. **The type of a liquidation window moves out of the name.** `storage/Liquidation.sol`, the
    18-line `library Liquidation { struct Data { amount; timestamp } }`, becomes
    `storage/LiquidationWindow.sol`, `library LiquidationWindow`; `PerpsMarket.Data.liquidationData`
    is `LiquidationWindow.Data[]`. The layout does not change — `storage:verify` compares a field's
-   slot, offset and size, logs a deleted and an added library, and errors on neither
+   slot, offset and size, logs `Deleted struct Liquidation.Data`, `Added struct Liquidation.Costs`
+   and `Added library LiquidationWindow`, and errors on none
    (`utils/hardhat-storage/src/internal/verify-mutations.ts:20-56, 67-85`); `storage.dump.json`
    changes the type's name.
 3. **The requirement is the liquidation's answer.** `getAccountRequiredMargins(v)` moves as
@@ -117,7 +119,7 @@ named below — the numbers do not change.**
    `currentLiquidationCapacity` move into `Liquidation`, taking `PerpsMarket.Data storage`; the
    field `liquidationData` stays where it is, and the struct names its owner, as
    `liquidatableAccounts` names `LiquidationFlag`. The endorsed keeper is then judged in one file.
-9. **The library speaks to the door in five verbs and four readings.** Verbs:
+9. **The library speaks to the door in three verbs and five readings.** Verbs:
    `liquidate(accountId, keeper)` (the flag if it is not up, then the rest),
    `liquidateMarginOnly(accountId, keeper)`, `liquidateFlagged(accountId, keeper)` (the rest of a
    flagged account; the two walks of the module call it); readings: `canLiquidate(accountId)`,
@@ -126,7 +128,8 @@ named below — the numbers do not change.**
    a `can*` reading at the default tolerance, a flagged account by its positions alone. The
    library emits `ILiquidationModule`'s four events by qualified name, as `Settlement` and
    `CollateralChange` emit theirs; the module emits nothing.
-10. **Deleted:** the eleven functions from `PerpsAccount` with `getAccountRequiredMargins`;
+10. **Deleted:** ten functions from `PerpsAccount` — nine of the eleven (all but `seizeCollateral`
+    and `hasOpenPositions`) and `getAccountRequiredMargins`;
     `_liquidateAccount`, `_liquidatePositions`, `_processLiquidationRewards` and the storage
     imports from the module; `flagCost` from `LiquidationFlag.flag`'s return; the sender from
     `PerpsMarket.maxLiquidatableAmount`; the three window functions from `PerpsMarket`.
@@ -355,13 +358,14 @@ struct Data { … LiquidationWindow.Data[] liquidationData; /* owned by Liquidat
   qualified name; solc 0.8.34 puts a library's events and errors into the ABI of the module that
   emits or reverts with them (verified for `Settlement` in #26 and `CollateralChange` in #38), so
   the module's ABI names are the base's — pinned by the ABI diff of Task 2.
-- **Storage layout: unchanged.** `storage.dump.json` changes in one place — the name of the
-  window type (`Liquidation.Data` → `LiquidationWindow.Data`); `storage:verify` logs the deleted
-  and added library and reports no error.
+- **Storage layout: unchanged.** `storage.dump.json` renames the window type
+  (`Liquidation.Data` → `LiquidationWindow.Data`) and records the new library's memory struct
+  `Liquidation.Costs`; `storage:verify` logs `Deleted struct Liquidation.Data`,
+  `Added struct Liquidation.Costs` and `Added library LiquidationWindow`, and reports no error.
 - **One number changes, in an edge no stand or contour reaches** (decision 5): the requirement
   where the liquidate cost is zero and `minKeeperRewardUsd` is not. Every other answer — every
-  payout, every event's arguments, every refusal — is the base's: same rules, same inputs, the
-  costs read in the same block before the same seizure.
+  payout, every event's arguments, every refusal — is the base's, except in the edge's two faces
+  (above): same rules, same inputs, the costs read in the same block before the same seizure.
 - **Gas.** `liquidate`/`liquidateMarginOnly`: two oracle calls instead of four. `assess`: two
   instead of four per position change — a saving on every book order, measured on the batch
   (2/20/50/200 orders); a liquidation measured on the Foundry stand and by Hardhat receipts.
@@ -382,8 +386,9 @@ changes a number.
 | oracle calls: `vm.expectCall(oracle, abi.encodeWithSelector(INodeModule.processWithRuntime.selector), 2)` around one `liquidate` | decision 4 | **red**: four calls |
 
 The windows are narrowed by the test's own `setMaxLiquidationParameters` (as `:117` does today);
-the price feeds go through `process`, a different selector, so the count is the cost node's
-alone. `Liquidation.t.sol` does not change.
+the strict valuation's prices go through `processManyWithManyRuntime` (`PerpsPrice.sol:70`), a
+different selector — `process` serves only a DEFAULT read of one price — so the count is the cost
+node's alone. `Liquidation.t.sol` does not change.
 
 **Hardhat:** no new file — `KeeperRewards.Large-Position` walks three windows,
 `Liquidation.reward` pins the identity for one; both stay as the guard.
@@ -415,6 +420,23 @@ liquidation monitor and the deployments e2e read nothing that changes.
   `seizeCollateral`, the flag as its only caller (unchanged).
 
 ## Verification
+
+**As run (2026-09-26):** the base is red on Linux (`main @ c59d8204`, nightly 36112820296:
+386/2350 — a separate incident), so "green on both stands" reads "the same failing files and
+failing test names as the base, none new" (71 Hardhat files incl. `Markets/GlobalPerpsMarket`
+14/2; Foundry 9 suites, 63 tests, 0 failed). `storage:verify` against the base logs the three
+lines of decision 2 and no error; the dump also records `Liquidation.Costs`. The oracle-call
+count in `assess` is 2, was 4, for an account that already holds a position; a new opener read
+the costs twice on the base too; an empty account is judged for a position liquidation without
+the node (two pins with the cost node reverting, added after review — the first cut read eagerly
+and refused where the base answered); the margin-only entries price the node for an empty
+account, as on the base. The three verbs value the account before asking the costs, as the base
+did (three pins with prices and costs both stale: the price's error first). Gas: `liquidate`
+−5.7 %, `liquidateMarginOnly` −2.6 %, the batch that re-assesses open positions −4.9 %; a batch
+of new openers lands within a fraction of a percent either way (100 matches +0.26 %; see the PR
+body's fit). Probe two reddens the count pin and the empty-account liquidate pin; probe three the
+two-window pin and the three one-window `held` pins. The edge has two faces (further windows; the
+first call with zero reward and zero costs), each pinned; no healthy stand reaches it.
 
 - The ABI names of `LiquidationModule` and `PerpsAccountModule` on the base and after are
   identical (the `jq` listing of #38's Task 0).

@@ -81,7 +81,9 @@ Whoever executes a liquidation or an async settlement and is paid for it.
 _Avoid_: liquidator, bot, executor
 
 **Endorsed keeper**:
-A keeper a market names: paid the costs alone, and admitted past the liquidation window.
+A keeper a market names: paid no flag reward on that market's positions, and admitted past its
+liquidation window. The collateral reward is withheld from it only when the account's last
+position is on that market; with every position there, it is paid the costs alone.
 _Avoid_: endorsed liquidator (in prose; the configuration keeps the word)
 
 **Requirement**:

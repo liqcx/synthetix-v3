@@ -175,7 +175,7 @@ GlobalPerpsMarket.load().validateMarketCapacity(lockedCreditDelta);
 
 Code comment: "skip verifications for the account having minimum collateral." Neither initial margin nor maintenance margin is checked post-settlement. `checkLiquidation` at line 171 only checks if account is already flagged, not if it becomes eligible.
 
-`AsyncOrder.validateRequest()` performs full `isEligibleForLiquidation` checks, verifies fees, and ensures `currentAvailableMargin >= totalRequiredMargin`.
+`AsyncOrder.validateRequest()` performs full `isEligibleForLiquidation` checks (today `PerpsAccount.assess` asks `Liquidation.isEligibleForLiquidation` on both doors), verifies fees, and ensures `currentAvailableMargin >= totalRequiredMargin`.
 
 **Impact:** Settlements leave accounts underwater, immediately liquidatable. Combined with CRIT-1, settler can engineer positions that are instantly liquidated.
 
