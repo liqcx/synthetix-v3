@@ -22,15 +22,17 @@ import {Settlement} from "./Settlement.sol";
  * @title The liquidation of an account.
  * @notice An account that can no longer hold its positions is taken: the first keeper to call
  * raises the flag and is paid the flag reward and the costs; every call takes what the market's
- * liquidation window admits of each position and is paid the costs; the flag comes off with the
- * last position. An account without positions and with a debt its collateral cannot cover is
- * liquidated margin-only: the same flag, up and down in one call. The requirement — what the
- * account must hold for its own liquidation — is the sum of the payouts a keeper endorsed
- * nowhere would be paid, and the gate asks it of every position change.
+ * liquidation window admits of each position, and every call that liquidates something is paid
+ * the costs; the flag comes off with the last position. An account without positions and with a
+ * debt its collateral cannot cover is liquidated margin-only: the same flag, up and down in one
+ * call. The requirement — what the account must hold for its own liquidation — is the sum of
+ * the payouts a keeper endorsed nowhere would be paid, and the gate asks it of every position
+ * change.
  * @dev Owns no storage. Owns `PerpsMarket.Data.liquidationData` (the windows) in place;
  * composes `LiquidationFlag`, which owns the flagged set. The keeper is a parameter throughout:
  * no function here reads the sender. The keeper's costs are read once per entry, before the
- * seizure that empties the feeds the flag cost counts.
+ * seizure that empties the feeds the flag cost counts, and only when the account holds a
+ * position or is to be flagged: an empty account is judged without the node.
  */
 library Liquidation {
     using DecimalMath for uint256;
@@ -69,8 +71,8 @@ library Liquidation {
      * @notice What the account must hold: the initial and maintenance margin of its positions,
      * and the payout of its own liquidation for a keeper endorsed nowhere — the flag reward of
      * every position or the reward on the collateral, whichever is more, plus both costs, within
-     * the guards, plus the payout of each further window its largest position needs. One walk
-     * over the positions. Zeros for an account without positions.
+     * the guards, plus the payout of each further window the position needing the most windows
+     * takes. One walk over the positions. Zeros for an account without positions.
      * @dev `liquidationPayout` equals the sum of what `liquidate` and the following
      * `liquidateFlagged` calls pay a keeper endorsed nowhere, valued as `v` values the account —
      * the identity `LiquidationReward.t.sol` pins over two windows. The flag cost is priced on
@@ -258,8 +260,9 @@ library Liquidation {
     // ---------------------------------------------------------------------- the verbs
 
     /**
-     * @notice A flagged account: the rest. Otherwise: the costs read once, the account valued
-     * strictly, judged (`NotEligibleForLiquidation`), flagged, `AccountFlaggedForLiquidation`,
+     * @notice A flagged account: the rest. Otherwise: the costs read once (for an account without
+     * positions, only once it is judged eligible), the account valued strictly, judged
+     * (`NotEligibleForLiquidation`), flagged, `AccountFlaggedForLiquidation`,
      * then the rest — what the windows admit of each position, the payout to `keeper`, the flag
      * lowered with the last position, `AccountLiquidationAttempt`.
      */
@@ -273,8 +276,12 @@ library Liquidation {
         }
 
         PerpsAccount.Data storage account = PerpsAccount.load(accountId);
-        Costs memory c = costs(account);
+        Costs memory c;
+        if (account.hasOpenPositions()) {
+            c = costs(account);
+        }
         PerpsAccount.Valuation memory v = account.valuation(PerpsPrice.Tolerance.STRICT);
+        // no positions: the requirement is zeros and `c` is not read
         (
             bool isEligible,
             int256 availableMargin,
@@ -283,6 +290,11 @@ library Liquidation {
         ) = isEligibleForLiquidation(v, c);
         if (!isEligible) {
             revert ILiquidationModule.NotEligibleForLiquidation(accountId);
+        }
+        if (v.ctx.positions.length == 0) {
+            // an eligible account without positions: the flag's event and the payout price the
+            // costs, read after the judgement and before the seizure
+            c = costs(account);
         }
 
         uint256 seizedMarginValue = LiquidationFlag.flag(accountId);
@@ -390,7 +402,7 @@ library Liquidation {
     }
 
     /// @dev The sum of the payouts a keeper endorsed nowhere is paid: the flag reward (already
-    /// capped with the collateral reward) and both costs at the first call, the liquidate cost
+    /// raised to the collateral reward) and both costs at the first call, the liquidate cost
     /// alone at each further window.
     function _requiredPayout(
         PerpsAccount.Valuation memory v,

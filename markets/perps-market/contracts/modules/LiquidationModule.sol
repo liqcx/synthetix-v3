@@ -13,8 +13,8 @@ import {Liquidation} from "../storage/Liquidation.sol";
 /**
  * @title The keeper's door to the liquidation of an account.
  * @dev See ILiquidationModule. The four liquidating entries check the feature flag and name the
- * keeper once; every entry asks `Liquidation`, and the events are the library's. `IMarketEvents`
- * stays inherited so that `MarketUpdated` keeps its place in this module's ABI.
+ * keeper once; every entry asks `Liquidation`, and the liquidation events are the library's.
+ * `IMarketEvents` stays inherited, as on the base; `MarketUpdated` is emitted by `Settlement`.
  */
 contract LiquidationModule is ILiquidationModule, IMarketEvents {
     using SafeCastU256 for uint256;

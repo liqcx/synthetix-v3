@@ -61,7 +61,7 @@ library PerpsMarket {
         mapping(uint256 => AsyncOrder.Data) asyncOrders;
         // accountId => position
         mapping(uint256 => Position.Data) positions;
-        // liquidation amounts per block — the liquidation windows, owned by `Liquidation`
+        // liquidation amounts per timestamp — the liquidation windows, owned by `Liquidation`
         LiquidationWindow.Data[] liquidationData;
     }
 

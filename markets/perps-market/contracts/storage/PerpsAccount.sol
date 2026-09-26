@@ -428,9 +428,11 @@ library PerpsAccount {
      * settlement reward where there is one.
      * @dev The account's other positions are valued at oracle prices. A change of zero size
      * leaves the positions as they are, so its assessment is the account now. A view: it
-     * writes nothing. The keeper's costs are read once, before the change is made: the flag cost
-     * is priced on the feeds the account holds in storage. The checks run in the order listed,
-     * so an account with several defects is told about the first.
+     * writes nothing. The keeper's costs are read once, and only for an account that holds a
+     * position — before the change is made, so the flag cost is priced on the feeds the account
+     * holds in storage; an empty account is judged without the node, which is asked only if the
+     * change opens a position. The checks run in the order listed, so an account with several
+     * defects is told about the first.
      * @return a the assessment.
      * @return market the market of the change, so the caller does not load it again.
      */
@@ -449,10 +451,16 @@ library PerpsAccount {
         a.valuation = valuation(self, PerpsPrice.Tolerance.DEFAULT);
         // an account that exists but never deposited has no stored id yet
         a.valuation.ctx.accountId = accountId;
-        // the keeper's costs once, for both questions the liquidation is asked
-        Liquidation.Costs memory c = Liquidation.costs(self);
+        // the keeper's costs once, for both questions the liquidation is asked — and only for an
+        // account that holds a position: the node is asked nothing about an empty account
+        bool hasPositions = a.valuation.ctx.positions.length != 0;
+        Liquidation.Costs memory c;
+        if (hasPositions) {
+            c = Liquidation.costs(self);
+        }
 
-        // once an account is liquidatable it may not trade its way out, not even by reducing
+        // once an account is liquidatable it may not trade its way out, not even by reducing;
+        // without positions the requirement is zeros and `c` is not read
         bool liquidatable;
         (liquidatable, a.availableMargin, , ) = Liquidation.isEligibleForLiquidation(
             a.valuation,
@@ -491,10 +499,11 @@ library PerpsAccount {
         );
         a.availableMargin -= fees.toInt();
 
-        (uint256 requiredInitialMargin, , uint256 liquidationPayout) = Liquidation.requirement(
-            a.valuation,
-            c
-        );
+        // the snapshot if one was taken; otherwise the one-argument requirement reads its own
+        // costs, and only when the change opened a position — after the room check, as it was
+        (uint256 requiredInitialMargin, , uint256 liquidationPayout) = hasPositions
+            ? Liquidation.requirement(a.valuation, c)
+            : Liquidation.requirement(a.valuation);
         a.requiredMargin = requiredInitialMargin + liquidationPayout;
     }
 

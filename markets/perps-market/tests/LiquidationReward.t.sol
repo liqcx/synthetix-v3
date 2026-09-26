@@ -21,6 +21,8 @@ import {INodeModule} from "@synthetixio/oracle-manager/contracts/interfaces/INod
  */
 contract LiquidationRewardTest is BootstrapTest {
     uint128 constant ACCOUNT = 43;
+    /// @dev trader2's account with margin and no position, for the pins of the empty account.
+    uint128 constant EMPTY = 45;
     uint256 constant COLLATERAL = 2_000e18;
     int128 constant SIZE = 10e18;
     /// @dev A fifth off: the loss of 2,000 eats the collateral.
@@ -184,5 +186,36 @@ contract LiquidationRewardTest is BootstrapTest {
             2
         );
         perps.liquidate(ACCOUNT);
+    }
+
+    /// @dev The keeper-cost node down: every `processWithRuntime` of the oracle manager reverts.
+    ///      The price reads these pins make go through `process` and `processMany*`, so only the
+    ///      keeper costs are stopped.
+    function keeperCostsDown() internal {
+        vm.mockCallRevert(
+            address(oracleManager),
+            abi.encodeWithSelector(INodeModule.processWithRuntime.selector),
+            "stale"
+        );
+    }
+
+    /// @dev An account with margin and no position asks the node nothing: a quote of size zero
+    ///      answers zero with the node down, as it did before the node was ever asked about an
+    ///      empty account.
+    function test_emptyAccountQuote_asksNoKeeperCosts() public {
+        bookTrader(trader2, EMPTY, COLLATERAL);
+        keeperCostsDown();
+        assertEq(perps.requiredMarginForOrder(EMPTY, ethMarketId, 0), 0);
+    }
+
+    /// @dev An account with margin and no position is judged without the node: `liquidate` refuses
+    ///      it `NotEligibleForLiquidation`, not with the node's error.
+    function test_emptyAccountLiquidate_isRefusedWithoutTheKeeperCosts() public {
+        bookTrader(trader2, EMPTY, COLLATERAL);
+        keeperCostsDown();
+        vm.expectRevert(
+            abi.encodeWithSelector(ILiquidationModule.NotEligibleForLiquidation.selector, EMPTY)
+        );
+        perps.liquidate(EMPTY);
     }
 }
