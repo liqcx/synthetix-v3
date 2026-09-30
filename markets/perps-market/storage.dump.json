@@ -434,17 +434,17 @@
     "name": "Liquidation",
     "kind": "library",
     "structs": {
-      "Data": [
+      "Costs": [
         {
-          "type": "uint128",
-          "name": "amount",
-          "size": 16,
+          "type": "uint256",
+          "name": "flag",
+          "size": 32,
           "slot": "0",
           "offset": 0
         },
         {
           "type": "uint256",
-          "name": "timestamp",
+          "name": "liquidate",
           "size": 32,
           "slot": "1",
           "offset": 0
@@ -479,6 +479,28 @@
           },
           "size": 32,
           "slot": "2",
+          "offset": 0
+        }
+      ]
+    }
+  },
+  "contracts/storage/LiquidationWindow.sol:LiquidationWindow": {
+    "name": "LiquidationWindow",
+    "kind": "library",
+    "structs": {
+      "Data": [
+        {
+          "type": "uint128",
+          "name": "amount",
+          "size": 16,
+          "slot": "0",
+          "offset": 0
+        },
+        {
+          "type": "uint256",
+          "name": "timestamp",
+          "size": 32,
+          "slot": "1",
           "offset": 0
         }
       ]
@@ -1336,7 +1358,7 @@
           "name": "liquidationData",
           "value": {
             "type": "struct",
-            "name": "Liquidation.Data",
+            "name": "LiquidationWindow.Data",
             "members": [
               {
                 "type": "uint128",

@@ -5,7 +5,6 @@ import {SetUtil} from "@synthetixio/core-contracts/contracts/utils/SetUtil.sol";
 import {SafeCastU256} from "@synthetixio/core-contracts/contracts/utils/SafeCast.sol";
 import {PerpsAccount} from "./PerpsAccount.sol";
 import {GlobalPerpsMarket} from "./GlobalPerpsMarket.sol";
-import {KeeperCosts} from "./KeeperCosts.sol";
 import {AsyncOrder} from "./AsyncOrder.sol";
 
 /**
@@ -16,12 +15,12 @@ import {AsyncOrder} from "./AsyncOrder.sol";
  * until its last position is liquidated, when the liquidation lowers it. A margin-only
  * liquidation is the same flag on an account without positions: it comes off in the same call.
  * @dev Owns `GlobalPerpsMarket.Data.liquidatableAccounts`; nothing else reads or writes it.
+ * `Liquidation` raises and lowers the flag; `assess` and `CollateralChange` ask `admit`.
  */
 library LiquidationFlag {
     using SetUtil for SetUtil.UintSet;
     using SafeCastU256 for uint256;
     using PerpsAccount for PerpsAccount.Data;
-    using KeeperCosts for KeeperCosts.Data;
     using AsyncOrder for AsyncOrder.Data;
 
     function _set() private view returns (SetUtil.UintSet storage) {
@@ -29,22 +28,19 @@ library LiquidationFlag {
     }
 
     /**
-     * @notice Raises the flag: the cost of flagging at the account's feeds, the account into the
-     * set, its collateral seized, its pending order dropped, its debt forgiven — in that order.
-     * On a flagged account it changes nothing and returns zeros.
-     * @return flagCost what the keeper is owed for the flag, priced on the feeds the account held.
-     * @return seizedMarginValue the value taken — the base of the liquidation reward's cap.
-     * @dev The cost is asked before the seizure, which empties the feeds it counts.
+     * @notice Raises the flag: the account into the set, its collateral seized, its pending
+     * order dropped, its debt forgiven — in that order. On a flagged account it changes nothing
+     * and returns zero.
+     * @return seizedMarginValue the value taken — the base of the liquidation payout's cap.
+     * @dev The flag cost is the caller's: `Liquidation` reads it before calling, on the feeds the
+     * seizure empties.
      */
-    function flag(
-        uint128 accountId
-    ) internal returns (uint256 flagCost, uint256 seizedMarginValue) {
+    function flag(uint128 accountId) internal returns (uint256 seizedMarginValue) {
         SetUtil.UintSet storage set = _set();
         if (set.contains(accountId)) {
-            return (0, 0);
+            return 0;
         }
         PerpsAccount.Data storage account = PerpsAccount.load(accountId);
-        flagCost = KeeperCosts.load().getFlagKeeperCosts(account);
         set.add(accountId);
         seizedMarginValue = account.seizeCollateral();
         AsyncOrder.load(accountId).reset();

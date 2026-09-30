@@ -14,9 +14,8 @@ import {MarketUpdate} from "./MarketUpdate.sol";
 import {PerpsMarketFactory} from "./PerpsMarketFactory.sol";
 import {GlobalPerpsMarket} from "./GlobalPerpsMarket.sol";
 import {LiquidationFlag} from "./LiquidationFlag.sol";
+import {Liquidation} from "./Liquidation.sol";
 import {GlobalPerpsMarketConfiguration} from "./GlobalPerpsMarketConfiguration.sol";
-import {PerpsMarketConfiguration} from "./PerpsMarketConfiguration.sol";
-import {KeeperCosts} from "../storage/KeeperCosts.sol";
 import {PerpsCollateralConfiguration} from "./PerpsCollateralConfiguration.sol";
 
 uint128 constant SNX_USD_MARKET_ID = 0;
@@ -33,14 +32,12 @@ library PerpsAccount {
     using Position for Position.Data;
     using PerpsPrice for PerpsPrice.Data;
     using PerpsMarket for PerpsMarket.Data;
-    using PerpsMarketConfiguration for PerpsMarketConfiguration.Data;
     using PerpsMarketFactory for PerpsMarketFactory.Data;
     using GlobalPerpsMarket for GlobalPerpsMarket.Data;
     using GlobalPerpsMarketConfiguration for GlobalPerpsMarketConfiguration.Data;
     using PerpsCollateralConfiguration for PerpsCollateralConfiguration.Data;
     using DecimalMath for int256;
     using DecimalMath for uint256;
-    using KeeperCosts for KeeperCosts.Data;
 
     struct Data {
         // @dev synth marketId => amount
@@ -191,40 +188,6 @@ library PerpsAccount {
     }
 
     /**
-     * @notice Asked of an account without positions: the possible reward is then the
-     * collateral reward and the costs, which is what a margin-only liquidation pays.
-     */
-    function isEligibleForMarginLiquidation(
-        Valuation memory v
-    ) internal view returns (bool isEligible, int256 availableMargin) {
-        availableMargin = getAvailableMargin(v) - getPossibleLiquidationReward(v).toInt();
-        isEligible = availableMargin < 0 && load(v.ctx.accountId).debt > 0;
-    }
-
-    function isEligibleForLiquidation(
-        Valuation memory v
-    )
-        internal
-        view
-        returns (
-            bool isEligible,
-            int256 availableMargin,
-            uint256 requiredInitialMargin,
-            uint256 requiredMaintenanceMargin,
-            uint256 liquidationReward
-        )
-    {
-        availableMargin = getAvailableMargin(v);
-
-        (
-            requiredInitialMargin,
-            requiredMaintenanceMargin,
-            liquidationReward
-        ) = getAccountRequiredMargins(v);
-        isEligible = (requiredMaintenanceMargin + liquidationReward).toInt() > availableMargin;
-    }
-
-    /**
      * @notice Records whether the account still holds a position on this market.
      * @dev A zero size must never enter the set: a batch that opens and closes within one
      * settlement (book orders +1 then -1 on a fresh market) would otherwise register the
@@ -281,12 +244,10 @@ library PerpsAccount {
         if (account.debt > 0) return 0;
 
         if (hasOpenPositions(account)) {
-            (
-                uint256 requiredInitialMargin,
-                ,
-                uint256 liquidationReward
-            ) = getAccountRequiredMargins(v);
-            uint256 requiredMargin = requiredInitialMargin + liquidationReward;
+            (uint256 requiredInitialMargin, , uint256 liquidationPayout) = Liquidation.requirement(
+                v
+            );
+            uint256 requiredMargin = requiredInitialMargin + liquidationPayout;
             withdrawableMargin = getAvailableMargin(v) - requiredMargin.toInt();
         } else {
             withdrawableMargin = v.collateralValueWithoutDiscount.toInt();
@@ -417,65 +378,6 @@ library PerpsAccount {
         }
     }
 
-    /**
-     * @notice  This function returns the required margins for an account
-     * @dev The initial required margin is used to determine withdrawal amount and when opening positions
-     * @dev The maintenance margin is used to determine when to liquidate a position
-     */
-    function getAccountRequiredMargins(
-        Valuation memory v
-    )
-        internal
-        view
-        returns (
-            uint256 initialMargin,
-            uint256 maintenanceMargin,
-            uint256 possibleLiquidationReward
-        )
-    {
-        if (v.ctx.positions.length == 0) {
-            return (0, 0, 0);
-        }
-
-        // one walk: the margins, the flag reward of a keeper endorsed nowhere, the windows
-        uint256 flagRewardSum;
-        uint256 windows;
-        for (uint256 i = 0; i < v.ctx.positions.length; i++) {
-            Position.Data memory position = v.ctx.positions[i];
-            PerpsMarketConfiguration.Data storage marketConfig = PerpsMarketConfiguration.load(
-                position.marketId
-            );
-            (, , uint256 positionInitialMargin, uint256 positionMaintenanceMargin) = marketConfig
-                .calculateRequiredMargins(position.size, v.ctx.prices[i]);
-
-            maintenanceMargin += positionMaintenanceMargin;
-            initialMargin += positionInitialMargin;
-            flagRewardSum += _positionFlagReward(
-                marketConfig,
-                position,
-                v.ctx.prices[i],
-                address(0)
-            );
-            windows = MathUtil.max(
-                windows,
-                marketConfig.numberOfLiquidationWindows(MathUtil.abs(position.size))
-            );
-        }
-
-        possibleLiquidationReward = _possibleLiquidationReward(
-            v,
-            _withCollateralReward(
-                v.ctx,
-                flagRewardSum,
-                v.collateralValueWithoutDiscount,
-                address(0)
-            ),
-            windows
-        );
-
-        return (initialMargin, maintenanceMargin, possibleLiquidationReward);
-    }
-
     function getNumberOfUpdatedFeedsRequired(
         Data storage self
     ) internal view returns (uint256 numberOfUpdatedFeeds) {
@@ -483,133 +385,6 @@ library PerpsAccount {
             ? self.activeCollateralTypes.length() - 1
             : self.activeCollateralTypes.length();
         numberOfUpdatedFeeds = numberOfCollateralFeeds + self.openPositionMarketIds.length();
-    }
-
-    /**
-     * @dev The flag reward a keeper is owed on one position: nothing on a market the keeper is
-     * endorsed on, else the market's flag reward on the position's notional. `config` is the
-     * position's market configuration, which the caller already holds.
-     */
-    function _positionFlagReward(
-        PerpsMarketConfiguration.Data storage config,
-        Position.Data memory position,
-        uint256 price,
-        address keeper
-    ) private view returns (uint256) {
-        if (keeper != address(0) && config.endorsedLiquidator == keeper) {
-            return 0;
-        }
-        return config.calculateFlagReward(MathUtil.abs(position.size).mulDecimal(price));
-    }
-
-    /**
-     * @dev The larger of the summed flag reward and the reward on `collateralValue` — unless the
-     * keeper is endorsed on the market of the last position, which withholds the collateral
-     * reward, as it always has.
-     */
-    function _withCollateralReward(
-        MemoryContext memory ctx,
-        uint256 flagRewardSum,
-        uint256 collateralValue,
-        address keeper
-    ) private view returns (uint256) {
-        if (
-            ctx.positions.length == 0 ||
-            keeper == address(0) ||
-            PerpsMarketConfiguration
-                .load(ctx.positions[ctx.positions.length - 1].marketId)
-                .endorsedLiquidator !=
-            keeper
-        ) {
-            return
-                MathUtil.max(
-                    flagRewardSum,
-                    GlobalPerpsMarketConfiguration.load().calculateCollateralLiquidateReward(
-                        collateralValue
-                    )
-                );
-        }
-        return flagRewardSum;
-    }
-
-    /**
-     * @notice What a keeper is owed for flagging the account: the flag reward of every position
-     * on a market the keeper is not endorsed on, or the reward on `collateralValue`, whichever
-     * is more. `keeper == address(0)` is a keeper endorsed nowhere — the most any keeper is owed,
-     * which is what the account must hold.
-     * @dev The collateral reward is withheld from a keeper endorsed on the market of the last
-     * position, as it always has been.
-     */
-    function flagReward(
-        MemoryContext memory ctx,
-        uint256 collateralValue,
-        address keeper
-    ) internal view returns (uint256 reward) {
-        for (uint256 i = 0; i < ctx.positions.length; i++) {
-            reward += _positionFlagReward(
-                PerpsMarketConfiguration.load(ctx.positions[i].marketId),
-                ctx.positions[i],
-                ctx.prices[i],
-                keeper
-            );
-        }
-        reward = _withCollateralReward(ctx, reward, collateralValue, keeper);
-    }
-
-    /**
-     * @notice The most liquidation windows any position of the account needs.
-     */
-    function liquidationWindows(MemoryContext memory ctx) internal view returns (uint256 windows) {
-        for (uint256 i = 0; i < ctx.positions.length; i++) {
-            windows = MathUtil.max(
-                windows,
-                PerpsMarketConfiguration.load(ctx.positions[i].marketId).numberOfLiquidationWindows(
-                    MathUtil.abs(ctx.positions[i].size)
-                )
-            );
-        }
-    }
-
-    /**
-     * @notice What the account must hold for its own liquidation: the flag reward of a keeper
-     * endorsed nowhere plus the costs of flagging and liquidating, within the global caps, plus
-     * the cost of each further liquidation window its largest position needs.
-     * @dev Two sources: the reward is read from `v.ctx`, which in an assessment holds the
-     * positions with the change made; the flag cost is priced on the feeds the account holds
-     * in storage, without the change — as it was before the valuation.
-     */
-    function getPossibleLiquidationReward(
-        Valuation memory v
-    ) internal view returns (uint256 possibleLiquidationReward) {
-        return
-            _possibleLiquidationReward(
-                v,
-                flagReward(v.ctx, v.collateralValueWithoutDiscount, address(0)),
-                liquidationWindows(v.ctx)
-            );
-    }
-
-    /// @dev `reward` is the flag reward already capped with the collateral reward.
-    function _possibleLiquidationReward(
-        Valuation memory v,
-        uint256 reward,
-        uint256 windows
-    ) private view returns (uint256) {
-        GlobalPerpsMarketConfiguration.Data storage globalConfig = GlobalPerpsMarketConfiguration
-            .load();
-        KeeperCosts.Data storage keeperCosts = KeeperCosts.load();
-        uint256 costOfFlagging = keeperCosts.getFlagKeeperCosts(load(v.ctx.accountId));
-        uint256 costOfLiquidation = keeperCosts.getLiquidateKeeperCosts();
-        uint256 liquidateAndFlagCost = globalConfig.keeperReward(
-            reward,
-            costOfFlagging + costOfLiquidation,
-            v.collateralValueWithoutDiscount
-        );
-        uint256 liquidateWindowsCosts = windows == 0
-            ? 0
-            : globalConfig.keeperReward(0, costOfLiquidation, 0) * (windows - 1);
-
-        return liquidateAndFlagCost + liquidateWindowsCosts;
     }
 
     /**
@@ -653,8 +428,11 @@ library PerpsAccount {
      * settlement reward where there is one.
      * @dev The account's other positions are valued at oracle prices. A change of zero size
      * leaves the positions as they are, so its assessment is the account now. A view: it
-     * writes nothing. The checks run in the order listed, so an account with several defects
-     * is told about the first.
+     * writes nothing. The keeper's costs are read once, and only for an account that holds a
+     * position — before the change is made, so the flag cost is priced on the feeds the account
+     * holds in storage; an empty account is judged without the node, which is asked only if the
+     * change opens a position. The checks run in the order listed, so an account with several
+     * defects is told about the first.
      * @return a the assessment.
      * @return market the market of the change, so the caller does not load it again.
      */
@@ -673,10 +451,21 @@ library PerpsAccount {
         a.valuation = valuation(self, PerpsPrice.Tolerance.DEFAULT);
         // an account that exists but never deposited has no stored id yet
         a.valuation.ctx.accountId = accountId;
+        // the keeper's costs once, for both questions the liquidation is asked — and only for an
+        // account that holds a position: the node is asked nothing about an empty account
+        bool hasPositions = a.valuation.ctx.positions.length != 0;
+        Liquidation.Costs memory c;
+        if (hasPositions) {
+            c = Liquidation.costs(self);
+        }
 
-        // once an account is liquidatable it may not trade its way out, not even by reducing
+        // once an account is liquidatable it may not trade its way out, not even by reducing;
+        // without positions the requirement is zeros and `c` is not read
         bool liquidatable;
-        (liquidatable, a.availableMargin, , , ) = isEligibleForLiquidation(a.valuation);
+        (liquidatable, a.availableMargin, , ) = Liquidation.isEligibleForLiquidation(
+            a.valuation,
+            c
+        );
         if (liquidatable) {
             revert AccountLiquidatable(accountId);
         }
@@ -710,12 +499,12 @@ library PerpsAccount {
         );
         a.availableMargin -= fees.toInt();
 
-        (
-            uint256 requiredInitialMargin,
-            ,
-            uint256 possibleLiquidationReward
-        ) = getAccountRequiredMargins(a.valuation);
-        a.requiredMargin = requiredInitialMargin + possibleLiquidationReward;
+        // the snapshot if one was taken; otherwise the one-argument requirement reads its own
+        // costs, and only when the change opened a position — after the room check, as it was
+        (uint256 requiredInitialMargin, , uint256 liquidationPayout) = hasPositions
+            ? Liquidation.requirement(a.valuation, c)
+            : Liquidation.requirement(a.valuation);
+        a.requiredMargin = requiredInitialMargin + liquidationPayout;
     }
 
     /**
@@ -867,46 +656,6 @@ library PerpsAccount {
 
         marketUpdate = market.updatePositionData(self.id, newPosition);
         updateOpenPositions(self, marketId, newPosition.size);
-    }
-
-    function liquidatePosition(
-        Data storage self,
-        Position.Data memory position,
-        uint256 price
-    )
-        internal
-        returns (
-            uint128 amountToLiquidate,
-            int128 newPositionSize,
-            MarketUpdate.Data memory marketUpdateData
-        )
-    {
-        PerpsMarket.Data storage perpsMarket = PerpsMarket.load(position.marketId);
-        perpsMarket.recomputeFunding(price);
-
-        int128 oldPositionSize = position.size;
-        uint128 oldPositionAbsSize = MathUtil.abs128(oldPositionSize);
-        amountToLiquidate = perpsMarket.maxLiquidatableAmount(oldPositionAbsSize);
-
-        if (amountToLiquidate == 0) {
-            return (0, oldPositionSize, marketUpdateData);
-        }
-
-        int128 amtToLiquidationInt = amountToLiquidate.toInt();
-        // reduce position size
-        newPositionSize = oldPositionSize > 0
-            ? oldPositionSize - amtToLiquidationInt
-            : oldPositionSize + amtToLiquidationInt;
-
-        (, , marketUpdateData) = applyPositionChange(
-            self,
-            position.marketId,
-            newPositionSize - oldPositionSize,
-            price,
-            price
-        );
-
-        return (amountToLiquidate, newPositionSize, marketUpdateData);
     }
 
     function hasOpenPositions(Data storage self) internal view returns (bool) {

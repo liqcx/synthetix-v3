@@ -7,6 +7,13 @@
 `liquidateMarginOnly` through the flag, and the liquidation errors on the Foundry stand — are
 taken by `2026-09-06-liquidation-flag-design.md`: the flag is one module, `LiquidationFlag`.
 
+**Amended 2026-09-25** (review card 1 of 25.09, `2026-09-25-liquidation-module-design.md`): the
+liquidation half of `PerpsAccount` — decisions 5, 6 and 7's one walk — moved into the library
+`Liquidation` as `requirement`, `isEligibleForLiquidation`, `isEligibleForMarginLiquidation` and
+`flagReward`; the payout's cap is one text (`payout`), and the account's requirement is the sum of
+the payouts. The double oracle call this spec's Out of scope named is closed: the costs are read
+once per entry.
+
 **Context:** `markets/perps-market/contracts/storage/{PerpsAccount,KeeperCosts}.sol`,
 `contracts/modules/{LiquidationModule,PerpsAccountModule}.sol`, both stands (`test/`, `tests/`).
 Card 2 of the 2026-09-04 architecture review (card 3 of 2026-09-03: the defect of the argument

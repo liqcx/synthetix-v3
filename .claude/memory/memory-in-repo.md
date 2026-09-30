@@ -18,4 +18,5 @@ metadata:
 `ln -s /Users/alex/Work/perps/synthetix-v3/.claude/memory ~/.claude/projects/<slug>/memory`. Каждое сохранение
 памяти оставляет `M .claude/memory/…` в основном чекауте — коммитить вместе с работой, иначе память не уедет в
 origin. `.claude/memory/` исключён из prettier, `.claude/**` — из markdownlint и канонического gitleaks.
+На agentbox (Linux, 2026-09-25) harness читает другой путь: `~/.clauth/profiles/gmail/runtime-<n>/projects/-home-alex-Work-perps-synthetix-v3/memory` — симлинк поставлен 25.09.2026 на `/home/alex/Work/perps/synthetix-v3/.claude/memory` (каталог был пустым, не симлинком).
 См. [[gh-repo-liqcx-synthetix-v3]].
