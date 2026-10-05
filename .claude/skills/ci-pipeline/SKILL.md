@@ -1,6 +1,6 @@
 ---
 name: ci-pipeline
-description: Use when a CI job in liqcx/synthetix-v3 is red, when triggering or reading the nightly-contracts workflow, when touching .github/workflows, or when running storage:dump / size-contracts under pnpm.
+description: Use when a CI job in liqu-fi/synthetix-v3 is red, when triggering or reading the nightly-contracts workflow, when touching .github/workflows, or when running storage:dump / size-contracts under pnpm.
 ---
 
 # CI pipeline
@@ -13,7 +13,7 @@ actionlint, gitleaks, yamllint, markdownlint, `liqcx-tooling-sync --check`) and 
 suites that need no Cannon build). `nightly-contracts.yml` runs the heavy path at 03:00 UTC —
 `generate-testable`, `build-testable`, the seven hardhat integration suites one package at a time,
 and the perps-market Foundry stand. Trigger it by hand with
-`gh workflow run nightly-contracts.yml --repo liqcx/synthetix-v3` (inputs: `suite`, `mode`).
+`gh workflow run nightly-contracts.yml --repo liqu-fi/synthetix-v3` (inputs: `suite`, `mode`).
 The runner pool is 4 x (2 CPU, 4 GB) shared org-wide on the production host — that budget, not
 taste, is why the heavy suites are nightly rather than per-PR.
 

@@ -31,7 +31,7 @@ jobs:
       GT_READ: ${{ secrets.GT_READ }}
     steps:
       - uses: actions/checkout@v5
-      - uses: liqcx/tooling/.github/actions/setup-liqcx@v1
+      - uses: liqu-fi/tooling/.github/actions/setup-liqcx@v1
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm cannon:update

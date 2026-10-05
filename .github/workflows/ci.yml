@@ -27,15 +27,16 @@ jobs:
       # user-level ~/.npmrc — pnpm >= 11.15 ignores env credentials in a
       # committed project .npmrc.
       #
-      # The org-level GT_READ secret, not GITHUB_TOKEN: this repo's own
-      # GITHUB_TOKEN gets a 403 on @liqcx/tooling-canon, because the @liqcx
-      # packages are published from liqcx/tooling and grant Actions access
-      # per-repository. GT_READ is org-scoped and visible to every private
-      # repo in the org.
+      # The org-level GT_READ secret, not GITHUB_TOKEN: the @liqcx packages
+      # live in the liqcx org's GitHub Packages and are linked to no
+      # repository (repository: null since the repos moved to liqu-fi), so
+      # this repo's own GITHUB_TOKEN gets a 403 on @liqcx/tooling-canon.
+      # GT_READ is a liqu-fi org secret (a PAT that can read the liqcx
+      # packages), visible to every private repo in the org.
       GT_READ: ${{ secrets.GT_READ }}
     steps:
       - uses: actions/checkout@v5
-      - uses: liqcx/tooling/.github/actions/setup-liqcx@v1
+      - uses: liqu-fi/tooling/.github/actions/setup-liqcx@v1
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm pretty
@@ -98,7 +99,7 @@ jobs:
           # storage:verify diffs against the merge base; a shallow clone has
           # no such ref.
           fetch-depth: 0
-      - uses: liqcx/tooling/.github/actions/setup-liqcx@v1
+      - uses: liqu-fi/tooling/.github/actions/setup-liqcx@v1
       - uses: foundry-rs/foundry-toolchain@v1
       - run: pnpm install --frozen-lockfile
 
