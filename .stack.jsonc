@@ -5,7 +5,7 @@
   "exceptions": [
     {
       "file": ".prototools",
-      "reason": "Toolchain held at node 24.14.0 / pnpm 11.1.2 / bun 1.3.14 (this exception also holds package.json#packageManager): canon pnpm 11.15 re-resolves the lockfile and node 26 is unverified under Hardhat/Cannon/EDR; a toolchain upgrade is its own change",
+      "reason": "The whole toolchain file is held, and with it package.json#packageManager: node 24.14.0, pnpm 11.1.2, bun 1.3.14 and the proto/moon/uv pins. Canon pnpm 11.15 re-resolves the lockfile and node 26 is unverified under Hardhat/Cannon/EDR; a toolchain upgrade is its own change (then drop this exception)",
     },
     {
       "file": ".oxfmtrc.jsonc",

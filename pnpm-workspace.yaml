@@ -79,6 +79,7 @@ catalogs:
   # solidity/toml plugins, solhint plus the two Synthetix solhint plugins,
   # markdownlint, the pre-commit/lint-staged pair and depcheck (behind
   # `pnpm deps`).
+  # `stack check` comes from @alxwlw/stack in the canon `dev` catalog below.
   lint:
     eslint: ^9.9.1
     "@eslint/js": ^9.9.1

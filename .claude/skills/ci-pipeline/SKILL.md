@@ -5,8 +5,8 @@ description: Use when a CI job in liqu-fi/synthetix-v3 is red, when triggering o
 
 # CI pipeline
 
-**CI** runs on GitHub Actions on the org's self-hosted runners (P3d; CircleCI is gone). Two
-workflows: `ci.yml` gates every PR — `lint` (prettier/eslint/solhint/dedupe/deps,
+**CI** runs on GitHub Actions on the org's self-hosted runners (P3d; CircleCI is gone). The
+main workflows: `ci.yml` gates every PR — `lint` (prettier/eslint/solhint/dedupe/deps,
 `bun test ./.github/scripts --path-ignore-patterns='**/__fixtures__/**'` + the canon set:
 actionlint, gitleaks, yamllint, markdownlint, `stack check`) and `contracts`
 (`build:ts`, storage dump/check/verify-against-merge-base, `size-contracts`, and the Foundry
@@ -15,7 +15,9 @@ suites that need no Cannon build). `nightly-contracts.yml` runs the heavy path a
 and the perps-market Foundry stand. Trigger it by hand with
 `gh workflow run nightly-contracts.yml --repo liqu-fi/synthetix-v3` (inputs: `suite`, `mode`).
 The runner pool is 4 x (2 CPU, 4 GB) shared org-wide on the production host — that budget, not
-taste, is why the heavy suites are nightly rather than per-PR.
+taste, is why the heavy suites are nightly rather than per-PR. `cannon-update.yml` opens the
+Cannon-fork bump PR (manual), and the canon `stack-sync.yml` is inert until the
+`STACK_BOT_APP_ID` / `STACK_BOT_PRIVATE_KEY` secrets exist.
 
 ## Both jobs are green
 
@@ -23,7 +25,8 @@ Both were red until 2026-09-08 and each had its own cause.
 
 **`lint`** stopped at `pnpm deps` from PR #32 (2026-09-05) to PR #41: `@usecannon/router` stayed in
 `markets/perps-market/package.json` after the script that required it was deleted. The job aborts at
-the first failing step, so `deps:mismatched`, `deps:circular`, `stack check`, actionlint,
+the first failing step, so `deps:mismatched`, `deps:circular`, the canon check (then
+`liqcx-tooling-sync --check`, now `stack check`), actionlint,
 gitleaks, yamllint and markdownlint were **skipped, not passing**, for eight merges — worth
 remembering before reading a green `lint` badge on an old run.
 
@@ -49,3 +52,16 @@ loading the preload killed every unit on the runner. The modifiers are now bound
 trap for anything else the shim reads off `bun:test` at import: probe it with `CI=true` locally,
 because an unset `CI` hides the whole class — and note that steps 14–17 were skipped, not passing,
 for those two merges.
+
+## Canon upgrades (@alxwlw/stack)
+
+- The canon config is `.stack.jsonc` (profile `contracts`, exceptions with reasons). The drift gate
+  is `pnpm exec stack check` in the `lint` job.
+- To upgrade, run the NEW version's sync, `bunx @alxwlw/stack@<version> sync`, then `pnpm install`,
+  and commit. 1.1.1's own sync re-wrapped long YAML lines in `pnpm-workspace.yaml`; 1.1.2 fixed
+  that. The `@alxwlw/*` packages are ignored by Dependabot on purpose.
+- Do NOT run `pnpm dedupe` locally. Locally it flips axios-retry's peer variant to the one CI's
+  `pnpm dedupe --check` rejects; this happened 2026-10-06. If CI's dedupe step is red, apply the
+  direction CI prints.
+- The `.prototools` exception holds the whole toolchain. Upgrading it is a separate change that
+  removes the exception.
