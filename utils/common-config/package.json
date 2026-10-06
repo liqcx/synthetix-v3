@@ -13,7 +13,6 @@
   "scripts": {},
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "catalog:hardhat",
-    "@nomiclabs/hardhat-etherscan": "catalog:hardhat",
     "@synthetixio/hardhat-storage": "workspace:*",
     "@typechain/ethers-v5": "catalog:eth",
     "@typechain/hardhat": "catalog:eth",
