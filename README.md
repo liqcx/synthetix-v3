@@ -113,7 +113,7 @@ Here is how your `settings.json` should look like (with sensitive fields strippe
 }
 ```
 
-Cannon packages for MegaETH are read from the Cannon repo, `https+ipfs://repo.usecannon.com`: set it as `CANNON_IPFS_URL`, as the `fork-test.yml` workflow of synthetix-deployments does.
+The `fork-test.yml` workflow of synthetix-deployments sets `CANNON_IPFS_URL=https+ipfs://repo.usecannon.com`. The environment variable takes precedence over `ipfsUrl` in `settings.json`.
 
 ## Publishing
 
