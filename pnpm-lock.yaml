@@ -896,9 +896,6 @@ importers:
       '@usecannon/cli':
         specifier: npm:@alxwlw/cannon-cli@2.26.1-nonce.2
         version: '@alxwlw/cannon-cli@2.26.1-nonce.2(bufferutil@4.1.0)(encoding@0.1.13)(typescript@5.5.4)(utf-8-validate@5.0.10)'
-      ethers:
-        specifier: catalog:eth
-        version: 5.8.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
       matchstick-as:
         specifier: catalog:subgraph
         version: 0.6.0
@@ -1055,9 +1052,6 @@ importers:
       '@usecannon/cli':
         specifier: npm:@alxwlw/cannon-cli@2.26.1-nonce.2
         version: '@alxwlw/cannon-cli@2.26.1-nonce.2(bufferutil@4.1.0)(encoding@0.1.13)(typescript@5.5.4)(utf-8-validate@5.0.10)'
-      ethers:
-        specifier: catalog:eth
-        version: 5.8.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
       matchstick-as:
         specifier: catalog:subgraph
         version: 0.6.0

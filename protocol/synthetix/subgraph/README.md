@@ -32,16 +32,13 @@ moon run core-subgraph:test
 ### Deploying subgraph for each network
 
 ```bash
-# 1. Ensure you have $V3_GRAPH_KEY ENV variable set and authorise graph-cli
-yarn auth
-
-# 2. Make sure graph is built
+# 1. Make sure graph is built
 yarn build:optimism-goerli
 
-# 3. Deploy the subgraph
+# 2. Deploy the subgraph
 yarn deploy:optimism-goerli
 
-# 4. Repeat for other networks:
+# 3. Repeat for other networks:
 yarn build:optimism-mainnet
 yarn deploy:optimism-mainnet
 yarn build:goerli

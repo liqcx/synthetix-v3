@@ -188,9 +188,6 @@ markets/perps-market | storage:dump | bun x hardhat storage:dump --output storag
 markets/perps-market | storage:verify |  bun x hardhat storage:verify
 markets/perps-market | test | CANNON_REGISTRY_PRIORITY=local bun x hardhat test; yarn anvil-clean
 markets/perps-market | test:isolated | bash scripts/test-isolated.sh
-markets/perps-market/subgraph | alchemy:base-mainnet-andromeda | graph deploy perps-market-base-mainnet-andromeda subgraph.base-mainnet-andromeda.yaml --output-dir ./build/base-mainnet-andromeda --version-label v1 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
-markets/perps-market/subgraph | alchemy:base-sepolia-andromeda | graph deploy perps-market-base-sepolia-andromeda subgraph.base-sepolia-andromeda.yaml --output-dir ./build/base-sepolia-andromeda --version-label v1 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
-markets/perps-market/subgraph | auth | graph auth --product hosted-service $V3_GRAPH_KEY
 markets/perps-market/subgraph | cannon | cannon
 markets/perps-market/subgraph | coverage | graph test --coverage
 markets/perps-market/subgraph | goldsky:base-sepolia-andromeda | goldsky subgraph deploy perps-market-base-sepolia-andromeda/0.0.1 --path ./build/base-sepolia-andromeda
@@ -220,10 +217,6 @@ markets/spot-market | storage:dump | bun x hardhat storage:dump --output storage
 markets/spot-market | storage:verify |  bun x hardhat storage:verify
 markets/spot-market | test | CANNON_REGISTRY_PRIORITY=local bun x hardhat test
 markets/spot-market | test:fork | bun x hardhat test test-fork/AsyncOrdersModule.e2e.test.ts
-markets/spot-market/subgraph | alchemy:base-mainnet-andromeda | graph deploy spot-market-base-mainnet-andromeda subgraph.base-mainnet-andromeda.yaml --output-dir ./build/base-mainnet-andromeda --version-label v1 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
-markets/spot-market/subgraph | alchemy:base-sepolia-andromeda | graph deploy spot-market-base-sepolia-andromeda subgraph.base-sepolia-andromeda.yaml --output-dir ./build/base-sepolia-andromeda --version-label v1 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
-markets/spot-market/subgraph | alchemy:optimism-mainnet | graph deploy spot-market-optimism-mainnet subgraph.optimism-mainnet.yaml --output-dir ./build/optimism-mainnet --version-label v2 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
-markets/spot-market/subgraph | auth | graph auth --product hosted-service $V3_GRAPH_KEY
 markets/spot-market/subgraph | cannon | cannon
 markets/spot-market/subgraph | coverage | yarn deployments:optimism-mainnet && yarn codegen:optimism-mainnet && git diff --exit-code && yarn test --coverage
 markets/spot-market/subgraph | create-local | graph create --node http://localhost:8020/ snx-v3/spot-market-optimism-goerli
@@ -293,13 +286,6 @@ protocol/synthetix | size-contracts | bun x hardhat compile && bun x hardhat siz
 protocol/synthetix | storage:dump | bun x hardhat storage:dump --output storage.new.dump.json
 protocol/synthetix | storage:verify |  bun x hardhat storage:verify
 protocol/synthetix | test | CANNON_REGISTRY_PRIORITY=local bun x hardhat test
-protocol/synthetix/subgraph | alchemy:arbitrum-mainnet | graph deploy synthetix-arbitrum-mainnet subgraph.arbitrum-mainnet.yaml --output-dir ./build/arbitrum-mainnet --version-label v1.0.3 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
-protocol/synthetix/subgraph | alchemy:arbitrum-sepolia | graph deploy synthetix-arbitrum-sepolia subgraph.arbitrum-sepolia.yaml --output-dir ./build/arbitrum-sepolia --version-label v1 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
-protocol/synthetix/subgraph | alchemy:base-mainnet-andromeda | graph deploy synthetix-base-mainnet-andromeda subgraph.base-mainnet-andromeda.yaml --output-dir ./build/base-mainnet-andromeda --version-label v1 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
-protocol/synthetix/subgraph | alchemy:base-sepolia-andromeda | graph deploy synthetix-base-sepolia-andromeda subgraph.base-sepolia-andromeda.yaml --output-dir ./build/base-sepolia-andromeda --version-label v1 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
-protocol/synthetix/subgraph | alchemy:mainnet | graph deploy synthetix-mainnet subgraph.mainnet.yaml --output-dir ./build/mainnet --version-label v2 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
-protocol/synthetix/subgraph | alchemy:optimism-mainnet | graph deploy synthetix-optimism-mainnet subgraph.optimism-mainnet.yaml --output-dir ./build/optimism-mainnet --version-label v1 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
-protocol/synthetix/subgraph | alchemy:sepolia | graph deploy synthetix-sepolia subgraph.sepolia.yaml --output-dir ./build/sepolia --version-label v1 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz
 protocol/synthetix/subgraph | cannon | cannon
 protocol/synthetix/subgraph | coverage | yarn deployments:mainnet && yarn codegen:mainnet && git diff --exit-code && yarn test --coverage
 protocol/synthetix/subgraph | create-local | graph create --node http://localhost:8020/ snx-v3/goerli
