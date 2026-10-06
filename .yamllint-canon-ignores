@@ -4,8 +4,8 @@ node_modules/
 **/node_modules/
 dist/
 **/dist/
-tsbuild/
-**/tsbuild/
+.tsbuild/
+**/.tsbuild/
 coverage/
 **/coverage/
 .next/

@@ -8,7 +8,7 @@ description: Use when a CI job in liqu-fi/synthetix-v3 is red, when triggering o
 **CI** runs on GitHub Actions on the org's self-hosted runners (P3d; CircleCI is gone). Two
 workflows: `ci.yml` gates every PR — `lint` (prettier/eslint/solhint/dedupe/deps,
 `bun test ./.github/scripts --path-ignore-patterns='**/__fixtures__/**'` + the canon set:
-actionlint, gitleaks, yamllint, markdownlint, `liqcx-tooling-sync --check`) and `contracts`
+actionlint, gitleaks, yamllint, markdownlint, `stack check`) and `contracts`
 (`build:ts`, storage dump/check/verify-against-merge-base, `size-contracts`, and the Foundry
 suites that need no Cannon build). `nightly-contracts.yml` runs the heavy path at 03:00 UTC —
 `generate-testable`, `build-testable`, the seven hardhat integration suites one package at a time,
@@ -23,7 +23,7 @@ Both were red until 2026-09-08 and each had its own cause.
 
 **`lint`** stopped at `pnpm deps` from PR #32 (2026-09-05) to PR #41: `@usecannon/router` stayed in
 `markets/perps-market/package.json` after the script that required it was deleted. The job aborts at
-the first failing step, so `deps:mismatched`, `deps:circular`, `liqcx-tooling-sync`, actionlint,
+the first failing step, so `deps:mismatched`, `deps:circular`, `stack check`, actionlint,
 gitleaks, yamllint and markdownlint were **skipped, not passing**, for eight merges — worth
 remembering before reading a green `lint` badge on an old run.
 

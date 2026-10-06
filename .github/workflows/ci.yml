@@ -51,7 +51,7 @@ jobs:
       - run: pnpm deps
       - run: pnpm deps:mismatched
       - run: pnpm deps:circular
-      - run: pnpm exec liqcx-tooling-sync --check --type=contracts
+      - run: pnpm exec stack check
 
       # .github/scripts/run-tests.test.ts is the nightly's own test runner's
       # unit suite (anvil-port claiming, process-group reaping, the mode

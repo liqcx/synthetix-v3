@@ -1,9 +1,9 @@
-# yamllint config — liqcx org canon (sync-managed verbatim; never edit in a repo).
+# yamllint config — stack canon (sync-managed verbatim; never edit in a repo).
 #
 # Focus: catch semantic bugs (duplicate keys, truthy gotchas, broken
-# structure) that Prettier formatting can't catch. Prettier still handles
-# indentation, line length, and trailing spaces — we disable those here to
-# avoid fighting between the two tools.
+# structure) that a formatter can't catch. oxfmt still handles indentation,
+# line length, and trailing spaces — we disable those here to avoid fighting
+# between the two tools.
 #
 # Scope: all *.yml / *.yaml files in the repo except build artifacts and
 # vendored content (see ignore list below).
@@ -14,13 +14,13 @@ yaml-files:
   - '*.yaml'
   - '*.yml'
 
-# Org-wide ignores live in the sync-managed .yamllint-canon-ignores;
-# repo-local additions go in .yamllint-ignores (seeded by liqcx-tooling-sync,
-# repo-owned — see STANDARD.md "Local extensions").
+# Canon-wide ignores live in the sync-managed .yamllint-canon-ignores;
+# repo-local additions go in .yamllint-ignores (seeded by `stack sync`,
+# repo-owned).
 ignore-from-file: ['.yamllint-canon-ignores', '.yamllint-ignores']
 
 rules:
-  # Formatting handled by Prettier — don't duplicate
+  # Formatting handled by oxfmt — don't duplicate
   indentation: disable
   line-length: disable
   trailing-spaces: disable
