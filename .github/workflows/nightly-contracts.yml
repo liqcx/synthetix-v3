@@ -40,7 +40,7 @@ jobs:
       CANNON_REGISTRY_PRIORITY: local
     steps:
       - uses: actions/checkout@v5
-      - uses: liqcx/tooling/.github/actions/setup-liqcx@v1
+      - uses: liqu-fi/tooling/.github/actions/setup-liqcx@v1
       - uses: foundry-rs/foundry-toolchain@v1
       - run: pnpm install --frozen-lockfile
 

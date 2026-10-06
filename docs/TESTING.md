@@ -255,7 +255,7 @@ moon run perps-market:forge-test       # forge test
 
 В CI стенд perps-market гоняется в ночном прогоне (`nightly-contracts.yml`) — ему нужен
 `script/Deploy.sol`, который появляется только после `build-testable`. Запустить руками:
-`gh workflow run nightly-contracts.yml --repo liqcx/synthetix-v3 -f suite=markets/perps-market`.
+`gh workflow run nightly-contracts.yml --repo liqu-fi/synthetix-v3 -f suite=markets/perps-market`.
 Стенды, которым Cannon не нужен (`treasury-market`, `Faucet`), проверяются на каждом PR в джобе
 `contracts`. `RewardsDistributor` и `RewardsDistributorExternal` сейчас не гоняются нигде в CI:
 их тесты импортируют `forge-std/src/mocks/`, а такого пути нет ни в одном тегированном релизе

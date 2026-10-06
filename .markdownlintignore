@@ -9,7 +9,7 @@
 # live in the root package.json `lint:md` script as negative globs:
 #   "!**/lib/**"        vendored Foundry libraries (openzeppelin, forge-std)
 #   "!.superpowers/**"  subagent-driven-development scratch
-# Report to whoever owns liqcx/tooling: the canon's markdownlintignore.template is
+# Report to whoever owns liqu-fi/tooling: the canon's markdownlintignore.template is
 # inert for the tool it configures.
 **/lib/**
 
