@@ -1,4 +1,4 @@
-# gitleaks config — secret scanner. Runs in pre-commit + CI.
+# gitleaks config — canon ruleset. Runs in pre-commit + CI.
 # Reference: https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml
 
 # Inherit the default ruleset (catches AWS keys, JWTs, GH tokens,
@@ -6,11 +6,11 @@
 [extend]
 useDefault = true
 
-# Project-specific extensions.
+# Canon extensions.
 [[rules]]
 id = 'eth-private-key-no-prefix'
 description = 'Ethereum private key (32 bytes hex, with or without 0x prefix)'
-regex = '''(?i)(?:eth_?priv|settler_?priv|private_?key)\s*[:=]\s*["']?(?:0x)?[a-f0-9]{64}["']?'''
+regex = '''(?i)(?:eth_?priv|private_?key)\s*[:=]\s*["']?(?:0x)?[a-f0-9]{64}["']?'''
 tags = ['secret', 'ethereum']
 keywords = ['privkey', 'private_key', 'privatekey']
 
@@ -18,19 +18,15 @@ keywords = ['privkey', 'private_key', 'privatekey']
 description = 'Global false-positive filters.'
 
 # Commits allowlisted because the "secret" is a confirmed false positive.
-# Add fingerprint + explanation when suppressing a specific finding.
-commits = [
-  # packages/liq-onchain/src/turnkey-session-manager.ts line 42:
-  # DEFAULT_STORAGE_KEY = 'liq.sess.turnkey.v1' — localStorage cache key,
-  # not a credential. Triggered generic-api-key rule on the dotted string.
-  '76daa5f65a95fbeb810844d6fea4b427370eb565',
-]
+# Add fingerprint + explanation when suppressing a specific finding, e.g.:
+# commits = ['<sha>']  # path/to/file.ts line N: <why this isn't a secret>
+commits = []
 
 # Generated / vendored / cache paths.
 paths = [
   '''(.*/)?node_modules(/|$)''',
   '''(.*/)?dist(/|$)''',
-  '''(.*/)?tsbuild(/|$)''',
+  '''(.*/)?\.tsbuild(/|$)''',
   '''(.*/)?coverage(/|$)''',
   '''(.*/)?\.next(/|$)''',
   '''(.*/)?\.source(/|$)''',
@@ -47,12 +43,10 @@ paths = [
   '''(.*/)?fixtures?(/|$)''',
   # Historical planning docs — false-positive regex matches in prose
   # and curl examples. Skip the spec/plan/archive trees.
-  '''docs/superpowers/(specs|plans|archive)/''',
+  '''docs/(specs|plans|archive)/''',
+  '''\.superpowers/''',
   '''docs/ideas/''',
-  '''docs/archive/''',
   '''docs/draft/''',
-  # Markdown docs in infra READMEs — describe URLs, not secrets.
-  '''infra/.*\.md$''',
 ]
 
 # Well-known public test keys / addresses. Add here as they come up.
@@ -68,11 +62,6 @@ regexes = [
   # Test placeholders we put in fixtures on purpose.
   '''dead[bB]eef''',
   '''[fF]akeTokenDoNotUseInProd''',
-  # Versioned localStorage keys used by the landing consent banner —
-  # not a secret, just a cache-bust identifier baked into the app.
-  '''liq-consent-v\d+''',
-  # Versioned localStorage / session-storage key names — not secrets.
-  '''liq\.\S+\.v\d+''',
 ]
 
 # Use stopwords to suppress obvious noise. Gitleaks uses Hashicorp's

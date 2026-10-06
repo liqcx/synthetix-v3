@@ -12,6 +12,10 @@ catalogs:
     ts-node:
       specifier: ^10.9.2
       version: 10.9.2
+  dev:
+    '@alxwlw/stack':
+      specifier: 1.1.1
+      version: 1.1.1
   eth:
     '@ethersproject/abi':
       specifier: ^5.7.0
@@ -81,9 +85,6 @@ catalogs:
     '@eslint/js':
       specifier: ^9.9.1
       version: 9.39.4
-    '@liqcx/tooling-sync':
-      specifier: ^0.7.0
-      version: 0.7.0
     '@typescript-eslint/eslint-plugin':
       specifier: ^8.4.0
       version: 8.60.0
@@ -262,6 +263,9 @@ importers:
 
   .:
     devDependencies:
+      '@alxwlw/stack':
+        specifier: catalog:dev
+        version: 1.1.1
       '@eslint/eslintrc':
         specifier: catalog:lint
         version: 3.3.5
@@ -274,9 +278,6 @@ importers:
       '@ethersproject/providers':
         specifier: catalog:eth
         version: 5.8.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
-      '@liqcx/tooling-sync':
-        specifier: catalog:lint
-        version: 0.7.0
       '@nomiclabs/hardhat-ethers':
         specifier: catalog:hardhat
         version: 2.2.3(ethers@5.8.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(hardhat@2.28.6(bufferutil@4.1.0)(ts-node@10.9.2(@types/node@20.11.17)(typescript@5.5.4))(typescript@5.5.4)(utf-8-validate@5.0.10))
@@ -1352,6 +1353,10 @@ packages:
     resolution: {integrity: sha512-rra/jtvc7Lfcp+X5//QEYksJBfhHoISl+qHkBPRlNT9W9ViUp3/z/kapCpkTxjve9nBWOiBUgvAYU3ak3LPvyQ==}
     hasBin: true
 
+  '@alxwlw/stack@1.1.1':
+    resolution: {integrity: sha512-zZ+4Q8i8yhpS+HY9pHrrSkufI2UFfwXNRijSk1zBd4Gso4303SAvdW18NjhULpc3CjEN5MYCmhc3cjw1HqIz9g==}
+    hasBin: true
+
   '@assemblyscript/loader@0.9.4':
     resolution: {integrity: sha512-HazVq9zwTVwGmqdwYzu7WyQ6FQVZ7SwET0KKQuKm55jD0IfUpZgN0OPIiZG3zV1iSrVYcN0bdwLRXI/VNCYsUA==}
 
@@ -1876,13 +1881,6 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.9':
     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
-
-  '@liqcx/tooling-canon@0.7.0':
-    resolution: {integrity: sha512-1NgXHQp9N3/SxQTq5iEdGPwY5+TmfvXbQVitfdyYPPkMZFpn+TUGZKnKcixtp7UsZGd4ONUnhOI9vQ+n+sxYng==, tarball: https://npm.pkg.github.com/download/@liqcx/tooling-canon/0.7.0/1f4b19c8eed054c8febcdd426e230c235ba9790e}
-
-  '@liqcx/tooling-sync@0.7.0':
-    resolution: {integrity: sha512-rea9tEIuW/sejBbQsNzdKIMSEGU6lvGKB9KqLQpPEeJEaUoSFisRvBg6PhAc+IgjOukcVcpwjcUMvPKUiYr7Tg==, tarball: https://npm.pkg.github.com/download/@liqcx/tooling-sync/0.7.0/d7c46c1496a353faad69dbb218ffa8a0afb3e1d8}
-    hasBin: true
 
   '@ljharb/resumer@0.0.1':
     resolution: {integrity: sha512-skQiAOrCfO7vRTq53cxznMpks7wS1va95UCidALlOVWqvBAzwPVErwizDwoMqNVMEn1mDq0utxZd02eIrvF1lw==}
@@ -9095,8 +9093,8 @@ packages:
     resolution: {integrity: sha512-vIYeF1u3CjlhAFekPPAk2h/Kv4T3mAkMox5OymRiJQB0spDP10LHvt+K7G9Ny6NuuMAb25/6n1qyUjAcGNf/AA==}
     engines: {node: '>= 6'}
 
-  yaml@2.9.0:
-    resolution: {integrity: sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA==}
+  yaml@2.9.1:
+    resolution: {integrity: sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw==}
     engines: {node: '>= 14.6'}
     hasBin: true
 
@@ -9212,6 +9210,11 @@ snapshots:
       - supports-color
       - typescript
       - utf-8-validate
+
+  '@alxwlw/stack@1.1.1':
+    dependencies:
+      jsonc-parser: 3.3.1
+      yaml: 2.9.1
 
   '@assemblyscript/loader@0.9.4': {}
 
@@ -10135,12 +10138,6 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
-
-  '@liqcx/tooling-canon@0.7.0': {}
-
-  '@liqcx/tooling-sync@0.7.0':
-    dependencies:
-      '@liqcx/tooling-canon': 0.7.0
 
   '@ljharb/resumer@0.0.1':
     dependencies:
@@ -15838,7 +15835,7 @@ snapshots:
       micromatch: 4.0.8
       pidtree: 0.6.0
       string-argv: 0.3.2
-      yaml: 2.9.0
+      yaml: 2.9.1
     transitivePeerDependencies:
       - supports-color
 
@@ -19522,7 +19519,7 @@ snapshots:
 
   yaml@1.10.3: {}
 
-  yaml@2.9.0: {}
+  yaml@2.9.1: {}
 
   yargs-parser@13.1.2:
     dependencies:

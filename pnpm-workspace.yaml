@@ -77,8 +77,9 @@ catalogs:
   # Lint / format / static-analysis toolchain — everything the `lint` CI job
   # runs: eslint 9 (flat config, `eslint.config.js`), prettier plus its
   # solidity/toml plugins, solhint plus the two Synthetix solhint plugins,
-  # markdownlint, the pre-commit/lint-staged pair, depcheck (behind `pnpm deps`)
-  # and the @liqcx canon syncer.
+  # markdownlint, the pre-commit/lint-staged pair and depcheck (behind
+  # `pnpm deps`).
+  # `stack check` comes from @alxwlw/stack in the canon `dev` catalog below.
   lint:
     eslint: ^9.9.1
     "@eslint/js": ^9.9.1
@@ -97,7 +98,6 @@ catalogs:
     lint-staged: ^15.2.10
     pre-commit: ^1.2.2
     depcheck: ^1.4.7
-    "@liqcx/tooling-sync": ^0.7.0
 
   # Test runners and harnesses. Two stacks live side by side: the mocha types
   # the Hardhat integration suites still carry, and jest, used by exactly one
@@ -207,6 +207,20 @@ catalogs:
     "@types/debug": ^4.1.12
     "@types/fs-extra": ^11.0.4
     "@types/semver": ^7.5.8
+  dev:
+    typescript: 7.0.2
+    oxlint: 1.83.0
+    oxlint-tsgolint: 7.0.2001
+    oxfmt: 0.68.0
+    "@types/node": 26.1.1
+    "@types/bun": 1.4.2
+    knip: 6.27.0
+    dependency-cruiser: 18.1.0
+    vitest: 4.1.10
+    "@playwright/test": 1.62.0
+    "@alxwlw/stack": 1.1.1
+    "@alxwlw/oxlint-config": 1.1.1
+    "@alxwlw/tsconfig": 1.1.1
 
 # pnpm 11's blockExoticSubdeps (default on) rejects ANY git-sourced override as
 # an exotic subdependency — the block is git-vs-registry, independent of the
@@ -214,8 +228,9 @@ catalogs:
 # below (Synthetix's dev/test gas-reporter patch). Security-hardened vs the
 # upstream form: git+https (not git://, which has no TLS + is GitHub-disabled)
 # and pinned to an IMMUTABLE commit SHA (not the mutable #fix-catch-errors
-# branch), so the dependency content cannot change under us. Long-term: republish
-# the fork to @liqcx GitHub Packages so blockExoticSubdeps can return to default.
+# branch), so the dependency content cannot change under us. Long-term: publish
+# the fork to npm (as alxwlw/cannon is) so blockExoticSubdeps can return to
+# default.
 blockExoticSubdeps: false
 
 overrides:

@@ -34,17 +34,13 @@ jobs:
     timeout-minutes: 360
     permissions:
       contents: read
-      packages: read
     env:
-      GT_READ: ${{ secrets.GT_READ }}
       CANNON_REGISTRY_PRIORITY: local
     steps:
       - uses: actions/checkout@v5
       - uses: alxwlw/stack/.github/actions/setup@v1
         with:
           install: false
-          registry: npm.pkg.github.com
-          registry-token-var: GT_READ
       - uses: foundry-rs/foundry-toolchain@v1
       - run: pnpm install --frozen-lockfile
 

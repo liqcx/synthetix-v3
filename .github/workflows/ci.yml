@@ -20,28 +20,11 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
-      packages: read
-    env:
-      # The committed .npmrc routes the @liqcx scope to GitHub Packages and
-      # reads its token from ${GT_READ}. The alxwlw/stack setup action
-      # (registry + registry-token-var) mirrors this into the user-level
-      # ~/.npmrc — pnpm >= 11.15 ignores env credentials in a committed
-      # project .npmrc.
-      #
-      # The org-level GT_READ secret, not GITHUB_TOKEN: the @liqcx packages
-      # live in the liqcx org's GitHub Packages and are linked to no
-      # repository (repository: null since the repos moved to liqu-fi), so
-      # this repo's own GITHUB_TOKEN gets a 403 on @liqcx/tooling-canon.
-      # GT_READ is a liqu-fi org secret (a PAT that can read the liqcx
-      # packages), visible to every private repo in the org.
-      GT_READ: ${{ secrets.GT_READ }}
     steps:
       - uses: actions/checkout@v5
       - uses: alxwlw/stack/.github/actions/setup@v1
         with:
           install: false
-          registry: npm.pkg.github.com
-          registry-token-var: GT_READ
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm pretty
@@ -51,7 +34,7 @@ jobs:
       - run: pnpm deps
       - run: pnpm deps:mismatched
       - run: pnpm deps:circular
-      - run: pnpm exec liqcx-tooling-sync --check --type=contracts
+      - run: pnpm exec stack check
 
       # .github/scripts/run-tests.test.ts is the nightly's own test runner's
       # unit suite (anvil-port claiming, process-group reaping, the mode
@@ -93,9 +76,7 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: read
-      packages: read
     env:
-      GT_READ: ${{ secrets.GT_READ }}
       # Avoid a registry reach-out on the production self-hosted runner.
       CANNON_REGISTRY_PRIORITY: local
     steps:
@@ -107,8 +88,6 @@ jobs:
       - uses: alxwlw/stack/.github/actions/setup@v1
         with:
           install: false
-          registry: npm.pkg.github.com
-          registry-token-var: GT_READ
       - uses: foundry-rs/foundry-toolchain@v1
       - run: pnpm install --frozen-lockfile
 

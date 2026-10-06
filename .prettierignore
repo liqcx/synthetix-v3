@@ -48,19 +48,19 @@ utils/core-modules/contracts/modules/CoreModule.sol
 
 pnpm-lock.yaml
 
-# Canon-managed, verbatim strategy — liqcx-tooling-sync owns these byte for
-# byte and its --check compares against its own templates. Formatting them to
-# this repo's .prettierrc (4-space TOML, no-tabs JSON) puts the two gates in
-# permanent conflict, so Prettier does not touch them. (.gitleaks.toml and
-# .syncpackrc.cjs are NOT here: the canon seeds those create-if-absent and they
-# are the repo's afterwards.)
+# Canon-managed, verbatim strategy — `stack sync` (@alxwlw/stack) owns these
+# byte for byte and `stack check` compares them against its canon. Formatting
+# them to this repo's .prettierrc (4-space TOML, no-tabs JSON) puts the two
+# gates in permanent conflict, so Prettier does not touch them. (.gitleaks.toml,
+# .yamllint-ignores and .markdownlintignore are NOT here: the canon seeds those
+# create-if-absent and they are the repo's afterwards.)
 .editorconfig
 .markdownlint-cli2.jsonc
 .gitleaks.canon.toml
 .yamllint
 .yamllint-canon-ignores
-.dependency-cruiser.base.cjs
-.syncpackrc.base.json
+.moon/proto-plugins/
+.github/workflows/stack-sync.yml
 
 # Subagent-driven-development scratch: ledger, task briefs, review packages.
 .superpowers/

@@ -20,22 +20,15 @@ jobs:
     runs-on: self-hosted
     # Explicit least-privilege scopes rather than the ambient default:
     # contents+pull-requests for peter-evans/create-pull-request to push the
-    # branch and open the PR, packages to let pnpm reach the @liqcx scope on
-    # GitHub Packages (via GT_READ) — a need this workflow did not have under
-    # yarn.
+    # branch and open the PR.
     permissions:
       contents: write
       pull-requests: write
-      packages: read
-    env:
-      GT_READ: ${{ secrets.GT_READ }}
     steps:
       - uses: actions/checkout@v5
       - uses: alxwlw/stack/.github/actions/setup@v1
         with:
           install: false
-          registry: npm.pkg.github.com
-          registry-token-var: GT_READ
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm cannon:update

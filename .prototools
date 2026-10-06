@@ -1,4 +1,5 @@
-# Toolchain pins (proto-managed) — @liqcx standard adoption (P3b).
+# Toolchain pins (proto-managed) — held against the @alxwlw/stack canon
+# by an exception in .stack.jsonc (see its reason).
 # node 24.14.0 is FORCED: pnpm 11.1.2 requires Node >= 22.13 (node:sqlite
 # builtin), so the repo's old 20.17 pin is incompatible with the canon pm.
 # bun runs `bun x hardhat` inside package scripts.

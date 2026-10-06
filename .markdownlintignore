@@ -1,16 +1,10 @@
-# Repo-local markdownlint ignores — YOURS to edit (seeded once by
-# liqcx-tooling-sync, never overwritten). gitignore-style patterns.
-# The rule set lives in the sync-managed .markdownlint-cli2.jsonc — never edit
-# that file; add repo-specific ignore paths HERE.
+# Repo-local markdownlint ignores — YOURS to edit (seeded create-if-absent by
+# the @alxwlw/stack canon, never overwritten). gitignore-style patterns. The rule
+# set lives in the sync-managed .markdownlint-cli2.jsonc — never edit that file;
+# its "gitignore" option points markdownlint-cli2 at this file.
 
-# NOTE: markdownlint-cli2 does NOT read this file (see its README: ".markdownlintignore
-# is not supported"). The canon seeds it anyway, and `liqcx-tooling-sync --check`
-# requires it to exist, so it stays — but the exclusions that actually take effect
-# live in the root package.json `lint:md` script as negative globs:
-#   "!**/lib/**"        vendored Foundry libraries (openzeppelin, forge-std)
-#   "!.superpowers/**"  subagent-driven-development scratch
-# Report to whoever owns liqu-fi/tooling: the canon's markdownlintignore.template is
-# inert for the tool it configures.
+# Vendored Foundry libraries (openzeppelin, forge-std).
 **/lib/**
 
+# Subagent-driven-development scratch.
 .superpowers/

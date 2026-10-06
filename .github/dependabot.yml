@@ -52,6 +52,11 @@ updates:
       # `pnpm cannon:update` instead.
       - dependency-name: "@usecannon/builder"
       - dependency-name: "@usecannon/cli"
+      # @alxwlw/* move with the stack canon: `stack sync` writes their versions
+      # into the `dev` catalog and `stack check` fails on any other. (The
+      # @alxwlw/cannon-* fork behind the @usecannon aliases is moved by
+      # cannon-update.yml.)
+      - dependency-name: "@alxwlw/*"
       - dependency-name: "@openzeppelin/contracts"
       - dependency-name: "@ethersproject*"
       - dependency-name: "ethers"
