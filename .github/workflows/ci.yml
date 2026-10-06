@@ -23,9 +23,10 @@ jobs:
       packages: read
     env:
       # The committed .npmrc routes the @liqcx scope to GitHub Packages and
-      # reads its token from ${GT_READ}. setup-liqcx mirrors this into the
-      # user-level ~/.npmrc — pnpm >= 11.15 ignores env credentials in a
-      # committed project .npmrc.
+      # reads its token from ${GT_READ}. The alxwlw/stack setup action
+      # (registry + registry-token-var) mirrors this into the user-level
+      # ~/.npmrc — pnpm >= 11.15 ignores env credentials in a committed
+      # project .npmrc.
       #
       # The org-level GT_READ secret, not GITHUB_TOKEN: the @liqcx packages
       # live in the liqcx org's GitHub Packages and are linked to no
@@ -36,7 +37,11 @@ jobs:
       GT_READ: ${{ secrets.GT_READ }}
     steps:
       - uses: actions/checkout@v5
-      - uses: liqu-fi/tooling/.github/actions/setup-liqcx@v1
+      - uses: alxwlw/stack/.github/actions/setup@v1
+        with:
+          install: false
+          registry: npm.pkg.github.com
+          registry-token-var: GT_READ
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm pretty
@@ -65,7 +70,7 @@ jobs:
 
       # actionlint spawns one shellcheck child per workflow file in parallel,
       # and every proto shim invocation rewrites the same temp plugin file —
-      # they collide. setup-liqcx resolves both real binaries into the env for
+      # they collide. The setup action resolves both real binaries into the env for
       # exactly this reason; invoke them directly.
       - name: Lint workflows
         run: exec "${ACTIONLINT_BIN:-actionlint}" -shellcheck "${SHELLCHECK_BIN:-shellcheck}"
@@ -99,7 +104,11 @@ jobs:
           # storage:verify diffs against the merge base; a shallow clone has
           # no such ref.
           fetch-depth: 0
-      - uses: liqu-fi/tooling/.github/actions/setup-liqcx@v1
+      - uses: alxwlw/stack/.github/actions/setup@v1
+        with:
+          install: false
+          registry: npm.pkg.github.com
+          registry-token-var: GT_READ
       - uses: foundry-rs/foundry-toolchain@v1
       - run: pnpm install --frozen-lockfile
 
