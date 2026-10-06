@@ -31,7 +31,11 @@ jobs:
       GT_READ: ${{ secrets.GT_READ }}
     steps:
       - uses: actions/checkout@v5
-      - uses: liqu-fi/tooling/.github/actions/setup-liqcx@v1
+      - uses: alxwlw/stack/.github/actions/setup@v1
+        with:
+          install: false
+          registry: npm.pkg.github.com
+          registry-token-var: GT_READ
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm cannon:update
