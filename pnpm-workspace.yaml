@@ -227,8 +227,9 @@ catalogs:
 # below (Synthetix's dev/test gas-reporter patch). Security-hardened vs the
 # upstream form: git+https (not git://, which has no TLS + is GitHub-disabled)
 # and pinned to an IMMUTABLE commit SHA (not the mutable #fix-catch-errors
-# branch), so the dependency content cannot change under us. Long-term: republish
-# the fork to @liqcx GitHub Packages so blockExoticSubdeps can return to default.
+# branch), so the dependency content cannot change under us. Long-term: publish
+# the fork to npm (as alxwlw/cannon is) so blockExoticSubdeps can return to
+# default.
 blockExoticSubdeps: false
 
 overrides:
