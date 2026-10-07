@@ -1,14 +1,5 @@
 # Synthetix v3
 
-[![codecov](https://codecov.io/gh/Synthetixio/synthetix-v3/branch/main/graph/badge.svg?token=B9BK0U5KAT)](https://codecov.io/gh/Synthetixio/synthetix-v3)
-
-| Package                     | Coverage                                                                                                                                                                      |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| @synthetixio/core-utils     | [![codecov](https://codecov.io/gh/Synthetixio/synthetix-v3/branch/main/graph/badge.svg?token=B9BK0U5KAT&flag=core-utils)](https://codecov.io/gh/Synthetixio/synthetix-v3)     |
-| @synthetixio/core-contracts | [![codecov](https://codecov.io/gh/Synthetixio/synthetix-v3/branch/main/graph/badge.svg?token=B9BK0U5KAT&flag=core-contracts)](https://codecov.io/gh/Synthetixio/synthetix-v3) |
-| @synthetixio/core-modules   | [![codecov](https://codecov.io/gh/Synthetixio/synthetix-v3/branch/main/graph/badge.svg?token=B9BK0U5KAT&flag=core-modules)](https://codecov.io/gh/Synthetixio/synthetix-v3)   |
-| @synthetixio/main           | [![codecov](https://codecov.io/gh/Synthetixio/synthetix-v3/branch/main/graph/badge.svg?token=B9BK0U5KAT&flag=synthetix)](https://codecov.io/gh/Synthetixio/synthetix-v3)      |
-
 ## Documentation
 
 Please refer to the [Official Documentation](https://docs.synthetix.io/) for high level concepts of the Synthetix v3 protocol, as well as auto generated docs from natspec.
@@ -96,7 +87,7 @@ Required options to set:
 - `ipfsUrl`: `https://ipfs.synthetix.io`
 - `writeIpfsUrl`: `https://<USER>:<PASS>@ipfs.synthetix.io`
 - `publishIpfsUrl`: `https://<USER>:<PASS>@ipfs.synthetix.io`
-- `registries`: list of per-chain registries with infura RPCs
+- `registries`: list of per-chain registries, each with the RPC URL(s) used to read it
 
 Here is how your `settings.json` should look like (with sensitive fields stripped)
 
@@ -109,18 +100,20 @@ Here is how your `settings.json` should look like (with sensitive fields strippe
     {
       "name": "OP Mainnet",
       "chainId": 10,
-      "rpcUrl": ["https://optimism-mainnet.infura.io/v3/<INFURA_KEY>"],
+      "rpcUrl": ["<OP_MAINNET_RPC_URL>"],
       "address": "0x8E5C7EFC9636A6A0408A46BB7F617094B81e5dba"
     },
     {
       "name": "Ethereum Mainnet",
       "chainId": 1,
-      "rpcUrl": ["https://mainnet.infura.io/v3/<INFURA_KEY>"],
+      "rpcUrl": ["<ETHEREUM_MAINNET_RPC_URL>"],
       "address": "0x8E5C7EFC9636A6A0408A46BB7F617094B81e5dba"
     }
   ]
 }
 ```
+
+The `fork-test.yml` workflow of synthetix-deployments sets `CANNON_IPFS_URL=https+ipfs://repo.usecannon.com`. The environment variable takes precedence over `ipfsUrl` in `settings.json`.
 
 ## Publishing
 

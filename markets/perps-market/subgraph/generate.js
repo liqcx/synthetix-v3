@@ -6,8 +6,8 @@
  *
  * Codegen is network-independent by construction — one schema, one ABI — so a
  * single run serves every network. Moving a contour is an edit to `networks.json`
- * and nothing else; adding one also needs a hand-written `goldsky:` or `alchemy:`
- * deploy script in `package.json`, since there is no other deploy path.
+ * and nothing else; adding one also needs a hand-written `goldsky:` deploy
+ * script in `package.json`, since there is no other deploy path.
  */
 
 const fs = require('fs');

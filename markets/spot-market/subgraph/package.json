@@ -7,10 +7,6 @@
     "cannon": "cannon",
     "prettier": "prettier",
     "graph": "graph",
-    "auth": "graph auth --product hosted-service $V3_GRAPH_KEY",
-    "alchemy:optimism-mainnet": "graph deploy spot-market-optimism-mainnet subgraph.optimism-mainnet.yaml --output-dir ./build/optimism-mainnet --version-label v2 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz",
-    "alchemy:base-sepolia-andromeda": "graph deploy spot-market-base-sepolia-andromeda subgraph.base-sepolia-andromeda.yaml --output-dir ./build/base-sepolia-andromeda --version-label v1 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz",
-    "alchemy:base-mainnet-andromeda": "graph deploy spot-market-base-mainnet-andromeda subgraph.base-mainnet-andromeda.yaml --output-dir ./build/base-mainnet-andromeda --version-label v1 --node https://subgraphs.alchemy.com/api/subgraphs/deploy --deploy-key $SATSUMA_KEY --ipfs https://ipfs.satsuma.xyz",
     "create-local": "graph create --node http://localhost:8020/ snx-v3/spot-market-optimism-goerli",
     "remove-local": "graph remove --node http://localhost:8020/ snx-v3/spot-market-optimism-goerli",
     "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 snx-v3/spot-market-optimism-goerli"
@@ -19,7 +15,6 @@
     "@graphprotocol/graph-cli": "catalog:subgraph",
     "@graphprotocol/graph-ts": "catalog:subgraph",
     "@usecannon/cli": "catalog:cannon",
-    "ethers": "catalog:eth",
     "matchstick-as": "catalog:subgraph",
     "prettier": "catalog:lint"
   }

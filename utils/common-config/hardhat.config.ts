@@ -3,7 +3,6 @@ import dotenv from 'dotenv';
 
 import '@typechain/hardhat';
 import '@nomiclabs/hardhat-ethers';
-import '@nomiclabs/hardhat-etherscan';
 import 'hardhat-contract-sizer';
 import 'solidity-coverage';
 import 'hardhat-gas-reporter';
@@ -66,104 +65,12 @@ const config = {
       gas: 12000000, // Prevent gas estimation for better error results in tests
     },
     cannon: { port: anvilPort, url: `http://127.0.0.1:${anvilPort}` },
-    mainnet: {
-      url:
-        process.env.NETWORK_ENDPOINT ||
-        'https://mainnet.infura.io/v3/' + process.env.INFURA_API_KEY,
-      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
-      chainId: 1,
-    },
-    ['optimistic-sepolia']: {
-      url:
-        process.env.NETWORK_ENDPOINT ||
-        `https://optimism-sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`,
-      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
-      chainId: 11155420,
-    },
-    ['arbitrum-sepolia']: {
-      url:
-        process.env.NETWORK_ENDPOINT ||
-        `https://arbitrum-sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`,
-      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
-      chainId: 421614,
-    },
-    ['arbitrum-mainnet']: {
-      url:
-        process.env.NETWORK_ENDPOINT ||
-        `https://arbitrum-mainnet.infura.io/v3/${process.env.INFURA_API_KEY}`,
-      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
-      chainId: 42161,
-    },
-    ['optimistic-mainnet']: {
-      url:
-        process.env.NETWORK_ENDPOINT ||
-        `https://optimism-mainnet.infura.io/v3/${process.env.INFURA_API_KEY}`,
-      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
-      chainId: 10,
-    },
-    sepolia: {
-      url:
-        process.env.NETWORK_ENDPOINT ||
-        `https://sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`,
-      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
-      chainId: 11155111,
-    },
-    ['avalanche-fuji']: {
-      url:
-        process.env.NETWORK_ENDPOINT ||
-        `https://avalanche-fuji.infura.io/v3/${process.env.INFURA_API_KEY}`,
-      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
-      chainId: 43113,
-    },
-    ['base-mainnet']: {
-      url:
-        process.env.NETWORK_ENDPOINT ||
-        `https://base-mainnet.infura.io/v3/${process.env.INFURA_API_KEY}`,
-      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
-      chainId: 8453,
-    },
-    ['base-sepolia']: {
-      url:
-        process.env.NETWORK_ENDPOINT ||
-        `https://base-sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`,
-      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
-      chainId: 84532,
-    },
-    ['snaxchain-testnet']: {
-      url:
-        process.env.NETWORK_ENDPOINT ||
-        `https://testnet.snaxchain.io/${process.env.SNAXCHAIN_API_KEY}`,
-      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
-      chainId: 13001,
-    },
-    ['snaxchain']: {
-      url:
-        process.env.NETWORK_ENDPOINT ||
-        `https://mainnet.snaxchain.io/${process.env.SNAXCHAIN_API_KEY}`,
-      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
-      chainId: 2192,
-    },
   },
   gasReporter: {
     enabled: !!process.env.REPORT_GAS,
   },
   contractSizer: {
     strict: true,
-  },
-  etherscan: {
-    apiKey: {
-      mainnet: process.env.ETHERSCAN_API_KEY,
-      rinkeby: process.env.ETHERSCAN_API_KEY,
-      sepolia: process.env.ETHERSCAN_API_KEY,
-      optimisticEthereum: process.env.OVM_ETHERSCAN_API_KEY,
-      optimisticSepolia: process.env.OVM_ETHERSCAN_API_KEY,
-      avalancheFujiTestnet: process.env.ETHERSCAN_API_KEY,
-      arbitrumMainnet: process.env.ARBITRUM_ETHERSCAN_API_KEY,
-    },
-  },
-  tenderly: {
-    project: 'synthetix',
-    username: 'synthetix-services',
   },
   cannon: {
     publicSourceCode: true,

@@ -126,7 +126,6 @@ catalogs:
     hardhat-ignore-warnings: ^0.2.9
     solidity-coverage: ^0.8.7
     "@nomiclabs/hardhat-ethers": ^2.2.3
-    "@nomiclabs/hardhat-etherscan": ^3.1.8
     "@foundry-rs/hardhat-anvil": ^0.1.7
 
   # Cannon — a FORK. Read the `overrides` block below before touching these two:
