@@ -48,7 +48,7 @@ nothing; `OrderStatus` and `BookOrderSettleStatus` leave the interface.
   are invisible after mining, so "reports" means an event, and the settler would have to settle a
   fill leg by leg: one leg on chain, the other dead. Every consumer of `Fill` rows (positions,
   history, rewards, points) would need a leg-level notion of "settled". That is a monorepo arc of
-  its own, and it would make the contract a second admission engine while `CONTEXT.md` keeps
+  its own, and it would make the contract a second admission engine while `GLOSSARY.md` keeps
   Admission offchain. Not taken; the gate can be turned into an outcome value later without
   moving it.
 - **C. Keep the contract as is, harden the settler.** Leaves the pool exposed to a settler bug or

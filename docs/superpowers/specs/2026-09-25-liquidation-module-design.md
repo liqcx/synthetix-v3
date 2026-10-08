@@ -1,7 +1,7 @@
 # The liquidation of an account is one module: `Liquidation`
 
 Date: 2026-09-25. Base: `main @ c59d8204`. Review card 1 of the 2026-09-25 architecture review
-(`.claude/memory/architecture-review-2026-09-25.md`). Vocabulary: `CONTEXT.md` (new in this PR)
+(`.claude/memory/architecture-review-2026-09-25.md`). Vocabulary: `GLOSSARY.md` (new in this PR)
 for the domain, the `codebase-design` skill for the architecture words.
 
 ## Problem
@@ -414,7 +414,7 @@ liquidation monitor and the deployments e2e read nothing that changes.
 - `2026-09-06-liquidation-flag-design.md` gets an amendment note: `flag(accountId)` returns the
   seized value alone, the cost is the caller's snapshot read before the seizure (decision 2);
   the double call of its Out of scope is closed here.
-- `CONTEXT.md` (new): the glossary this spec speaks — requirement, payout, flag reward, keeper
+- `GLOSSARY.md` (new): the glossary this spec speaks — requirement, payout, flag reward, keeper
   costs, reward guards, liquidation window, capacity, endorsed keeper.
 - The natspec of `PerpsMarket.Data.liquidationData` names `Liquidation` as its owner; of
   `seizeCollateral`, the flag as its only caller (unchanged).
