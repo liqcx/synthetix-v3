@@ -1,0 +1,33 @@
+// Repo-local Renovate config — YOURS to edit (seeded once by `stack sync`, never overwritten).
+// Keep the canon preset in `extends`: it turns Renovate off for what `stack sync` moves.
+// Rules below were carried over from the former .github/dependabot.yml.
+{
+	$schema: 'https://docs.renovatebot.com/renovate-schema.json',
+	extends: ['config:recommended', 'github>alxwlw/stack//renovate/canon.json5#v1'],
+	packageRules: [
+		// Groups (later rules win, so the catch-all `other` comes first).
+		{ groupName: 'other', matchManagers: ['npm'] },
+		{ groupName: 'cannon', matchPackageNames: ['@usecannon/**', '/cannon/'] },
+		{ groupName: 'subgraph', matchPackageNames: ['@graphprotocol/**', 'matchstick'] },
+		{
+			groupName: 'tests',
+			matchPackageNames: ['/prettier/', '/eslint/', '/solhint/', '/lint/', '/sinon/', '/jest/'],
+		},
+		// Both sit on an `npm:` alias to the @alxwlw/cannon-* fork; the fork's version is moved by
+		// cannon-update.yml / `pnpm cannon:update`, never by the bot.
+		{ matchDepNames: ['@usecannon/builder', '@usecannon/cli'], enabled: false },
+		// Pinned on purpose (protocol and tooling compatibility).
+		{
+			matchPackageNames: [
+				'@openzeppelin/contracts',
+				'@ethersproject/**',
+				'ethers',
+				'chalk',
+				'node-fetch',
+				'forge-std',
+				'solc',
+			],
+			enabled: false,
+		},
+	],
+}

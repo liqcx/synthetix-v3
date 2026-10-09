@@ -14,8 +14,8 @@ catalogs:
       version: 10.9.2
   dev:
     '@alxwlw/stack':
-      specifier: 1.1.1
-      version: 1.1.1
+      specifier: 1.4.2
+      version: 1.4.2
   eth:
     '@ethersproject/abi':
       specifier: ^5.7.0
@@ -262,7 +262,7 @@ importers:
     devDependencies:
       '@alxwlw/stack':
         specifier: catalog:dev
-        version: 1.1.1
+        version: 1.4.2
       '@eslint/eslintrc':
         specifier: catalog:lint
         version: 3.3.5
@@ -1341,8 +1341,8 @@ packages:
     resolution: {integrity: sha512-rra/jtvc7Lfcp+X5//QEYksJBfhHoISl+qHkBPRlNT9W9ViUp3/z/kapCpkTxjve9nBWOiBUgvAYU3ak3LPvyQ==}
     hasBin: true
 
-  '@alxwlw/stack@1.1.1':
-    resolution: {integrity: sha512-zZ+4Q8i8yhpS+HY9pHrrSkufI2UFfwXNRijSk1zBd4Gso4303SAvdW18NjhULpc3CjEN5MYCmhc3cjw1HqIz9g==}
+  '@alxwlw/stack@1.4.2':
+    resolution: {integrity: sha512-97anMkfklk/kmKhrHu2A3XdT0xapDEL6jcgABsCZuD2Ef5KtuEA8+9JucuW5eW9zbePa0K2KLXTU0OpfIMaDxQ==}
     hasBin: true
 
   '@assemblyscript/loader@0.9.4':
@@ -9185,8 +9185,9 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@alxwlw/stack@1.1.1':
+  '@alxwlw/stack@1.4.2':
     dependencies:
+      json5: 2.2.3
       jsonc-parser: 3.3.1
       yaml: 2.9.1
 

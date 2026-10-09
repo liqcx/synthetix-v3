@@ -83,3 +83,7 @@ auxiliary/SpotMarketOracle/cannonfile.toml
 
 # Claude auto-memory — written by the harness, not hand-formatted.
 .claude/memory/
+
+# Canon files (alxwlw/stack): their format is set by the canon (oxfmt), not by this repo.
+renovate.json5
+.github/workflows/renovate.yml
