@@ -8,7 +8,7 @@
     "prettier": "prettier",
     "graph": "graph",
     "goldsky:base-sepolia-andromeda": "goldsky subgraph deploy perps-market-base-sepolia-andromeda/0.0.1 --path ./build/base-sepolia-andromeda",
-    "goldsky:megaeth-testnet-production": "goldsky subgraph deploy perps-market-megaeth-testnet/0.0.1 --path ./build/megaeth-testnet-production",
+    "goldsky:megaeth-testnet-production": "goldsky subgraph deploy perps-market-megaeth-testnet/0.0.3 --path ./build/megaeth-testnet-production",
     "goldsky:megaeth-testnet-staging": "goldsky subgraph deploy perps-market-megaeth-testnet-staging/0.0.1 --path ./build/megaeth-testnet-staging"
   },
   "devDependencies": {

@@ -13,9 +13,9 @@
   },
   "megaeth-testnet-production": {
     "network": "megaeth-testnet-v2",
-    "address": "0x330E5A387DFD403a71A81A368eC649b7c1be3AC9",
-    "startBlock": 12908909,
-    "cannonPackage": "snx-omnibus-megaeth-production:1-dev@andromeda"
+    "address": "0xb6318e9453DEBEB7bCed3Ea1AC9aD5a8234236ca",
+    "startBlock": 31815538,
+    "cannonPackage": "snx-omnibus-megaeth-production:3-dev@andromeda"
   },
   "megaeth-testnet-staging": {
     "network": "megaeth-testnet-v2",
