@@ -14,8 +14,8 @@ catalogs:
       version: 10.9.2
   dev:
     '@alxwlw/stack':
-      specifier: 1.1.1
-      version: 1.1.1
+      specifier: 1.4.2
+      version: 1.4.2
   eth:
     '@ethersproject/abi':
       specifier: ^5.7.0
@@ -262,7 +262,7 @@ importers:
     devDependencies:
       '@alxwlw/stack':
         specifier: catalog:dev
-        version: 1.1.1
+        version: 1.4.2
       '@eslint/eslintrc':
         specifier: catalog:lint
         version: 3.3.5
@@ -1341,8 +1341,8 @@ packages:
     resolution: {integrity: sha512-rra/jtvc7Lfcp+X5//QEYksJBfhHoISl+qHkBPRlNT9W9ViUp3/z/kapCpkTxjve9nBWOiBUgvAYU3ak3LPvyQ==}
     hasBin: true
 
-  '@alxwlw/stack@1.1.1':
-    resolution: {integrity: sha512-zZ+4Q8i8yhpS+HY9pHrrSkufI2UFfwXNRijSk1zBd4Gso4303SAvdW18NjhULpc3CjEN5MYCmhc3cjw1HqIz9g==}
+  '@alxwlw/stack@1.4.2':
+    resolution: {integrity: sha512-97anMkfklk/kmKhrHu2A3XdT0xapDEL6jcgABsCZuD2Ef5KtuEA8+9JucuW5eW9zbePa0K2KLXTU0OpfIMaDxQ==}
     hasBin: true
 
   '@assemblyscript/loader@0.9.4':
@@ -4243,7 +4243,7 @@ packages:
     resolution: {integrity: sha512-VWEI1+KJfz4Km//dadyvBBoBeSQ0MHTXPvr8UIXiLW6IanxvAV+DmlZAijZwAyggqGUfwQBeHf7tc9wzc1piSw==}
 
   eth-gas-reporter@https://codeload.github.com/dbeal-eth/eth-gas-reporter/tar.gz/1772400f123bb9ddda777170f53594205fffda87:
-    resolution: {gitHosted: true, tarball: https://codeload.github.com/dbeal-eth/eth-gas-reporter/tar.gz/1772400f123bb9ddda777170f53594205fffda87}
+    resolution: {gitHosted: true, integrity: sha512-lnT6ljNjFfiGIxi6C1RiYFip7tRjattLXyOFq7qjRJgk6CGip6C9+009vT67MbQD9fAyjDcLkUk723nBxm8iPg==, tarball: https://codeload.github.com/dbeal-eth/eth-gas-reporter/tar.gz/1772400f123bb9ddda777170f53594205fffda87}
     version: 0.2.24
     peerDependencies:
       '@codechecks/client': ^0.1.0
@@ -4320,7 +4320,7 @@ packages:
     deprecated: This library has been deprecated and usage is discouraged.
 
   ethereumjs-abi@https://codeload.github.com/ethereumjs/ethereumjs-abi/tar.gz/ee3994657fa7a427238e6ba92a84d0b529bbcde0:
-    resolution: {gitHosted: true, tarball: https://codeload.github.com/ethereumjs/ethereumjs-abi/tar.gz/ee3994657fa7a427238e6ba92a84d0b529bbcde0}
+    resolution: {gitHosted: true, integrity: sha512-FrSi2BTGFIea3wnaMg9eoSgkxttXUNUFWNVZAI3uFQ2cFIMuN2SsAXX+H2eebPpeQd5SPsLCfuJI3Fx52BQO4A==, tarball: https://codeload.github.com/ethereumjs/ethereumjs-abi/tar.gz/ee3994657fa7a427238e6ba92a84d0b529bbcde0}
     version: 0.6.8
 
   ethereumjs-account@2.0.5:
@@ -4629,7 +4629,7 @@ packages:
     resolution: {integrity: sha512-j0KLYPhm6zeac4lz3oJ3o65qvgQCcPubiyotZrXqEaG4hNagNYO8qdlUrX5vwqv9ohqeT/Z3j6+yW067yWWdUw==}
 
   forge-std@https://codeload.github.com/foundry-rs/forge-std/tar.gz/77041d2ce690e692d6e03cc812b57d1ddaa4d505:
-    resolution: {gitHosted: true, tarball: https://codeload.github.com/foundry-rs/forge-std/tar.gz/77041d2ce690e692d6e03cc812b57d1ddaa4d505}
+    resolution: {gitHosted: true, integrity: sha512-AGU8gagr4jpMjZH/XWQlHyX0RdsErn86kGy34EpQYo07olNUIzPlOvo+wVzoR1RqaI3HmXsrXNQJd2QQD5PtjQ==, tarball: https://codeload.github.com/foundry-rs/forge-std/tar.gz/77041d2ce690e692d6e03cc812b57d1ddaa4d505}
     version: 1.9.7
 
   form-data-encoder@2.1.4:
@@ -9185,8 +9185,9 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@alxwlw/stack@1.1.1':
+  '@alxwlw/stack@1.4.2':
     dependencies:
+      json5: 2.2.3
       jsonc-parser: 3.3.1
       yaml: 2.9.1
 
