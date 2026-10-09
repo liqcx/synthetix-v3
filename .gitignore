@@ -6,7 +6,7 @@
 .worktrees
 .claude/*
 !.claude/skills/
-!.claude/memory/
+# .claude/memory — локальная память сессий, не в git (публичный репо)
 **/coverage*
 **/deployments
 /**/test/generated
